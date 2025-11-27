@@ -2,7 +2,8 @@
 
 ## Program Structure
 ```basic
-' Comments
+' BASIC comment
+# IC10 comment (also valid)
 ALIAS device d0
 DEFINE CONST 123
 VAR variable = 0
@@ -127,6 +128,12 @@ PEEK variable   ' Read top without pop
 | Ctrl+S | Save |
 | Ctrl+F | Find |
 | Ctrl+Space | Autocomplete |
+
+## Bidirectional Editing
+- IC10 panel is now **editable**
+- **"To BASIC"** button decompiles IC10
+- Both `'` and `#` comments work in BASIC editor
+- Auto-detects BASIC vs IC10 code
 
 ## Temperature Conversions
 ```basic

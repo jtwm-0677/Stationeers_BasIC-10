@@ -88,6 +88,24 @@ angle = SolarAngle  ' Get current sun position
 - The compiled IC10 assembly uses `#` for comments (added by the compiler for debug info)
 - IC10 MIPS only recognizes `#` as the comment character - never use `'` or `REM` in raw IC10 code
 
+### Hybrid Mode Comments
+
+The BASIC editor also accepts IC10-style `#` comments for hybrid mode:
+
+```basic
+' BASIC comment
+REM Also a BASIC comment
+# IC10-style comment (also valid in BASIC editor)
+
+VAR x = 10  ' inline BASIC comment
+VAR y = 20  # inline IC10-style comment (works too)
+```
+
+This allows you to:
+- Paste IC10 code with `#` comments into the BASIC editor
+- Mix both comment styles in hybrid code
+- Maintain IC10 comments when editing decompiled code
+
 ---
 
 ## Variables and Constants

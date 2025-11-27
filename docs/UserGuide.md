@@ -6,11 +6,12 @@
 3. [Interface Overview](#interface-overview)
 4. [Writing Your First Program](#writing-your-first-program)
 5. [Compiling and Deploying](#compiling-and-deploying)
-6. [Using the Simulator](#using-the-simulator)
-7. [Device Hash Database](#device-hash-database)
-8. [Settings and Customization](#settings-and-customization)
-9. [Keyboard Shortcuts](#keyboard-shortcuts)
-10. [Troubleshooting](#troubleshooting)
+6. [Bidirectional Editing](#bidirectional-editing)
+7. [Using the Simulator](#using-the-simulator)
+8. [Device Hash Database](#device-hash-database)
+9. [Settings and Customization](#settings-and-customization)
+10. [Keyboard Shortcuts](#keyboard-shortcuts)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,6 +32,8 @@ The BASIC to IC10 Compiler is a professional development environment for creatin
 - Modern dark/light themed IDE
 - Real-time syntax highlighting
 - Auto-complete for keywords, functions, and device properties
+- **Bidirectional editing**: Edit BASIC or IC10, with decompiler support
+- **Hybrid mode**: Mix BASIC and IC10 syntax in the same file
 - Step-through IC10 simulator with debugging
 - Device hash database with search
 - Direct deployment to Stationeers
@@ -219,6 +222,62 @@ The IC10 panel shows:
 2. Click "Import" in the IC editor
 3. Select your .ic10 file from the scripts folder
 4. The code is now loaded into the chip
+
+---
+
+## Bidirectional Editing
+
+Both the BASIC editor (top) and IC10 editor (bottom) are fully editable, allowing flexible workflows.
+
+### Editing IC10 Directly
+
+The IC10 output panel is no longer read-only. You can:
+- Edit the generated IC10 code directly
+- Paste IC10 code from other sources
+- Make quick manual optimizations
+
+### Decompiling IC10 to BASIC
+
+Click the **"To BASIC"** button in the IC10 panel header to convert IC10 code back to BASIC:
+1. Edit or paste IC10 code in the bottom panel
+2. Click "To BASIC" button
+3. Confirm to replace BASIC source
+4. The decompiled BASIC appears in the top editor
+
+Note: Decompilation produces functional but simplified BASIC. Comments and some high-level constructs may not be perfectly reconstructed.
+
+### Language Detection
+
+The compiler automatically detects whether your code is BASIC or IC10:
+- **BASIC detected**: Code is compiled to IC10
+- **IC10 detected**: Code passes through with validation (status shows "IC10 passthrough")
+
+Detection is based on syntax patterns:
+- BASIC indicators: `'` comments, `IF...THEN`, `ENDIF`, `GOSUB`, `WEND`
+- IC10 indicators: `#` comments, register references (`r0-r15`), MIPS instructions
+
+### Hybrid Mode
+
+You can mix BASIC and IC10 syntax in the source editor:
+
+```basic
+' This is a BASIC comment
+# This is an IC10 comment (also valid)
+
+ALIAS sensor d0
+
+main:
+    VAR temp = sensor.Temperature   ' BASIC syntax
+
+    ' You can use IC10 instructions too:
+    # move r0 100
+
+    YIELD
+    GOTO main
+END
+```
+
+Both `'` and `#` comments are supported in the BASIC editor for flexibility.
 
 ---
 
