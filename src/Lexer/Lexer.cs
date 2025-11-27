@@ -116,6 +116,7 @@ public class Lexer
             ',' => new Token(TokenType.Comma, ",", startLine, startColumn),
             ':' => new Token(TokenType.Colon, ":", startLine, startColumn),
             ';' => new Token(TokenType.Semicolon, ";", startLine, startColumn),
+            '.' => new Token(TokenType.Dot, ".", startLine, startColumn),
             '=' => new Token(TokenType.Equal, "=", startLine, startColumn),
             '<' => ScanLessThan(startLine, startColumn),
             '>' => ScanGreaterThan(startLine, startColumn),

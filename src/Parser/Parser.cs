@@ -637,11 +637,124 @@ public class Parser
         var nameToken = Expect(TokenType.Identifier, "Expected alias name");
         stmt.AliasName = nameToken.Value;
 
-        // Parse device specification (e.g., d0, db)
-        var deviceToken = Expect(TokenType.Identifier, "Expected device specifier");
-        stmt.DeviceSpec = deviceToken.Value;
+        // Optional '=' sign
+        if (Check(TokenType.Equal))
+        {
+            Advance();
+        }
+
+        // Check for advanced device reference syntax: IC.Device, IC.Pin, IC.ID, IC.Port
+        if (Check(TokenType.Identifier) && Current().Value.Equals("IC", StringComparison.OrdinalIgnoreCase))
+        {
+            stmt.DeviceReference = ParseDeviceReference();
+        }
+        else
+        {
+            // Simple device specification (e.g., d0, db, Pin0)
+            var deviceToken = Expect(TokenType.Identifier, "Expected device specifier");
+            stmt.DeviceSpec = deviceToken.Value;
+        }
 
         return stmt;
+    }
+
+    private DeviceReference ParseDeviceReference()
+    {
+        var reference = new DeviceReference();
+
+        Advance(); // Consume 'IC'
+        Expect(TokenType.Dot, "Expected '.' after IC");
+
+        var typeToken = Expect(TokenType.Identifier, "Expected Pin, Device, ID, or Port");
+        var refType = typeToken.Value.ToUpperInvariant();
+
+        switch (refType)
+        {
+            case "PIN":
+                reference.Type = DeviceReferenceType.Pin;
+                Expect(TokenType.LeftBracket, "Expected '[' after Pin");
+                var pinIndexToken = Expect(TokenType.Number, "Expected pin number");
+                reference.PinIndex = (int)double.Parse(pinIndexToken.Value);
+                Expect(TokenType.RightBracket, "Expected ']'");
+
+                // Check for .Port[n].Channel[m] suffix
+                if (Check(TokenType.Dot))
+                {
+                    Advance();
+                    if (Check(TokenType.Identifier) && Current().Value.Equals("Port", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Advance();
+                        reference.HasPort = true;
+                        Expect(TokenType.LeftBracket, "Expected '[' after Port");
+                        var portToken = Expect(TokenType.Number, "Expected port number");
+                        reference.PortIndex = (int)double.Parse(portToken.Value);
+                        Expect(TokenType.RightBracket, "Expected ']'");
+
+                        Expect(TokenType.Dot, "Expected '.' after Port[n]");
+                        var channelKw = Expect(TokenType.Identifier, "Expected 'Channel'");
+                        if (!channelKw.Value.Equals("Channel", StringComparison.OrdinalIgnoreCase))
+                            throw new ParserException("Expected 'Channel'", channelKw.Line, channelKw.Column);
+                        Expect(TokenType.LeftBracket, "Expected '[' after Channel");
+                        var channelToken = Expect(TokenType.Number, "Expected channel number");
+                        reference.ChannelIndex = (int)double.Parse(channelToken.Value);
+                        Expect(TokenType.RightBracket, "Expected ']'");
+                        reference.Type = DeviceReferenceType.Channel;
+                    }
+                }
+                break;
+
+            case "DEVICE":
+                Expect(TokenType.LeftBracket, "Expected '[' after Device");
+                reference.DeviceHash = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+                reference.Type = DeviceReferenceType.Device;
+
+                // Check for .Name["deviceName"] suffix
+                if (Check(TokenType.Dot))
+                {
+                    Advance();
+                    if (Check(TokenType.Identifier) && Current().Value.Equals("Name", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Advance();
+                        Expect(TokenType.LeftBracket, "Expected '[' after Name");
+                        var deviceNameToken = Expect(TokenType.String, "Expected device name string");
+                        reference.DeviceName = deviceNameToken.Value;
+                        Expect(TokenType.RightBracket, "Expected ']'");
+                        reference.Type = DeviceReferenceType.DeviceNamed;
+                    }
+                }
+                break;
+
+            case "ID":
+                reference.Type = DeviceReferenceType.ReferenceId;
+                Expect(TokenType.LeftBracket, "Expected '[' after ID");
+                var refIdToken = Expect(TokenType.Number, "Expected reference ID");
+                reference.ReferenceId = (long)double.Parse(refIdToken.Value);
+                Expect(TokenType.RightBracket, "Expected ']'");
+                break;
+
+            case "PORT":
+                reference.Type = DeviceReferenceType.Channel;
+                Expect(TokenType.LeftBracket, "Expected '[' after Port");
+                var portNumToken = Expect(TokenType.Number, "Expected port number");
+                reference.PortIndex = (int)double.Parse(portNumToken.Value);
+                Expect(TokenType.RightBracket, "Expected ']'");
+
+                Expect(TokenType.Dot, "Expected '.' after Port[n]");
+                var chanKw = Expect(TokenType.Identifier, "Expected 'Channel'");
+                if (!chanKw.Value.Equals("Channel", StringComparison.OrdinalIgnoreCase))
+                    throw new ParserException("Expected 'Channel'", chanKw.Line, chanKw.Column);
+                Expect(TokenType.LeftBracket, "Expected '[' after Channel");
+                var chanNumToken = Expect(TokenType.Number, "Expected channel number");
+                reference.ChannelIndex = (int)double.Parse(chanNumToken.Value);
+                Expect(TokenType.RightBracket, "Expected ']'");
+                break;
+
+            default:
+                throw new ParserException($"Unknown IC reference type: {refType}", typeToken.Line, typeToken.Column);
+        }
+
+        return reference;
     }
 
     private DefineStatement ParseDefineStatement()

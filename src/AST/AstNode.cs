@@ -148,7 +148,49 @@ public class YieldStatement : StatementNode { }
 public class AliasStatement : StatementNode
 {
     public string AliasName { get; set; } = "";
-    public string DeviceSpec { get; set; } = "";
+    public string DeviceSpec { get; set; } = "";  // Simple d0-d5, db reference
+    public DeviceReference? DeviceReference { get; set; }  // Advanced IC.Device/IC.ID/IC.Port reference
+}
+
+/// <summary>
+/// Represents advanced device reference types:
+/// - IC.Pin[n] - Direct pin reference (same as d0-d5)
+/// - IC.Device[hash] - Batch reference by device type hash
+/// - IC.Device[hash].Name["name"] - Named device reference (bypasses 6-pin limit)
+/// - IC.ID[refId] - Reference by device Reference ID
+/// - IC.Port[n].Channel[m] - Channel-based communication
+/// </summary>
+public class DeviceReference
+{
+    public DeviceReferenceType Type { get; set; }
+
+    // For IC.Pin[n] - the pin number (0-5)
+    public int? PinIndex { get; set; }
+
+    // For IC.Device[hash] - the device type hash (number or string like "StructureGasSensor")
+    public ExpressionNode? DeviceHash { get; set; }
+
+    // For IC.Device[hash].Name["name"] - the device name for named reference
+    public string? DeviceName { get; set; }
+
+    // For IC.ID[refId] - the Reference ID from configuration card
+    public long? ReferenceId { get; set; }
+
+    // For IC.Port[n].Channel[m] - port and channel numbers
+    public int? PortIndex { get; set; }
+    public int? ChannelIndex { get; set; }
+
+    // For IC.Pin[n].Port[m].Channel[c] - pin with port/channel
+    public bool HasPort { get; set; }
+}
+
+public enum DeviceReferenceType
+{
+    Pin,           // IC.Pin[n] or simple d0-d5
+    Device,        // IC.Device[hash] - batch operations
+    DeviceNamed,   // IC.Device[hash].Name["name"] - named device (key feature!)
+    ReferenceId,   // IC.ID[refId]
+    Channel        // IC.Port[n].Channel[m] or IC.Pin[n].Port[m].Channel[c]
 }
 
 public class DefineStatement : StatementNode

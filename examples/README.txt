@@ -33,6 +33,7 @@ ADVANCED EXAMPLES
   10_greenhouse.bas         - Multi-system plant growth control
   11_batch_solar_array.bas  - Batch operations for device arrays
   12_base_status_monitor.bas - Comprehensive base monitoring
+  16_named_devices.bas      - Named device reference (bypass 6-pin limit!)
 
 
 ================================================================================
@@ -481,6 +482,48 @@ TIPS FOR WRITING PROGRAMS
 7. DOCUMENT YOUR CODE
    Use comments (') to explain logic. They're stripped during
    compilation so they don't count toward line limit.
+
+
+================================================================================
+NAMED DEVICE REFERENCE (BYPASS 6-PIN LIMIT!)
+================================================================================
+
+IC10 chips only have 6 device pins (d0-d5). Named device references let you
+control UNLIMITED devices from a single IC10 chip!
+
+SETUP:
+1. Place devices and connect them to the same data network
+2. Use a Labeler tool to give each device a unique name
+3. Reference devices by name in your code
+
+SYNTAX:
+    ALIAS name = IC.Device["DeviceType"].Name["Device Label"]
+
+EXAMPLE:
+    ' Reference sensors by their labels
+    ALIAS room1_sensor = IC.Device["StructureGasSensor"].Name["Room 1 Sensor"]
+    ALIAS room2_sensor = IC.Device["StructureGasSensor"].Name["Room 2 Sensor"]
+
+    ' Reference heaters by their labels
+    ALIAS room1_heater = IC.Device["StructureWallHeater"].Name["Room 1 Heater"]
+    ALIAS room2_heater = IC.Device["StructureWallHeater"].Name["Room 2 Heater"]
+
+    ' Use them like normal devices
+    temp = room1_sensor.Temperature
+    room1_heater.On = 1
+
+DEVICE TYPE NAMES (common):
+    StructureGasSensor       - Gas sensors
+    StructureWallHeater      - Wall heaters
+    StructureWallCooler      - Wall coolers
+    StructureWallLight       - Wall lights
+    StructureVolumePump      - Volume pumps
+    StructureActiveVent      - Active vents
+    StructureSolarPanel      - Solar panels
+
+Find more device types in the Device Hash Database (F4)
+
+SEE: 16_named_devices.bas for a complete example
 
 
 ================================================================================
