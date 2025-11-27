@@ -28,21 +28,21 @@
 ' ============================================
 
 ' --- NAMED DEVICE REFERENCES ---
-' Sensors (all StructureGasSensor type)
-ALIAS livingRoomSensor = IC.Device["StructureGasSensor"].Name["Living Room Sensor"]
-ALIAS bedroomSensor = IC.Device["StructureGasSensor"].Name["Bedroom Sensor"]
-ALIAS kitchenSensor = IC.Device["StructureGasSensor"].Name["Kitchen Sensor"]
-ALIAS bathroomSensor = IC.Device["StructureGasSensor"].Name["Bathroom Sensor"]
+' Sensors (all ItemStructureGasSensor type)
+ALIAS livingRoomSensor = IC.Device["ItemStructureGasSensor"].Name["Living Room Sensor"]
+ALIAS bedroomSensor = IC.Device["ItemStructureGasSensor"].Name["Bedroom Sensor"]
+ALIAS kitchenSensor = IC.Device["ItemStructureGasSensor"].Name["Kitchen Sensor"]
+ALIAS bathroomSensor = IC.Device["ItemStructureGasSensor"].Name["Bathroom Sensor"]
 
-' Heaters (all StructureWallHeater type)
-ALIAS livingRoomHeater = IC.Device["StructureWallHeater"].Name["Living Room Heater"]
-ALIAS bedroomHeater = IC.Device["StructureWallHeater"].Name["Bedroom Heater"]
-ALIAS kitchenHeater = IC.Device["StructureWallHeater"].Name["Kitchen Heater"]
-ALIAS bathroomHeater = IC.Device["StructureWallHeater"].Name["Bathroom Heater"]
+' Heaters (all ItemStructureWallHeater type)
+ALIAS livingRoomHeater = IC.Device["ItemStructureWallHeater"].Name["Living Room Heater"]
+ALIAS bedroomHeater = IC.Device["ItemStructureWallHeater"].Name["Bedroom Heater"]
+ALIAS kitchenHeater = IC.Device["ItemStructureWallHeater"].Name["Kitchen Heater"]
+ALIAS bathroomHeater = IC.Device["ItemStructureWallHeater"].Name["Bathroom Heater"]
 
-' Status lights
-ALIAS livingRoomLight = IC.Device["StructureWallLight"].Name["Living Room Status"]
-ALIAS bedroomLight = IC.Device["StructureWallLight"].Name["Bedroom Status"]
+' Status lights (all ItemStructureWallLight type)
+ALIAS livingRoomLight = IC.Device["ItemStructureWallLight"].Name["Living Room Status"]
+ALIAS bedroomLight = IC.Device["ItemStructureWallLight"].Name["Bedroom Status"]
 
 ' Constants
 DEFINE TARGET_TEMP 293.15   ' 20°C in Kelvin
