@@ -555,3 +555,44 @@ TOOLS:
 
 
 ================================================================================
+CUSTOM DEVICE DATABASE (EXTENSIBLE)
+================================================================================
+
+The Device Hash Database can be extended with custom JSON files. This allows
+you to add new devices from game updates without waiting for compiler updates.
+
+CUSTOM DEVICE LOCATIONS (checked in order):
+1. CustomDevices.json in the compiler's folder
+2. Any .json file in the CustomDevices/ subfolder
+3. Documents/BASIC-IC10/CustomDevices/*.json
+
+JSON FILE FORMAT:
+-----------------
+{
+  "devices": [
+    {
+      "prefabName": "StructureMyDevice",
+      "category": "Custom",
+      "displayName": "My Device",
+      "description": "Description here"
+    }
+  ],
+  "logicTypes": [
+    {
+      "name": "NewProperty",
+      "displayName": "New Property",
+      "description": "A new logic property"
+    }
+  ]
+}
+
+See Data/CustomDevices.template.json for a complete example with comments.
+
+AFTER ADDING FILES:
+- Use Tools > Reload Custom Devices
+- Or restart the compiler
+
+The Device Hash Database (F4) will show custom devices after reload.
+
+
+================================================================================

@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace BasicToMips.Data;
 
 public class DeviceDatabase
@@ -8,6 +11,19 @@ public class DeviceDatabase
     public static List<BatchMode> BatchModes { get; } = new();
     public static List<ReagentMode> ReagentModes { get; } = new();
 
+    private static readonly List<string> _loadedFiles = new();
+    private static string? _lastLoadError;
+
+    /// <summary>
+    /// Gets the list of successfully loaded custom device files.
+    /// </summary>
+    public static IReadOnlyList<string> LoadedCustomFiles => _loadedFiles.AsReadOnly();
+
+    /// <summary>
+    /// Gets the last error message from loading custom devices, if any.
+    /// </summary>
+    public static string? LastLoadError => _lastLoadError;
+
     static DeviceDatabase()
     {
         InitializeDevices();
@@ -15,6 +31,204 @@ public class DeviceDatabase
         InitializeSlotLogicTypes();
         InitializeBatchModes();
         InitializeReagentModes();
+
+        // Load custom devices from JSON files
+        LoadCustomDevicesFromDefaultLocations();
+    }
+
+    /// <summary>
+    /// Loads custom devices from default locations:
+    /// 1. CustomDevices.json in application directory
+    /// 2. All .json files in CustomDevices/ subdirectory
+    /// </summary>
+    private static void LoadCustomDevicesFromDefaultLocations()
+    {
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // Try loading CustomDevices.json from app directory
+        var mainFile = Path.Combine(appDir, "CustomDevices.json");
+        if (File.Exists(mainFile))
+        {
+            LoadCustomDevicesFromFile(mainFile);
+        }
+
+        // Try loading all .json files from CustomDevices/ subdirectory
+        var customDir = Path.Combine(appDir, "CustomDevices");
+        if (Directory.Exists(customDir))
+        {
+            foreach (var file in Directory.GetFiles(customDir, "*.json"))
+            {
+                LoadCustomDevicesFromFile(file);
+            }
+        }
+
+        // Also check user's Documents folder for portability
+        var docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var userCustomDir = Path.Combine(docsDir, "BASIC-IC10", "CustomDevices");
+        if (Directory.Exists(userCustomDir))
+        {
+            foreach (var file in Directory.GetFiles(userCustomDir, "*.json"))
+            {
+                LoadCustomDevicesFromFile(file);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Loads custom devices, logic types, and slot types from a JSON file.
+    /// </summary>
+    /// <param name="filePath">Path to the JSON file</param>
+    /// <returns>True if loaded successfully, false otherwise</returns>
+    public static bool LoadCustomDevicesFromFile(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                _lastLoadError = $"File not found: {filePath}";
+                return false;
+            }
+
+            var json = File.ReadAllText(filePath);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
+            var customData = JsonSerializer.Deserialize<CustomDeviceData>(json, options);
+            if (customData == null)
+            {
+                _lastLoadError = $"Failed to parse JSON: {filePath}";
+                return false;
+            }
+
+            int addedCount = 0;
+
+            // Add custom devices
+            if (customData.Devices != null)
+            {
+                foreach (var device in customData.Devices)
+                {
+                    // Skip duplicates (by PrefabName)
+                    if (Devices.Any(d => d.PrefabName == device.PrefabName))
+                        continue;
+
+                    var info = new DeviceInfo(
+                        device.PrefabName,
+                        device.Category ?? "Custom",
+                        device.DisplayName ?? device.PrefabName,
+                        device.Description ?? ""
+                    );
+                    info.Hash = CalculateHash(device.PrefabName);
+                    Devices.Add(info);
+                    addedCount++;
+                }
+            }
+
+            // Add custom logic types
+            if (customData.LogicTypes != null)
+            {
+                foreach (var lt in customData.LogicTypes)
+                {
+                    if (LogicTypes.Any(l => l.Name == lt.Name))
+                        continue;
+
+                    var info = new LogicType(
+                        lt.Name,
+                        lt.DisplayName ?? lt.Name,
+                        lt.Description ?? ""
+                    );
+                    info.Hash = CalculateHash(lt.Name);
+                    LogicTypes.Add(info);
+                    addedCount++;
+                }
+            }
+
+            // Add custom slot logic types
+            if (customData.SlotLogicTypes != null)
+            {
+                foreach (var slt in customData.SlotLogicTypes)
+                {
+                    if (SlotLogicTypes.Any(s => s.Name == slt.Name))
+                        continue;
+
+                    var info = new SlotLogicType(
+                        slt.Name,
+                        slt.DisplayName ?? slt.Name,
+                        slt.Description ?? ""
+                    );
+                    info.Hash = CalculateHash(slt.Name);
+                    SlotLogicTypes.Add(info);
+                    addedCount++;
+                }
+            }
+
+            _loadedFiles.Add(filePath);
+            _lastLoadError = null;
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            _lastLoadError = $"JSON parse error in {filePath}: {ex.Message}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _lastLoadError = $"Error loading {filePath}: {ex.Message}";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reloads all custom devices from default locations.
+    /// Call this after adding new JSON files at runtime.
+    /// </summary>
+    public static void ReloadCustomDevices()
+    {
+        // Remove all custom-loaded devices (keep built-in ones)
+        // This is a simplified approach - for now just reload from files
+        _loadedFiles.Clear();
+        LoadCustomDevicesFromDefaultLocations();
+    }
+
+    /// <summary>
+    /// Exports the current built-in devices to a JSON file as a template.
+    /// </summary>
+    public static void ExportDevicesToJson(string filePath)
+    {
+        var data = new CustomDeviceData
+        {
+            Devices = Devices.Select(d => new CustomDeviceEntry
+            {
+                PrefabName = d.PrefabName,
+                Category = d.Category,
+                DisplayName = d.DisplayName,
+                Description = d.Description
+            }).ToList(),
+            LogicTypes = LogicTypes.Select(l => new CustomLogicTypeEntry
+            {
+                Name = l.Name,
+                DisplayName = l.DisplayName,
+                Description = l.Description
+            }).ToList(),
+            SlotLogicTypes = SlotLogicTypes.Select(s => new CustomSlotLogicTypeEntry
+            {
+                Name = s.Name,
+                DisplayName = s.DisplayName,
+                Description = s.Description
+            }).ToList()
+        };
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        var json = JsonSerializer.Serialize(data, options);
+        File.WriteAllText(filePath, json);
     }
 
     private static void InitializeDevices()
@@ -376,4 +590,34 @@ public class ReagentMode
         Value = value;
         Description = description;
     }
+}
+
+// JSON serialization models for custom device loading
+public class CustomDeviceData
+{
+    public List<CustomDeviceEntry>? Devices { get; set; }
+    public List<CustomLogicTypeEntry>? LogicTypes { get; set; }
+    public List<CustomSlotLogicTypeEntry>? SlotLogicTypes { get; set; }
+}
+
+public class CustomDeviceEntry
+{
+    public string PrefabName { get; set; } = "";
+    public string? Category { get; set; }
+    public string? DisplayName { get; set; }
+    public string? Description { get; set; }
+}
+
+public class CustomLogicTypeEntry
+{
+    public string Name { get; set; } = "";
+    public string? DisplayName { get; set; }
+    public string? Description { get; set; }
+}
+
+public class CustomSlotLogicTypeEntry
+{
+    public string Name { get; set; } = "";
+    public string? DisplayName { get; set; }
+    public string? Description { get; set; }
 }

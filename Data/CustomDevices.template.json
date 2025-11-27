@@ -1,0 +1,71 @@
+{
+  // CUSTOM DEVICES TEMPLATE FOR BASIC-IC10 COMPILER
+  // ================================================
+  //
+  // Copy this file to one of these locations:
+  //   1. Same folder as the compiler executable as "CustomDevices.json"
+  //   2. A "CustomDevices" subfolder (any .json filename)
+  //   3. Documents/BASIC-IC10/CustomDevices/ folder
+  //
+  // The compiler will automatically load all custom devices on startup.
+  // Use Tools > Reload Custom Devices (or restart) to reload after changes.
+  //
+  // FINDING DEVICE PREFAB NAMES:
+  //   - In-game Stationpedia shows PrefabHash for each item
+  //   - Use "Structure*" prefix for placed structures (not "ItemStructure*")
+  //   - ItemStructure* is for items in inventory, Structure* is for built structures
+  //
+  // EXAMPLE: To find the prefab name for a "Wall Heater":
+  //   1. Open Stationpedia in-game
+  //   2. Search for "Wall Heater"
+  //   3. Look at the PrefabHash line - it will show the prefab name
+  //   4. For placed structures, use "StructureWallHeater" (not "ItemStructureWallHeater")
+
+  "devices": [
+    // Example: Add new devices from game updates here
+    {
+      "prefabName": "StructureSmallVendingMachine",
+      "category": "Storage",
+      "displayName": "Small Vending Machine",
+      "description": "Compact 12-slot vending machine"
+    },
+    {
+      "prefabName": "StructureLaunchPad",
+      "category": "Rocket",
+      "displayName": "Launch Pad",
+      "description": "Rocket launch platform"
+    },
+    {
+      "prefabName": "StructureRocketEngine",
+      "category": "Rocket",
+      "displayName": "Rocket Engine",
+      "description": "Propulsion for rockets"
+    }
+    // Add more devices as needed...
+  ],
+
+  "logicTypes": [
+    // Example: Add new logic properties from game updates
+    {
+      "name": "Thrust",
+      "displayName": "Thrust Output",
+      "description": "Current thrust level for rocket engines"
+    },
+    {
+      "name": "Throttle",
+      "displayName": "Throttle Setting",
+      "description": "Engine throttle 0-100"
+    }
+    // Add more logic types as needed...
+  ],
+
+  "slotLogicTypes": [
+    // Example: Add new slot properties from game updates
+    {
+      "name": "FilterType",
+      "displayName": "Filter Type",
+      "description": "Gas filter selection"
+    }
+    // Add more slot logic types as needed...
+  ]
+}

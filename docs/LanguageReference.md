@@ -1276,3 +1276,68 @@ END
 2. Use hysteresis to prevent oscillation
 3. Include error handling where possible
 4. Test with the simulator before deploying
+
+---
+
+## Extensible Device Database
+
+The Device Hash Database can be extended with custom JSON files. This allows you to add new devices from Stationeers game updates without waiting for compiler updates.
+
+### Custom Device File Locations
+
+The compiler checks these locations (in order):
+
+1. `CustomDevices.json` in the compiler's folder
+2. Any `.json` file in the `CustomDevices/` subfolder
+3. `Documents/BASIC-IC10/CustomDevices/*.json`
+
+### JSON File Format
+
+```json
+{
+  "devices": [
+    {
+      "prefabName": "StructureMyDevice",
+      "category": "Custom",
+      "displayName": "My Device",
+      "description": "Description of the device"
+    }
+  ],
+  "logicTypes": [
+    {
+      "name": "NewProperty",
+      "displayName": "New Property",
+      "description": "A new logic property"
+    }
+  ],
+  "slotLogicTypes": [
+    {
+      "name": "NewSlotProperty",
+      "displayName": "New Slot Property",
+      "description": "A new slot logic property"
+    }
+  ]
+}
+```
+
+### Important Notes
+
+- Use `Structure*` prefix for placed structures (not `ItemStructure*`)
+- `ItemStructure*` is for items in inventory
+- `Structure*` is for built/placed structures that IC10 can address
+- Prefab names and hashes can be found in the in-game Stationpedia
+
+### Finding Prefab Names
+
+1. Open the Stationpedia in-game
+2. Search for the device
+3. Look at the PrefabHash line for the prefab name
+4. For placed structures, use the name without "Item" prefix
+
+### Reloading Custom Devices
+
+After adding or modifying JSON files:
+- Use **Tools > Reload Custom Devices** in the compiler
+- Or restart the application
+
+Custom devices will appear in the Device Hash Database (F4) after reload.
