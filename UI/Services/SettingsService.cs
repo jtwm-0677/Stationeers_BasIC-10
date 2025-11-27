@@ -14,6 +14,7 @@ public class SettingsService
     public double FontSize { get; set; } = 14;
     public bool WordWrap { get; set; } = false;
     public int OptimizationLevel { get; set; } = 1;
+    public string Theme { get; set; } = "Dark"; // "Dark" or "Light"
 
     public SettingsService()
     {
@@ -40,6 +41,7 @@ public class SettingsService
                     FontSize = settings.FontSize > 0 ? settings.FontSize : 14;
                     WordWrap = settings.WordWrap;
                     OptimizationLevel = settings.OptimizationLevel;
+                    Theme = settings.Theme ?? "Dark";
                 }
             }
         }
@@ -61,7 +63,8 @@ public class SettingsService
                 RecentFiles = RecentFiles,
                 FontSize = FontSize,
                 WordWrap = WordWrap,
-                OptimizationLevel = OptimizationLevel
+                OptimizationLevel = OptimizationLevel,
+                Theme = Theme
             };
 
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -93,5 +96,6 @@ public class SettingsService
         public double FontSize { get; set; }
         public bool WordWrap { get; set; }
         public int OptimizationLevel { get; set; }
+        public string? Theme { get; set; }
     }
 }
