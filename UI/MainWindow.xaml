@@ -1,0 +1,383 @@
+<Window x:Class="BasicToMips.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avalon="http://icsharpcode.net/sharpdevelop/avalonedit"
+        xmlns:local="clr-namespace:BasicToMips.UI"
+        Title="BASIC to IC10 Compiler - Stationeers"
+        Height="900" Width="1400"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Style="{StaticResource MainWindowStyle}"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewFileCommand}"/>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenFileCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveFileCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsCommand}"/>
+        <KeyBinding Key="F5" Command="{Binding CompileCommand}"/>
+        <KeyBinding Key="F1" Command="{Binding ShowHelpCommand}"/>
+        <KeyBinding Key="Space" Modifiers="Control" Command="{Binding TriggerAutocompleteCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Menu Bar -->
+        <Menu Grid.Row="0" Background="{StaticResource SecondaryBackgroundBrush}">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" InputGestureText="Ctrl+N" Click="NewFile_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Open..." InputGestureText="Ctrl+O" Click="OpenFile_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Save" InputGestureText="Ctrl+S" Click="SaveFile_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Save _As..." InputGestureText="Ctrl+Shift+S" Click="SaveFileAs_Click"/>
+                <MenuItem Header="_Export IC10..." Click="ExportIC10_Click"/>
+                <Separator/>
+                <MenuItem Header="Recent Files" x:Name="RecentFilesMenu"/>
+                <Separator/>
+                <MenuItem Header="E_xit" InputGestureText="Alt+F4" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Click="Undo_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" Click="Redo_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Cu_t" InputGestureText="Ctrl+X" Click="Cut_Click"/>
+                <MenuItem Header="_Copy" InputGestureText="Ctrl+C" Click="Copy_Click"/>
+                <MenuItem Header="_Paste" InputGestureText="Ctrl+V" Click="Paste_Click"/>
+                <Separator/>
+                <MenuItem Header="_Find..." InputGestureText="Ctrl+F" Click="Find_Click"/>
+                <MenuItem Header="_Replace..." InputGestureText="Ctrl+H" Click="Replace_Click"/>
+                <Separator/>
+                <MenuItem Header="Insert _Snippet" x:Name="SnippetsMenu"/>
+            </MenuItem>
+            <MenuItem Header="_Build">
+                <MenuItem Header="_Compile" InputGestureText="F5" Click="Compile_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource SuccessBrush}"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Compile and _Copy IC10" InputGestureText="F6" Click="CompileAndCopy_Click"/>
+                <Separator/>
+                <MenuItem Header="_Optimization Level">
+                    <MenuItem Header="None (Fastest compile)" x:Name="OptNone" IsCheckable="True" Click="OptLevel_Click"/>
+                    <MenuItem Header="Basic (Recommended)" x:Name="OptBasic" IsCheckable="True" IsChecked="True" Click="OptLevel_Click"/>
+                    <MenuItem Header="Aggressive (Smallest output)" x:Name="OptAggressive" IsCheckable="True" Click="OptLevel_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Auto-compile on _Save" x:Name="AutoCompileMenu" IsCheckable="True" IsChecked="True"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Show _Documentation Panel" x:Name="ShowDocsMenu" IsCheckable="True" IsChecked="True" Click="ToggleDocs_Click"/>
+                <MenuItem Header="Show _Line Numbers" x:Name="ShowLineNumbersMenu" IsCheckable="True" IsChecked="True" Click="ToggleLineNumbers_Click"/>
+                <MenuItem Header="Word _Wrap" x:Name="WordWrapMenu" IsCheckable="True" Click="ToggleWordWrap_Click"/>
+                <Separator/>
+                <MenuItem Header="_Zoom In" InputGestureText="Ctrl++" Click="ZoomIn_Click"/>
+                <MenuItem Header="Zoom _Out" InputGestureText="Ctrl+-" Click="ZoomOut_Click"/>
+                <MenuItem Header="_Reset Zoom" Click="ZoomReset_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Settings..." Click="Settings_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Set _Stationeers Directory..." Click="SetStationeersDir_Click"/>
+                <MenuItem Header="_Open Stationeers Scripts Folder" Click="OpenScriptsFolder_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_Documentation" InputGestureText="F1" Click="ShowDocs_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Quick Start Guide" Click="QuickStart_Click"/>
+                <MenuItem Header="_Language Reference" Click="LangRef_Click"/>
+                <MenuItem Header="_Examples" Click="Examples_Click"/>
+                <Separator/>
+                <MenuItem Header="Check for _Updates..." Click="CheckUpdates_Click"/>
+                <MenuItem Header="_About" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="1" Background="{StaticResource SecondaryBackgroundBrush}" Padding="4,2" BorderBrush="{StaticResource SeparatorBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="New (Ctrl+N)" Click="NewFile_Click">
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open (Ctrl+O)" Click="OpenFile_Click">
+                    <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Save (Ctrl+S)" Click="SaveFile_Click">
+                    <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Undo (Ctrl+Z)" Click="Undo_Click">
+                    <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Redo (Ctrl+Y)" Click="Redo_Click">
+                    <TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Find (Ctrl+F)" Click="Find_Click">
+                    <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button x:Name="CompileButton" Style="{StaticResource PrimaryButtonStyle}" Padding="12,4" ToolTip="Compile (F5)" Click="Compile_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock Text=" Compile" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Copy IC10 to Clipboard" Click="CopyIC10_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="300" x:Name="DocsPanelColumn"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Editor Area -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" MinHeight="150"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*" MinHeight="150"/>
+                </Grid.RowDefinitions>
+
+                <!-- BASIC Editor Panel -->
+                <Border Grid.Row="0" Background="{StaticResource EditorBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- BASIC Editor Header -->
+                        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" BASIC Source" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <TextBlock x:Name="BasicFileNameText" Text="" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <TextBlock x:Name="ModifiedIndicator" Text="*" Foreground="{StaticResource WarningBrush}" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" x:Name="BasicLineCountText" Text="Lines: 0" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- BASIC Editor -->
+                        <avalon:TextEditor x:Name="BasicEditor"
+                                          Grid.Row="1"
+                                          FontFamily="{StaticResource CodeFont}"
+                                          FontSize="14"
+                                          Background="{StaticResource EditorBackgroundBrush}"
+                                          Foreground="{StaticResource PrimaryTextBrush}"
+                                          LineNumbersForeground="{StaticResource SecondaryTextBrush}"
+                                          ShowLineNumbers="True"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          Padding="4"
+                                          TextChanged="BasicEditor_TextChanged"/>
+                    </Grid>
+                </Border>
+
+                <!-- Splitter -->
+                <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" Background="{StaticResource TertiaryBackgroundBrush}" Cursor="SizeNS"/>
+
+                <!-- MIPS Output Panel -->
+                <Border Grid.Row="2" Background="{StaticResource EditorBackgroundBrush}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- MIPS Output Header -->
+                        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE756;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" IC10 MIPS Output" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock x:Name="MipsLineCountText" Text="Lines: 0 / 128" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <Border x:Name="LineWarningBadge" Background="{StaticResource WarningBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                        <TextBlock Text="Near limit!" FontSize="11" Foreground="#1E1E1E"/>
+                                    </Border>
+                                    <Border x:Name="LineErrorBadge" Background="{StaticResource ErrorBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                        <TextBlock Text="Over limit!" FontSize="11" Foreground="White"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- MIPS Output -->
+                        <avalon:TextEditor x:Name="MipsOutput"
+                                          Grid.Row="1"
+                                          FontFamily="{StaticResource CodeFont}"
+                                          FontSize="14"
+                                          Background="{StaticResource EditorBackgroundBrush}"
+                                          Foreground="{StaticResource PrimaryTextBrush}"
+                                          LineNumbersForeground="{StaticResource SecondaryTextBrush}"
+                                          ShowLineNumbers="True"
+                                          IsReadOnly="True"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          Padding="4"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Docs Panel Splitter -->
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center" Background="{StaticResource TertiaryBackgroundBrush}" Cursor="SizeWE" x:Name="DocsSplitter"/>
+
+            <!-- Documentation Panel -->
+            <Border Grid.Column="2" Background="{StaticResource SidebarBackgroundBrush}" x:Name="DocsPanel">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Docs Header -->
+                    <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text=" Documentation" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Padding="4" ToolTip="Close Documentation" Click="CloseDocs_Click">
+                                <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Docs Content -->
+                    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+                        <TabItem Header="Quick Ref">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                                <StackPanel x:Name="QuickRefPanel">
+                                    <!-- Populated dynamically -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="Functions">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                                <StackPanel x:Name="FunctionsPanel">
+                                    <!-- Populated dynamically -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="Examples">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                                <StackPanel x:Name="ExamplesPanel">
+                                    <!-- Populated dynamically -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Bottom Action Bar -->
+        <Border Grid.Row="3" Background="{StaticResource SecondaryBackgroundBrush}" Padding="12,8" BorderBrush="{StaticResource SeparatorBrush}" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Error/Warning Panel -->
+                <Border x:Name="ErrorPanel" Background="{StaticResource TertiaryBackgroundBrush}" CornerRadius="4" Padding="12,6" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="ErrorIcon" Text="&#xEA39;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource ErrorBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ErrorText" Text="" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource ModernButtonStyle}" Content="Load Example" Click="LoadExample_Click" Margin="0,0,8,0"/>
+                    <Button Style="{StaticResource ModernButtonStyle}" Content="Optimize" Click="Optimize_Click" Margin="0,0,8,0"/>
+                    <Button Style="{StaticResource PrimaryButtonStyle}" Content="Save &amp; Deploy" Click="SaveAndDeploy_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="4">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="StatusIcon" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatusText" Text="Ready" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StatusBarItem>
+            <Separator Background="#FFFFFF" Opacity="0.3"/>
+            <StatusBarItem>
+                <TextBlock x:Name="CursorPositionText" Text="Ln 1, Col 1"/>
+            </StatusBarItem>
+            <Separator Background="#FFFFFF" Opacity="0.3"/>
+            <StatusBarItem>
+                <TextBlock x:Name="StationeersPathText" Text="Stationeers: Not configured" Opacity="0.8"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="BASIC-IC10 Compiler v1.0"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
