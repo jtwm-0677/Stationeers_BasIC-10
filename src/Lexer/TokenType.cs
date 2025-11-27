@@ -48,11 +48,28 @@ public enum TokenType
     Exit,
     Sleep,
     Yield,
+    Break,
+    Continue,
+    Select,
+    Case,
+    Default,
+    EndSelect,
+    Const,
+    Var,
+
+    // Bitwise operators (keywords)
+    BitAnd,
+    BitOr,
+    BitXor,
+    BitNot,
+    Shl,
+    Shr,
 
     // Device I/O keywords (Stationeers specific)
     Device,
     Alias,
     Define,
+    Hash,
 
     // Operators
     Plus,
@@ -66,6 +83,12 @@ public enum TokenType
     GreaterThan,
     LessEqual,
     GreaterEqual,
+    Ampersand,      // & for bitwise AND
+    Pipe,           // | for bitwise OR
+    Caret,          // ^ for XOR (or power depending on context)
+    Tilde,          // ~ for bitwise NOT
+    ShiftLeft,      // <<
+    ShiftRight,     // >>
 
     // Delimiters
     LeftParen,
@@ -75,6 +98,7 @@ public enum TokenType
     Comma,
     Colon,
     Semicolon,
+    Dot,
 
     // Special
     Newline,

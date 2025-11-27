@@ -85,6 +85,12 @@
                 </MenuItem>
                 <MenuItem Header="Compile and _Copy IC10" InputGestureText="F6" Click="CompileAndCopy_Click"/>
                 <Separator/>
+                <MenuItem Header="_Run Simulator..." InputGestureText="F9" Click="RunSimulator_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xEBE8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource InfoBrush}"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="_Optimization Level">
                     <MenuItem Header="None (Fastest compile)" x:Name="OptNone" IsCheckable="True" Click="OptLevel_Click"/>
                     <MenuItem Header="Basic (Recommended)" x:Name="OptBasic" IsCheckable="True" IsChecked="True" Click="OptLevel_Click"/>
@@ -103,6 +109,12 @@
                 <MenuItem Header="_Reset Zoom" Click="ZoomReset_Click"/>
             </MenuItem>
             <MenuItem Header="_Tools">
+                <MenuItem Header="_Device Hash Database..." Click="DeviceDatabase_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="_Settings..." Click="Settings_Click">
                     <MenuItem.Icon>
                         <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>

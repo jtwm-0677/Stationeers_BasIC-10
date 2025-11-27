@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.CodeCompletion;
 using ICSharpCode.AvalonEdit.Document;
@@ -13,6 +14,7 @@ using BasicToMips.Parser;
 using BasicToMips.CodeGen;
 using BasicToMips.Editor.Highlighting;
 using BasicToMips.Editor.Completion;
+using BasicToMips.Editor.ErrorHighlighting;
 using BasicToMips.UI.Services;
 
 namespace BasicToMips.UI;
@@ -26,6 +28,11 @@ public partial class MainWindow : Window
     private readonly SettingsService _settings;
     private readonly DocumentationService _docs;
     private int _optimizationLevel = 1; // 0=None, 1=Basic, 2=Aggressive
+
+    // Error highlighting
+    private TextMarkerService? _textMarkerService;
+    private readonly ErrorChecker _errorChecker = new();
+    private DispatcherTimer? _errorCheckTimer;
 
     public MainWindow()
     {
@@ -54,9 +61,121 @@ public partial class MainWindow : Window
         BasicEditor.TextArea.TextEntering += TextArea_TextEntering;
         BasicEditor.TextArea.TextEntered += TextArea_TextEntered;
 
+        // Setup error highlighting
+        SetupErrorHighlighting();
+
         // Set initial content
         BasicEditor.Text = GetWelcomeCode();
         UpdateLineCount();
+    }
+
+    private void SetupErrorHighlighting()
+    {
+        // Create and install the text marker service
+        _textMarkerService = new TextMarkerService(BasicEditor.Document);
+        BasicEditor.TextArea.TextView.BackgroundRenderers.Add(_textMarkerService);
+        BasicEditor.TextArea.TextView.LineTransformers.Add(_textMarkerService);
+
+        // Setup timer for delayed error checking (500ms after typing stops)
+        _errorCheckTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _errorCheckTimer.Tick += (s, e) =>
+        {
+            _errorCheckTimer.Stop();
+            CheckForErrors();
+        };
+
+        // Setup tooltip for error markers
+        BasicEditor.TextArea.TextView.MouseHover += TextView_MouseHover;
+        BasicEditor.TextArea.TextView.MouseHoverStopped += TextView_MouseHoverStopped;
+    }
+
+    private System.Windows.Controls.ToolTip? _errorToolTip;
+
+    private void TextView_MouseHover(object sender, MouseEventArgs e)
+    {
+        var pos = BasicEditor.TextArea.TextView.GetPositionFloor(e.GetPosition(BasicEditor.TextArea.TextView) + BasicEditor.TextArea.TextView.ScrollOffset);
+        if (pos.HasValue && _textMarkerService != null)
+        {
+            int offset = BasicEditor.Document.GetOffset(pos.Value.Line, pos.Value.Column);
+            var markers = _textMarkerService.GetMarkersAtOffset(offset);
+            var marker = markers.FirstOrDefault();
+
+            if (marker != null && !string.IsNullOrEmpty(marker.ToolTip))
+            {
+                _errorToolTip = new System.Windows.Controls.ToolTip
+                {
+                    Content = marker.ToolTip,
+                    IsOpen = true,
+                    PlacementTarget = BasicEditor,
+                    Background = new SolidColorBrush(Color.FromRgb(45, 45, 48)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 70)),
+                    Padding = new Thickness(8, 4, 8, 4)
+                };
+            }
+        }
+    }
+
+    private void TextView_MouseHoverStopped(object sender, MouseEventArgs e)
+    {
+        if (_errorToolTip != null)
+        {
+            _errorToolTip.IsOpen = false;
+            _errorToolTip = null;
+        }
+    }
+
+    private void CheckForErrors()
+    {
+        if (_textMarkerService == null) return;
+
+        // Clear existing markers
+        _textMarkerService.Clear();
+        BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+
+        // Check for errors
+        var errors = _errorChecker.Check(BasicEditor.Text);
+
+        foreach (var error in errors)
+        {
+            try
+            {
+                var line = BasicEditor.Document.GetLineByNumber(Math.Min(error.Line, BasicEditor.Document.LineCount));
+                int startOffset = line.Offset + Math.Max(0, error.Column - 1);
+                int length = Math.Min(error.Length, line.EndOffset - startOffset);
+
+                if (length <= 0) length = Math.Max(1, line.Length);
+
+                var marker = _textMarkerService.Create(startOffset, length);
+                if (marker != null)
+                {
+                    marker.MarkerType = TextMarkerType.SquigglyUnderline;
+                    marker.MarkerColor = error.Severity switch
+                    {
+                        ErrorChecker.ErrorSeverity.Error => Colors.Red,
+                        ErrorChecker.ErrorSeverity.Warning => Colors.Orange,
+                        ErrorChecker.ErrorSeverity.Info => Colors.LightBlue,
+                        _ => Colors.Red
+                    };
+                    marker.ToolTip = $"{error.Severity}: {error.Message}";
+                }
+            }
+            catch
+            {
+                // Ignore marker creation errors
+            }
+        }
+
+        BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+    }
+
+    private void RestartErrorCheckTimer()
+    {
+        _errorCheckTimer?.Stop();
+        _errorCheckTimer?.Start();
     }
 
     private void SetupAutoComplete()
@@ -354,16 +473,30 @@ END
     private void Copy_Click(object sender, RoutedEventArgs e) => BasicEditor.Copy();
     private void Paste_Click(object sender, RoutedEventArgs e) => BasicEditor.Paste();
 
+    private FindReplaceWindow? _findReplaceWindow;
+
     private void Find_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement find dialog
-        SetStatus("Find feature coming soon", false);
+        OpenFindReplace();
     }
 
     private void Replace_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement replace dialog
-        SetStatus("Replace feature coming soon", false);
+        OpenFindReplace();
+    }
+
+    private void OpenFindReplace()
+    {
+        if (_findReplaceWindow != null && _findReplaceWindow.IsVisible)
+        {
+            _findReplaceWindow.Focus();
+            return;
+        }
+
+        _findReplaceWindow = new FindReplaceWindow(BasicEditor);
+        _findReplaceWindow.Owner = this;
+        _findReplaceWindow.Closed += (s, e) => _findReplaceWindow = null;
+        _findReplaceWindow.Show();
     }
 
     #endregion
@@ -382,6 +515,24 @@ END
             Clipboard.SetText(MipsOutput.Text);
             SetStatus("Compiled and copied to clipboard", true);
         }
+    }
+
+    private void RunSimulator_Click(object sender, RoutedEventArgs e)
+    {
+        // Compile first if needed
+        if (string.IsNullOrEmpty(MipsOutput.Text))
+        {
+            if (!Compile())
+            {
+                MessageBox.Show("Please fix compilation errors before running the simulator.",
+                    "Compilation Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        var simulator = new SimulatorWindow(MipsOutput.Text);
+        simulator.Owner = this;
+        simulator.Show();
     }
 
     private void CopyIC10_Click(object sender, RoutedEventArgs e)
@@ -660,6 +811,23 @@ END
         }
     }
 
+    private void DeviceDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new DeviceDatabaseWindow();
+        dialog.Owner = this;
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.SelectedHash))
+        {
+            // Insert the hash at the cursor position
+            var insertText = dialog.SelectedHash;
+            if (!string.IsNullOrEmpty(dialog.SelectedName))
+            {
+                insertText = $"{dialog.SelectedHash} ' {dialog.SelectedName}";
+            }
+            BasicEditor.Document.Insert(BasicEditor.CaretOffset, insertText);
+            SetStatus($"Inserted hash for {dialog.SelectedName}", true);
+        }
+    }
+
     private void PopulateDocumentation()
     {
         _docs.PopulateQuickReference(QuickRefPanel);
@@ -775,6 +943,7 @@ END
         UpdateTitle();
         UpdateLineCount();
         ModifiedIndicator.Visibility = Visibility.Visible;
+        RestartErrorCheckTimer();
     }
 
     private void UpdateTitle()

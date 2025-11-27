@@ -28,6 +28,9 @@ public partial class SettingsWindow : Window
         FontSizeText.Text = ((int)_settings.FontSize).ToString();
         StationeersPathText.Text = _settings.StationeersPath ?? "";
         OptLevelCombo.SelectedIndex = _settings.OptimizationLevel;
+
+        // Load theme
+        ThemeCombo.SelectedIndex = _settings.Theme == "Light" ? 1 : 0;
     }
 
     private void BrowseStationeers_Click(object sender, RoutedEventArgs e)
@@ -63,7 +66,18 @@ public partial class SettingsWindow : Window
         _settings.FontSize = (int)FontSizeSlider.Value;
         _settings.StationeersPath = StationeersPathText.Text;
         _settings.OptimizationLevel = OptLevelCombo.SelectedIndex;
+
+        // Save theme and apply it
+        var selectedTheme = (ThemeCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "Dark";
+        var themeChanged = _settings.Theme != selectedTheme;
+        _settings.Theme = selectedTheme;
         _settings.Save();
+
+        if (themeChanged)
+        {
+            // Apply theme change
+            ThemeManager.ApplyTheme(selectedTheme);
+        }
 
         DialogResult = true;
         Close();

@@ -26,6 +26,18 @@ public class LetStatement : StatementNode
     public ExpressionNode Value { get; set; } = null!;
 }
 
+public class VarStatement : StatementNode
+{
+    public string VariableName { get; set; } = "";
+    public ExpressionNode? InitialValue { get; set; }
+}
+
+public class ConstStatement : StatementNode
+{
+    public string ConstantName { get; set; } = "";
+    public ExpressionNode Value { get; set; } = null!;
+}
+
 public class PrintStatement : StatementNode
 {
     public List<ExpressionNode> Expressions { get; } = new();
@@ -36,6 +48,8 @@ public class InputStatement : StatementNode
 {
     public string? Prompt { get; set; }
     public string VariableName { get; set; } = "";
+    public string? DeviceName { get; set; }
+    public string? PropertyName { get; set; }
 }
 
 public class IfStatement : StatementNode
@@ -72,21 +86,35 @@ public class DoLoopStatement : StatementNode
 public class GotoStatement : StatementNode
 {
     public int TargetLine { get; set; }
+    public string? TargetLabel { get; set; }
 }
 
 public class GosubStatement : StatementNode
 {
     public int TargetLine { get; set; }
+    public string? TargetLabel { get; set; }
 }
 
-public class ReturnStatement : StatementNode { }
+public class LabelStatement : StatementNode
+{
+    public string Name { get; set; } = "";
+}
+
+public class ReturnStatement : StatementNode
+{
+    public ExpressionNode? ReturnValue { get; set; }
+}
 
 public class EndStatement : StatementNode { }
+
+public class BreakStatement : StatementNode { }
+
+public class ContinueStatement : StatementNode { }
 
 public class DimStatement : StatementNode
 {
     public string VariableName { get; set; } = "";
-    public List<int> Dimensions { get; } = new();
+    public List<ExpressionNode> Dimensions { get; } = new();
 }
 
 public class SubDefinition : StatementNode
@@ -94,6 +122,14 @@ public class SubDefinition : StatementNode
     public string Name { get; set; } = "";
     public List<string> Parameters { get; } = new();
     public List<StatementNode> Body { get; } = new();
+}
+
+public class FunctionDefinition : StatementNode
+{
+    public string Name { get; set; } = "";
+    public List<string> Parameters { get; } = new();
+    public List<StatementNode> Body { get; } = new();
+    public string? ReturnType { get; set; }
 }
 
 public class CallStatement : StatementNode
@@ -118,7 +154,31 @@ public class AliasStatement : StatementNode
 public class DefineStatement : StatementNode
 {
     public string ConstantName { get; set; } = "";
-    public double Value { get; set; }
+    public ExpressionNode Value { get; set; } = null!;
+}
+
+public class DeviceWriteStatement : StatementNode
+{
+    public string DeviceName { get; set; } = "";
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode Value { get; set; } = null!;
+    public ExpressionNode? SlotIndex { get; set; }
+}
+
+public class DeviceSlotWriteStatement : StatementNode
+{
+    public string DeviceName { get; set; } = "";
+    public ExpressionNode SlotIndex { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode Value { get; set; } = null!;
+}
+
+public class BatchWriteStatement : StatementNode
+{
+    public ExpressionNode DeviceHash { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode Value { get; set; } = null!;
+    public string? NameHash { get; set; }
 }
 
 // Expressions
@@ -132,6 +192,11 @@ public class NumberLiteral : ExpressionNode
 public class StringLiteral : ExpressionNode
 {
     public string Value { get; set; } = "";
+}
+
+public class BooleanLiteral : ExpressionNode
+{
+    public bool Value { get; set; }
 }
 
 public class VariableExpression : ExpressionNode
@@ -153,6 +218,13 @@ public class UnaryExpression : ExpressionNode
     public ExpressionNode Operand { get; set; } = null!;
 }
 
+public class TernaryExpression : ExpressionNode
+{
+    public ExpressionNode Condition { get; set; } = null!;
+    public ExpressionNode TrueValue { get; set; } = null!;
+    public ExpressionNode FalseValue { get; set; } = null!;
+}
+
 public class FunctionCallExpression : ExpressionNode
 {
     public string FunctionName { get; set; } = "";
@@ -163,35 +235,79 @@ public class DeviceReadExpression : ExpressionNode
 {
     public string DeviceName { get; set; } = "";
     public string PropertyName { get; set; } = "";
+    public ExpressionNode? SlotIndex { get; set; }
 }
 
-public class DeviceWriteStatement : StatementNode
+public class DeviceSlotReadExpression : ExpressionNode
 {
     public string DeviceName { get; set; } = "";
+    public ExpressionNode SlotIndex { get; set; } = null!;
     public string PropertyName { get; set; } = "";
-    public ExpressionNode Value { get; set; } = null!;
+}
+
+public class BatchReadExpression : ExpressionNode
+{
+    public ExpressionNode DeviceHash { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public BatchMode Mode { get; set; } = BatchMode.Average;
+    public string? NameHash { get; set; }
+}
+
+public class ReagentReadExpression : ExpressionNode
+{
+    public string DeviceName { get; set; } = "";
+    public ExpressionNode ReagentMode { get; set; } = null!;
+    public ExpressionNode ReagentHash { get; set; } = null!;
+}
+
+public class HashExpression : ExpressionNode
+{
+    public string StringValue { get; set; } = "";
 }
 
 public enum BinaryOperator
 {
+    // Arithmetic
     Add,
     Subtract,
     Multiply,
     Divide,
     Modulo,
     Power,
+
+    // Comparison
     Equal,
     NotEqual,
     LessThan,
     GreaterThan,
     LessEqual,
     GreaterEqual,
+    ApproxEqual,  // Approximately equal (with epsilon)
+
+    // Logical
     And,
-    Or
+    Or,
+
+    // Bitwise
+    BitAnd,
+    BitOr,
+    BitXor,
+    ShiftLeft,
+    ShiftRight,
+    ShiftRightArith  // Arithmetic shift right (preserves sign)
 }
 
 public enum UnaryOperator
 {
     Negate,
-    Not
+    Not,
+    BitNot
+}
+
+public enum BatchMode
+{
+    Average,
+    Sum,
+    Minimum,
+    Maximum
 }
