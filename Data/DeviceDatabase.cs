@@ -19,95 +19,96 @@ public class DeviceDatabase
 
     private static void InitializeDevices()
     {
-        // Structures
-        Devices.Add(new DeviceInfo("ItemStructureActiveVent", "Structure", "Active Vent", "Controls atmospheric venting"));
-        Devices.Add(new DeviceInfo("ItemStructureAdvancedFurnace", "Structure", "Advanced Furnace", "High-temperature smelting furnace"));
-        Devices.Add(new DeviceInfo("ItemStructureAdvancedPackagingMachine", "Structure", "Advanced Packager", "Packages items with reagent handling"));
-        Devices.Add(new DeviceInfo("ItemStructureAirConditioner", "Structure", "Air Conditioner", "Cools or heats atmosphere"));
-        Devices.Add(new DeviceInfo("ItemStructureArcFurnace", "Structure", "Arc Furnace", "Electric arc smelting furnace"));
-        Devices.Add(new DeviceInfo("ItemStructureAutolathe", "Structure", "Autolathe", "Automated manufacturing"));
-        Devices.Add(new DeviceInfo("ItemStructureElectronicsPrinter", "Structure", "Electronics Printer", "Prints circuit boards"));
-        Devices.Add(new DeviceInfo("ItemStructureHydraulicPipeBender", "Structure", "Hydraulic Pipe Bender", "Bends pipes"));
-        Devices.Add(new DeviceInfo("ItemStructureToolManufactory", "Structure", "Tool Manufactory", "Creates tools"));
-        Devices.Add(new DeviceInfo("ItemStructureSecurityPrinter", "Structure", "Security Printer", "Prints security items"));
-        Devices.Add(new DeviceInfo("ItemStructureFabricator", "Structure", "Fabricator", "General fabrication machine"));
-        Devices.Add(new DeviceInfo("ItemStructurePaintMixer", "Structure", "Paint Mixer", "Mixes paint colors"));
-        Devices.Add(new DeviceInfo("ItemStructureOrganicsPrinter", "Structure", "Organics Printer", "Prints organic materials"));
-        Devices.Add(new DeviceInfo("ItemStructureReagentProcessor", "Structure", "Reagent Processor", "Processes reagents"));
-        Devices.Add(new DeviceInfo("ItemStructureCentrifuge", "Structure", "Centrifuge", "Separates materials"));
-        Devices.Add(new DeviceInfo("ItemStructureRecycler", "Structure", "Recycler", "Recycles items into materials"));
+        // Structures - Use "Structure*" prefix for placed structures (not "ItemStructure*")
+        // "Item*" prefix is for unbuilt items in inventory
+        Devices.Add(new DeviceInfo("StructureActiveVent", "Structure", "Active Vent", "Controls atmospheric venting"));
+        Devices.Add(new DeviceInfo("StructureAdvancedFurnace", "Structure", "Advanced Furnace", "High-temperature smelting furnace"));
+        Devices.Add(new DeviceInfo("StructureAdvancedPackagingMachine", "Structure", "Advanced Packager", "Packages items with reagent handling"));
+        Devices.Add(new DeviceInfo("StructureAirConditioner", "Structure", "Air Conditioner", "Cools or heats atmosphere"));
+        Devices.Add(new DeviceInfo("StructureArcFurnace", "Structure", "Arc Furnace", "Electric arc smelting furnace"));
+        Devices.Add(new DeviceInfo("StructureAutolathe", "Structure", "Autolathe", "Automated manufacturing"));
+        Devices.Add(new DeviceInfo("StructureElectronicsPrinter", "Structure", "Electronics Printer", "Prints circuit boards"));
+        Devices.Add(new DeviceInfo("StructureHydraulicPipeBender", "Structure", "Hydraulic Pipe Bender", "Bends pipes"));
+        Devices.Add(new DeviceInfo("StructureToolManufactory", "Structure", "Tool Manufactory", "Creates tools"));
+        Devices.Add(new DeviceInfo("StructureSecurityPrinter", "Structure", "Security Printer", "Prints security items"));
+        Devices.Add(new DeviceInfo("StructureFabricator", "Structure", "Fabricator", "General fabrication machine"));
+        Devices.Add(new DeviceInfo("StructurePaintMixer", "Structure", "Paint Mixer", "Mixes paint colors"));
+        Devices.Add(new DeviceInfo("StructureOrganicsPrinter", "Structure", "Organics Printer", "Prints organic materials"));
+        Devices.Add(new DeviceInfo("StructureReagentProcessor", "Structure", "Reagent Processor", "Processes reagents"));
+        Devices.Add(new DeviceInfo("StructureCentrifuge", "Structure", "Centrifuge", "Separates materials"));
+        Devices.Add(new DeviceInfo("StructureRecycler", "Structure", "Recycler", "Recycles items into materials"));
 
         // Sensors
-        Devices.Add(new DeviceInfo("ItemStructureGasSensor", "Sensor", "Gas Sensor", "Monitors atmospheric conditions"));
-        Devices.Add(new DeviceInfo("ItemStructureDaylightSensor", "Sensor", "Daylight Sensor", "Detects sunlight"));
-        Devices.Add(new DeviceInfo("ItemStructureMotionSensor", "Sensor", "Motion Sensor", "Detects entity movement"));
-        Devices.Add(new DeviceInfo("ItemStructureOccupancySensor", "Sensor", "Occupancy Sensor", "Detects presence"));
-        Devices.Add(new DeviceInfo("ItemStructureQuantitySensor", "Sensor", "Quantity Sensor", "Counts items in storage"));
+        Devices.Add(new DeviceInfo("StructureGasSensor", "Sensor", "Gas Sensor", "Monitors atmospheric conditions"));
+        Devices.Add(new DeviceInfo("StructureDaylightSensor", "Sensor", "Daylight Sensor", "Detects sunlight"));
+        Devices.Add(new DeviceInfo("StructureMotionSensor", "Sensor", "Motion Sensor", "Detects entity movement"));
+        Devices.Add(new DeviceInfo("StructureOccupancySensor", "Sensor", "Occupancy Sensor", "Detects presence"));
+        Devices.Add(new DeviceInfo("StructureQuantitySensor", "Sensor", "Quantity Sensor", "Counts items in storage"));
 
         // Logic
-        Devices.Add(new DeviceInfo("ItemCircuitboardProgrammableChip", "Logic", "IC Housing", "Programmable IC10 chip holder"));
-        Devices.Add(new DeviceInfo("ItemIntegratedCircuit10", "Logic", "IC10 Chip", "Programmable integrated circuit"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicMemory", "Logic", "Memory", "Stores a single value"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicReader", "Logic", "Logic Reader", "Reads value from slot"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicWriter", "Logic", "Logic Writer", "Writes value to slot"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicBatchReader", "Logic", "Batch Reader", "Reads from multiple devices"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicBatchWriter", "Logic", "Batch Writer", "Writes to multiple devices"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicDialVariant", "Logic", "Dial", "User input dial"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicSwitch", "Logic", "Logic Switch", "Binary switch"));
-        Devices.Add(new DeviceInfo("ItemStructureLogicButton", "Logic", "Logic Button", "Momentary button"));
-        Devices.Add(new DeviceInfo("ItemStructureConsole", "Logic", "Console", "Display console"));
-        Devices.Add(new DeviceInfo("ItemStructureLEDDisplay", "Logic", "LED Display", "Shows numeric values"));
+        Devices.Add(new DeviceInfo("CircuitboardProgrammableChip", "Logic", "IC Housing", "Programmable IC10 chip holder"));
+        Devices.Add(new DeviceInfo("IntegratedCircuit10", "Logic", "IC10 Chip", "Programmable integrated circuit"));
+        Devices.Add(new DeviceInfo("StructureLogicMemory", "Logic", "Memory", "Stores a single value"));
+        Devices.Add(new DeviceInfo("StructureLogicReader", "Logic", "Logic Reader", "Reads value from slot"));
+        Devices.Add(new DeviceInfo("StructureLogicWriter", "Logic", "Logic Writer", "Writes value to slot"));
+        Devices.Add(new DeviceInfo("StructureLogicBatchReader", "Logic", "Batch Reader", "Reads from multiple devices"));
+        Devices.Add(new DeviceInfo("StructureLogicBatchWriter", "Logic", "Batch Writer", "Writes to multiple devices"));
+        Devices.Add(new DeviceInfo("StructureLogicDialVariant", "Logic", "Dial", "User input dial"));
+        Devices.Add(new DeviceInfo("StructureLogicSwitch", "Logic", "Logic Switch", "Binary switch"));
+        Devices.Add(new DeviceInfo("StructureLogicButton", "Logic", "Logic Button", "Momentary button"));
+        Devices.Add(new DeviceInfo("StructureConsole", "Logic", "Console", "Display console"));
+        Devices.Add(new DeviceInfo("StructureLEDDisplay", "Logic", "LED Display", "Shows numeric values"));
 
         // Power
-        Devices.Add(new DeviceInfo("ItemStructureSolidFuelGenerator", "Power", "Solid Generator", "Burns solid fuel for power"));
-        Devices.Add(new DeviceInfo("ItemStructureGasGenerator", "Power", "Gas Generator", "Burns gas for power"));
-        Devices.Add(new DeviceInfo("ItemStructureTurbineGenerator", "Power", "Turbine Generator", "Steam/gas turbine power"));
-        Devices.Add(new DeviceInfo("ItemStructureSolarPanel", "Power", "Solar Panel", "Generates power from sunlight"));
-        Devices.Add(new DeviceInfo("ItemStructureBattery", "Power", "Battery", "Stores electrical power"));
-        Devices.Add(new DeviceInfo("ItemStructureBatteryLarge", "Power", "Large Battery", "Large power storage"));
-        Devices.Add(new DeviceInfo("ItemStructureAreaPowerController", "Power", "APC", "Area Power Controller"));
-        Devices.Add(new DeviceInfo("ItemStructureTransformer", "Power", "Transformer", "Power transformation"));
+        Devices.Add(new DeviceInfo("StructureSolidFuelGenerator", "Power", "Solid Generator", "Burns solid fuel for power"));
+        Devices.Add(new DeviceInfo("StructureGasGenerator", "Power", "Gas Generator", "Burns gas for power"));
+        Devices.Add(new DeviceInfo("StructureTurbineGenerator", "Power", "Turbine Generator", "Steam/gas turbine power"));
+        Devices.Add(new DeviceInfo("StructureSolarPanel", "Power", "Solar Panel", "Generates power from sunlight"));
+        Devices.Add(new DeviceInfo("StructureBattery", "Power", "Battery", "Stores electrical power"));
+        Devices.Add(new DeviceInfo("StructureBatteryLarge", "Power", "Large Battery", "Large power storage"));
+        Devices.Add(new DeviceInfo("StructureAreaPowerController", "Power", "APC", "Area Power Controller"));
+        Devices.Add(new DeviceInfo("StructureTransformer", "Power", "Transformer", "Power transformation"));
 
         // Atmospheric
-        Devices.Add(new DeviceInfo("ItemStructurePumpVolume", "Atmospheric", "Volume Pump", "Moves gas by volume"));
-        Devices.Add(new DeviceInfo("ItemStructurePumpPressure", "Atmospheric", "Pressure Pump", "Moves gas by pressure"));
-        Devices.Add(new DeviceInfo("ItemStructureTurboVolumePump", "Atmospheric", "Turbo Volume Pump", "High-speed volume pump"));
-        Devices.Add(new DeviceInfo("ItemStructureGasFilter", "Atmospheric", "Gas Filter", "Filters specific gases"));
-        Devices.Add(new DeviceInfo("ItemStructureGasMixer", "Atmospheric", "Gas Mixer", "Mixes gases"));
-        Devices.Add(new DeviceInfo("ItemStructureTank", "Atmospheric", "Tank", "Stores gases"));
-        Devices.Add(new DeviceInfo("ItemStructureElectrolyzer", "Atmospheric", "Electrolyzer", "Splits water into H2/O2"));
-        Devices.Add(new DeviceInfo("ItemStructureCondenser", "Atmospheric", "Condenser", "Condenses liquids from gas"));
-        Devices.Add(new DeviceInfo("ItemStructureAtmosphericRegulator", "Atmospheric", "Atmos Regulator", "Regulates atmosphere"));
-        Devices.Add(new DeviceInfo("ItemStructureWallHeater", "Atmospheric", "Wall Heater", "Heats atmosphere"));
-        Devices.Add(new DeviceInfo("ItemStructureWallCooler", "Atmospheric", "Wall Cooler", "Cools atmosphere"));
+        Devices.Add(new DeviceInfo("StructurePumpVolume", "Atmospheric", "Volume Pump", "Moves gas by volume"));
+        Devices.Add(new DeviceInfo("StructurePumpPressure", "Atmospheric", "Pressure Pump", "Moves gas by pressure"));
+        Devices.Add(new DeviceInfo("StructureTurboVolumePump", "Atmospheric", "Turbo Volume Pump", "High-speed volume pump"));
+        Devices.Add(new DeviceInfo("StructureGasFilter", "Atmospheric", "Gas Filter", "Filters specific gases"));
+        Devices.Add(new DeviceInfo("StructureGasMixer", "Atmospheric", "Gas Mixer", "Mixes gases"));
+        Devices.Add(new DeviceInfo("StructureTank", "Atmospheric", "Tank", "Stores gases"));
+        Devices.Add(new DeviceInfo("StructureElectrolyzer", "Atmospheric", "Electrolyzer", "Splits water into H2/O2"));
+        Devices.Add(new DeviceInfo("StructureCondenser", "Atmospheric", "Condenser", "Condenses liquids from gas"));
+        Devices.Add(new DeviceInfo("StructureAtmosphericRegulator", "Atmospheric", "Atmos Regulator", "Regulates atmosphere"));
+        Devices.Add(new DeviceInfo("StructureWallHeater", "Atmospheric", "Wall Heater", "Heats atmosphere"));
+        Devices.Add(new DeviceInfo("StructureWallCooler", "Atmospheric", "Wall Cooler", "Cools atmosphere"));
 
         // Hydroponics
-        Devices.Add(new DeviceInfo("ItemStructureHarvie", "Hydroponics", "Harvie", "Automated harvester"));
-        Devices.Add(new DeviceInfo("ItemStructureHydroponicsTray", "Hydroponics", "Hydroponics Tray", "Grows plants"));
-        Devices.Add(new DeviceInfo("ItemStructureGrowLight", "Hydroponics", "Grow Light", "Provides light for plants"));
+        Devices.Add(new DeviceInfo("StructureHarvie", "Hydroponics", "Harvie", "Automated harvester"));
+        Devices.Add(new DeviceInfo("StructureHydroponicsTray", "Hydroponics", "Hydroponics Tray", "Grows plants"));
+        Devices.Add(new DeviceInfo("StructureGrowLight", "Hydroponics", "Grow Light", "Provides light for plants"));
 
         // Storage
-        Devices.Add(new DeviceInfo("ItemStructureLocker", "Storage", "Locker", "Personal storage"));
-        Devices.Add(new DeviceInfo("ItemStructureStorageLarge", "Storage", "Large Crate", "Large item storage"));
-        Devices.Add(new DeviceInfo("ItemStructureVendingMachine", "Storage", "Vending Machine", "Dispenses items"));
-        Devices.Add(new DeviceInfo("ItemStructureChute", "Storage", "Chute", "Item transfer"));
-        Devices.Add(new DeviceInfo("ItemStructureStackerOutput", "Storage", "Stacker", "Stacks items"));
-        Devices.Add(new DeviceInfo("ItemStructureSorter", "Storage", "Sorter", "Sorts items by type"));
+        Devices.Add(new DeviceInfo("StructureLocker", "Storage", "Locker", "Personal storage"));
+        Devices.Add(new DeviceInfo("StructureStorageLarge", "Storage", "Large Crate", "Large item storage"));
+        Devices.Add(new DeviceInfo("StructureVendingMachine", "Storage", "Vending Machine", "Dispenses items"));
+        Devices.Add(new DeviceInfo("StructureChute", "Storage", "Chute", "Item transfer"));
+        Devices.Add(new DeviceInfo("StructureStackerOutput", "Storage", "Stacker", "Stacks items"));
+        Devices.Add(new DeviceInfo("StructureSorter", "Storage", "Sorter", "Sorts items by type"));
 
         // Mining
-        Devices.Add(new DeviceInfo("ItemStructureMiningDrill", "Mining", "Mining Drill", "Extracts ore"));
-        Devices.Add(new DeviceInfo("ItemStructureDeepMiner", "Mining", "Deep Miner", "Deep ore extraction"));
+        Devices.Add(new DeviceInfo("StructureMiningDrill", "Mining", "Mining Drill", "Extracts ore"));
+        Devices.Add(new DeviceInfo("StructureDeepMiner", "Mining", "Deep Miner", "Deep ore extraction"));
 
         // Doors and Access
-        Devices.Add(new DeviceInfo("ItemStructureDoorSingle", "Access", "Door", "Single door"));
-        Devices.Add(new DeviceInfo("ItemStructureAirlock", "Access", "Airlock", "Sealed airlock door"));
-        Devices.Add(new DeviceInfo("ItemStructureBlastDoor", "Access", "Blast Door", "Heavy blast door"));
+        Devices.Add(new DeviceInfo("StructureDoorSingle", "Access", "Door", "Single door"));
+        Devices.Add(new DeviceInfo("StructureAirlock", "Access", "Airlock", "Sealed airlock door"));
+        Devices.Add(new DeviceInfo("StructureBlastDoor", "Access", "Blast Door", "Heavy blast door"));
 
         // Lighting
-        Devices.Add(new DeviceInfo("ItemStructureWallLight", "Lighting", "Wall Light", "Wall-mounted light"));
-        Devices.Add(new DeviceInfo("ItemStructureCeilingLight", "Lighting", "Ceiling Light", "Overhead lighting"));
-        Devices.Add(new DeviceInfo("ItemStructureFloorLight", "Lighting", "Floor Light", "Floor-mounted light"));
-        Devices.Add(new DeviceInfo("ItemStructureSpotLight", "Lighting", "Spot Light", "Directional light"));
+        Devices.Add(new DeviceInfo("StructureWallLight", "Lighting", "Wall Light", "Wall-mounted light"));
+        Devices.Add(new DeviceInfo("StructureCeilingLight", "Lighting", "Ceiling Light", "Overhead lighting"));
+        Devices.Add(new DeviceInfo("StructureFloorLight", "Lighting", "Floor Light", "Floor-mounted light"));
+        Devices.Add(new DeviceInfo("StructureSpotLight", "Lighting", "Spot Light", "Directional light"));
 
         // Calculate hashes
         foreach (var device in Devices)

@@ -501,25 +501,26 @@ SYNTAX:
 
 EXAMPLE:
     ' Reference sensors by their labels
-    ALIAS room1_sensor = IC.Device["ItemStructureGasSensor"].Name["Room 1 Sensor"]
-    ALIAS room2_sensor = IC.Device["ItemStructureGasSensor"].Name["Room 2 Sensor"]
+    ' NOTE: Use "Structure*" prefix for placed structures (not "ItemStructure*")
+    ALIAS room1_sensor = IC.Device["StructureGasSensor"].Name["Room 1 Sensor"]
+    ALIAS room2_sensor = IC.Device["StructureGasSensor"].Name["Room 2 Sensor"]
 
     ' Reference heaters by their labels
-    ALIAS room1_heater = IC.Device["ItemStructureWallHeater"].Name["Room 1 Heater"]
-    ALIAS room2_heater = IC.Device["ItemStructureWallHeater"].Name["Room 2 Heater"]
+    ALIAS room1_heater = IC.Device["StructureWallHeater"].Name["Room 1 Heater"]
+    ALIAS room2_heater = IC.Device["StructureWallHeater"].Name["Room 2 Heater"]
 
     ' Use them like normal devices
     temp = room1_sensor.Temperature
     room1_heater.On = 1
 
-DEVICE TYPE NAMES (common prefab names):
-    ItemStructureGasSensor       - Gas sensors
-    ItemStructureWallHeater      - Wall heaters
-    ItemStructureWallCooler      - Wall coolers
-    ItemStructureWallLight       - Wall lights
-    ItemStructurePumpVolume      - Volume pumps
-    ItemStructureActiveVent      - Active vents
-    ItemStructureSolarPanel      - Solar panels
+DEVICE TYPE NAMES (for placed structures - use Structure* prefix):
+    StructureGasSensor       - Gas sensors
+    StructureWallHeater      - Wall heaters
+    StructureWallCooler      - Wall coolers
+    StructureWallLight       - Wall lights
+    StructurePumpVolume      - Volume pumps
+    StructureActiveVent      - Active vents
+    StructureSolarPanel      - Solar panels
 
 Find more device types in the Device Hash Database (F4)
 
