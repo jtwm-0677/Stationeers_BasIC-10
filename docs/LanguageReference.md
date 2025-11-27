@@ -1,0 +1,1143 @@
+# BASIC Language Reference
+
+## Table of Contents
+1. [Program Structure](#program-structure)
+2. [Comments](#comments)
+3. [Variables and Constants](#variables-and-constants)
+4. [Data Types](#data-types)
+5. [Operators](#operators)
+6. [Control Flow](#control-flow)
+7. [Loops](#loops)
+8. [Subroutines and Functions](#subroutines-and-functions)
+9. [Device Operations](#device-operations)
+10. [Built-in Functions](#built-in-functions)
+11. [Batch Operations](#batch-operations)
+12. [Stack Operations](#stack-operations)
+13. [Advanced Features](#advanced-features)
+
+---
+
+## Program Structure
+
+### Basic Program Layout
+
+```basic
+' Comments and documentation
+' Describe what your program does
+
+' Aliases (device assignments)
+ALIAS deviceName d0
+
+' Constants
+DEFINE CONSTANT_NAME value
+
+' Variables
+VAR variableName = initialValue
+
+' Main program
+main:
+    ' Your code here
+    YIELD
+    GOTO main
+
+' Subroutines
+MySub:
+    ' Subroutine code
+    RETURN
+
+END
+```
+
+### Program Execution
+
+1. Aliases and defines are processed first
+2. Execution begins at line 0 (or first executable line)
+3. Program runs until END, HCF (halt and catch fire), or infinite loop
+4. YIELD allows one game tick to pass
+
+---
+
+## Comments
+
+### Single Line Comments
+
+```basic
+' This is a comment
+REM This is also a comment
+x = 5  ' Inline comment
+```
+
+### Best Practices
+
+```basic
+' ============================================
+' Program: Solar Tracker
+' Author: Your Name
+' Description: Tracks sun position for panels
+' ============================================
+
+' --- Initialization ---
+ALIAS panel d0
+
+' Calculate optimal angle
+angle = SolarAngle  ' Get current sun position
+```
+
+Note: Comments are stripped during compilation and don't count toward the 128-line limit.
+
+---
+
+## Variables and Constants
+
+### Variable Declaration
+
+```basic
+' Explicit declaration with initialization
+VAR temperature = 0
+VAR pressure = 101.325
+VAR isActive = 1
+
+' LET statement (traditional BASIC)
+LET x = 10
+LET y = x + 5
+
+' Direct assignment (implicit declaration)
+counter = 0
+result = counter + 1
+```
+
+### Constants with DEFINE
+
+```basic
+' Numeric constants
+DEFINE MAX_TEMP 373.15      ' 100°C in Kelvin
+DEFINE MIN_PRESSURE 50
+DEFINE PI 3.14159
+DEFINE TARGET_RATIO 0.21    ' Oxygen ratio
+
+' Device hashes
+DEFINE SOLAR_HASH -539224550
+DEFINE GAS_SENSOR_HASH 1255689925
+```
+
+### Array Declaration (DIM)
+
+```basic
+' Fixed-size arrays
+DIM values(10)              ' Array of 10 elements
+DIM temperatures(5)
+
+' Accessing array elements
+values(0) = 100
+values(1) = 200
+x = values(0) + values(1)
+```
+
+### Variable Scope
+
+All variables in BASIC-IC10 are global. There is no local scope.
+
+```basic
+VAR globalVar = 10
+
+MySub:
+    globalVar = 20     ' Modifies the global variable
+    RETURN
+
+main:
+    GOSUB MySub
+    ' globalVar is now 20
+```
+
+---
+
+## Data Types
+
+BASIC-IC10 uses a single numeric type (double-precision floating point), consistent with IC10's register type.
+
+### Numeric Literals
+
+```basic
+x = 42              ' Integer
+y = 3.14159         ' Decimal
+z = -273.15         ' Negative
+w = 1.5e6           ' Scientific notation (1,500,000)
+```
+
+### Boolean Values
+
+```basic
+' 0 = false, non-zero = true
+isOn = 1            ' true
+isOff = 0           ' false
+
+' Comparisons return 0 or 1
+result = (x > 5)    ' 1 if true, 0 if false
+```
+
+### Special Values
+
+```basic
+' NaN (Not a Number)
+x = 0 / 0           ' Results in NaN
+IF ISNAN(x) THEN
+    ' Handle NaN case
+ENDIF
+
+' Infinity
+y = 1 / 0           ' Positive infinity
+z = -1 / 0          ' Negative infinity
+```
+
+---
+
+## Operators
+
+### Arithmetic Operators
+
+| Operator | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `+` | Addition | `x + y` | add |
+| `-` | Subtraction | `x - y` | sub |
+| `*` | Multiplication | `x * y` | mul |
+| `/` | Division | `x / y` | div |
+| `%` or `MOD` | Modulo | `x % y` | mod |
+| `^` | Power | `x ^ y` | exp+log |
+| `-` (unary) | Negation | `-x` | sub r0 |
+
+### Comparison Operators
+
+| Operator | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `=` or `==` | Equal | `x = y` | seq |
+| `<>` or `!=` | Not equal | `x <> y` | sne |
+| `<` | Less than | `x < y` | slt |
+| `>` | Greater than | `x > y` | sgt |
+| `<=` | Less or equal | `x <= y` | sle |
+| `>=` | Greater or equal | `x >= y` | sge |
+
+### Logical Operators
+
+| Operator | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `AND` | Logical AND | `a AND b` | and |
+| `OR` | Logical OR | `a OR b` | or |
+| `NOT` | Logical NOT | `NOT a` | seqz |
+| `XOR` | Exclusive OR | `a XOR b` | xor |
+
+### Bitwise Operators
+
+| Operator | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `BAND` or `&` | Bitwise AND | `a BAND b` | and |
+| `BOR` or `\|` | Bitwise OR | `a BOR b` | or |
+| `BXOR` | Bitwise XOR | `a BXOR b` | xor |
+| `BNOT` or `~` | Bitwise NOT | `BNOT a` | nor |
+| `SHL` or `<<` | Shift left | `a SHL 2` | sll |
+| `SHR` or `>>` | Shift right | `a SHR 2` | srl |
+| `SAR` | Arithmetic shift right | `a SAR 2` | sra |
+
+### Operator Precedence (Highest to Lowest)
+
+1. `()` - Parentheses
+2. `-`, `NOT`, `BNOT` - Unary operators
+3. `^` - Exponentiation
+4. `*`, `/`, `%`, `MOD` - Multiplication/Division
+5. `+`, `-` - Addition/Subtraction
+6. `SHL`, `SHR`, `SAR` - Bit shifts
+7. `<`, `>`, `<=`, `>=` - Comparisons
+8. `=`, `==`, `<>`, `!=` - Equality
+9. `BAND`, `&` - Bitwise AND
+10. `BXOR` - Bitwise XOR
+11. `BOR`, `|` - Bitwise OR
+12. `AND` - Logical AND
+13. `OR`, `XOR` - Logical OR/XOR
+
+---
+
+## Control Flow
+
+### IF...THEN...ELSE...ENDIF
+
+#### Single-Line IF
+
+```basic
+IF condition THEN statement
+
+' Examples
+IF temp > 100 THEN heater.On = 0
+IF pressure < 50 THEN GOTO alarm
+```
+
+#### Multi-Line IF
+
+```basic
+IF condition THEN
+    ' statements when true
+ENDIF
+
+IF condition THEN
+    ' statements when true
+ELSE
+    ' statements when false
+ENDIF
+
+IF condition1 THEN
+    ' first condition
+ELSEIF condition2 THEN
+    ' second condition
+ELSEIF condition3 THEN
+    ' third condition
+ELSE
+    ' default case
+ENDIF
+```
+
+#### Complex Conditions
+
+```basic
+IF temp > 300 AND pressure > 1000 THEN
+    ' Both conditions true
+ENDIF
+
+IF status = 0 OR error = 1 THEN
+    ' Either condition true
+ENDIF
+
+IF NOT (temp < 200) THEN
+    ' Negated condition
+ENDIF
+```
+
+### SELECT...CASE (Pseudo-implementation)
+
+BASIC-IC10 doesn't have native SELECT CASE, but you can simulate it:
+
+```basic
+' Simulated SELECT CASE
+IF mode = 0 THEN
+    GOTO mode0Handler
+ELSEIF mode = 1 THEN
+    GOTO mode1Handler
+ELSEIF mode = 2 THEN
+    GOTO mode2Handler
+ELSE
+    GOTO defaultHandler
+ENDIF
+
+mode0Handler:
+    ' Handle mode 0
+    GOTO endSelect
+mode1Handler:
+    ' Handle mode 1
+    GOTO endSelect
+mode2Handler:
+    ' Handle mode 2
+    GOTO endSelect
+defaultHandler:
+    ' Default handling
+endSelect:
+```
+
+### GOTO
+
+```basic
+' Unconditional jump
+GOTO labelName
+
+' Example: Main loop
+main:
+    ' Processing
+    YIELD
+    GOTO main
+```
+
+### Labels
+
+```basic
+' Labels must end with colon
+myLabel:
+    ' Code here
+
+' Labels can contain letters, numbers, underscores
+processData:
+step_2:
+loop1:
+```
+
+---
+
+## Loops
+
+### FOR...NEXT Loop
+
+```basic
+' Basic FOR loop
+FOR i = 1 TO 10
+    ' Loop body (executes 10 times)
+NEXT i
+
+' FOR with STEP
+FOR i = 0 TO 100 STEP 10
+    ' i = 0, 10, 20, ... 100
+NEXT i
+
+' Counting down
+FOR i = 10 TO 1 STEP -1
+    ' i = 10, 9, 8, ... 1
+NEXT i
+
+' Nested loops
+FOR x = 0 TO 3
+    FOR y = 0 TO 3
+        ' Process grid cell (x, y)
+    NEXT y
+NEXT x
+```
+
+### WHILE...WEND Loop
+
+```basic
+' WHILE loop
+WHILE condition
+    ' Loop body
+WEND
+
+' Example: Wait for condition
+WHILE sensor.Temperature > 300
+    heater.On = 0
+    YIELD
+WEND
+heater.On = 1
+```
+
+### DO...LOOP (Alternative)
+
+```basic
+' DO WHILE (check at start)
+DO WHILE condition
+    ' Loop body
+LOOP
+
+' DO UNTIL (check at end)
+DO
+    ' Loop body
+LOOP UNTIL condition
+```
+
+### Loop with GOTO (Manual)
+
+```basic
+' Simple loop with GOTO
+counter = 0
+loopStart:
+    IF counter >= 10 THEN GOTO loopEnd
+    ' Loop body
+    counter = counter + 1
+    GOTO loopStart
+loopEnd:
+```
+
+### Breaking Out of Loops
+
+```basic
+' Use GOTO to exit early
+FOR i = 1 TO 100
+    IF errorCondition THEN GOTO exitLoop
+    ' Normal processing
+NEXT i
+exitLoop:
+' Continue after loop
+```
+
+---
+
+## Subroutines and Functions
+
+### GOSUB...RETURN
+
+```basic
+' Calling a subroutine
+GOSUB mySubroutine
+
+' Subroutine definition
+mySubroutine:
+    ' Subroutine code
+    x = x + 1
+    RETURN
+
+' Multiple subroutines
+main:
+    GOSUB initialize
+    GOSUB processData
+    GOSUB updateDisplay
+    YIELD
+    GOTO main
+
+initialize:
+    temp = 0
+    pressure = 0
+    RETURN
+
+processData:
+    temp = sensor.Temperature
+    pressure = sensor.Pressure
+    RETURN
+
+updateDisplay:
+    display.Setting = temp
+    RETURN
+```
+
+### SUB...END SUB (Named Subroutines)
+
+```basic
+SUB CalculateAverage
+    ' Parameters passed via global variables
+    result = (value1 + value2 + value3) / 3
+END SUB
+
+' Calling
+value1 = 10
+value2 = 20
+value3 = 30
+CALL CalculateAverage
+' result now contains 20
+```
+
+### FUNCTION...END FUNCTION
+
+```basic
+FUNCTION Clamp(value, minVal, maxVal)
+    IF value < minVal THEN
+        Clamp = minVal
+    ELSEIF value > maxVal THEN
+        Clamp = maxVal
+    ELSE
+        Clamp = value
+    ENDIF
+END FUNCTION
+
+' Using the function
+safeValue = Clamp(input, 0, 100)
+```
+
+Note: Functions and SUBs compile to label-based code with global variables in IC10.
+
+---
+
+## Device Operations
+
+### Device Aliases
+
+```basic
+' Assign friendly names to device ports
+ALIAS sensor d0          ' d0 = Gas Sensor
+ALIAS heater d1          ' d1 = Wall Heater
+ALIAS display d2         ' d2 = Console/LED Display
+ALIAS pump d3            ' d3 = Volume Pump
+ALIAS vent d4            ' d4 = Active Vent
+ALIAS logic d5           ' d5 = Logic Memory
+```
+
+### Reading Device Properties
+
+```basic
+' Using dot notation
+temp = sensor.Temperature
+pressure = sensor.Pressure
+isOn = heater.On
+
+' Common readable properties
+ratio = sensor.RatioOxygen
+moles = sensor.TotalMoles
+power = generator.PowerGeneration
+charge = battery.Charge
+```
+
+### Writing Device Properties
+
+```basic
+' Setting device properties
+heater.On = 1
+heater.Setting = 500        ' Power setting
+pump.Setting = 100          ' Target pressure/volume
+display.Setting = temp      ' Display value
+
+' Common writable properties
+device.On = 1               ' Turn on
+device.Lock = 0             ' Unlock
+device.Mode = 2             ' Set mode
+device.Open = 1             ' Open (vents, doors)
+```
+
+### Reading Device Slots
+
+```basic
+' Read item in device slot
+slotOccupied = sensor[0].Occupied
+itemHash = storage[0].OccupantHash
+quantity = storage[0].Quantity
+damage = tool[0].Damage
+```
+
+### Writing Device Slots
+
+```basic
+' Write to device slots
+sorter[0].SortingClass = targetClass
+machine[0].Quantity = 10
+```
+
+### Complete Property Reference
+
+#### Universal Properties
+| Property | Read | Write | Description |
+|----------|------|-------|-------------|
+| On | Yes | Yes | Power state (0/1) |
+| Setting | Yes | Yes | Target setting |
+| Mode | Yes | Yes | Operating mode |
+| Error | Yes | No | Error state |
+| Lock | Yes | Yes | Lock state |
+| Power | Yes | No | Has power |
+| Open | Yes | Yes | Open state (vents/doors) |
+| Activate | No | Yes | Trigger activation |
+
+#### Atmospheric Properties
+| Property | Read | Write | Description |
+|----------|------|-------|-------------|
+| Temperature | Yes | No | Temperature (Kelvin) |
+| Pressure | Yes | No | Pressure (kPa) |
+| TotalMoles | Yes | No | Total gas moles |
+| RatioOxygen | Yes | No | O2 ratio (0-1) |
+| RatioCarbonDioxide | Yes | No | CO2 ratio (0-1) |
+| RatioNitrogen | Yes | No | N2 ratio (0-1) |
+| RatioVolatiles | Yes | No | H2 ratio (0-1) |
+| RatioWater | Yes | No | Steam ratio (0-1) |
+| RatioPollutant | Yes | No | Pollutant ratio (0-1) |
+| RatioNitrousOxide | Yes | No | N2O ratio (0-1) |
+
+#### Power Properties
+| Property | Read | Write | Description |
+|----------|------|-------|-------------|
+| Charge | Yes | No | Battery charge (0-1) |
+| ChargeRatio | Yes | No | Same as Charge |
+| PowerRequired | Yes | No | Power demand (W) |
+| PowerActual | Yes | No | Current draw (W) |
+| PowerGeneration | Yes | No | Power output (W) |
+| PowerPotential | Yes | No | Max possible (W) |
+
+#### Solar Panel Properties
+| Property | Read | Write | Description |
+|----------|------|-------|-------------|
+| Horizontal | Yes | Yes | Horizontal angle |
+| Vertical | Yes | Yes | Vertical angle |
+| SolarAngle | Yes | No | Current sun angle |
+| SolarIrradiance | Yes | No | Light intensity |
+
+#### Storage Properties
+| Property | Read | Write | Description |
+|----------|------|-------|-------------|
+| Quantity | Yes | No | Item count |
+| MaxQuantity | Yes | No | Capacity |
+| Ratio | Yes | No | Fill ratio |
+| PrefabHash | Yes | No | Item type hash |
+
+---
+
+## Built-in Functions
+
+### Mathematical Functions
+
+| Function | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `ABS(x)` | Absolute value | `ABS(-5)` → 5 | abs |
+| `SQRT(x)` | Square root | `SQRT(16)` → 4 | sqrt |
+| `FLOOR(x)` | Round down | `FLOOR(3.7)` → 3 | floor |
+| `CEIL(x)` | Round up | `CEIL(3.2)` → 4 | ceil |
+| `ROUND(x)` | Round to nearest | `ROUND(3.5)` → 4 | round |
+| `TRUNC(x)` | Truncate decimal | `TRUNC(3.9)` → 3 | trunc |
+| `MIN(a,b)` | Minimum | `MIN(3, 7)` → 3 | min |
+| `MAX(a,b)` | Maximum | `MAX(3, 7)` → 7 | max |
+| `LOG(x)` | Natural logarithm | `LOG(2.718)` → 1 | log |
+| `EXP(x)` | e^x | `EXP(1)` → 2.718 | exp |
+| `RAND()` | Random 0-1 | `RAND()` → 0.xxx | rand |
+
+### Trigonometric Functions
+
+| Function | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `SIN(x)` | Sine (radians) | `SIN(0)` → 0 | sin |
+| `COS(x)` | Cosine (radians) | `COS(0)` → 1 | cos |
+| `TAN(x)` | Tangent (radians) | `TAN(0)` → 0 | tan |
+| `ASIN(x)` | Arc sine | `ASIN(0)` → 0 | asin |
+| `ACOS(x)` | Arc cosine | `ACOS(1)` → 0 | acos |
+| `ATAN(x)` | Arc tangent | `ATAN(0)` → 0 | atan |
+| `ATAN2(y,x)` | Two-argument arctangent | `ATAN2(1,1)` | atan2 |
+
+### Special Functions
+
+| Function | Description | Example | IC10 |
+|----------|-------------|---------|------|
+| `ISNAN(x)` | Check if NaN | `ISNAN(0/0)` → 1 | snan |
+| `SELECT(c,t,f)` | Conditional select | `SELECT(1>0, 5, 10)` → 5 | select |
+| `HASH(s)` | String hash | `HASH("On")` | - |
+| `CLAMP(v,min,max)` | Clamp to range | `CLAMP(150,0,100)` → 100 | max+min |
+| `LERP(a,b,t)` | Linear interpolate | `LERP(0,100,0.5)` → 50 | - |
+| `INRANGE(v,min,max)` | Check if in range | `INRANGE(50,0,100)` → 1 | - |
+
+### Approximate Equality
+
+| Function | Description | IC10 |
+|----------|-------------|------|
+| `APPROX(a,b,eps)` | Check if a ≈ b within epsilon | sap |
+| `APPROXZ(a,eps)` | Check if a ≈ 0 within epsilon | sapz |
+
+### Conversion Functions
+
+```basic
+' Temperature conversions
+kelvinToCelsius = kelvin - 273.15
+celsiusToKelvin = celsius + 273.15
+fahrenheitToCelsius = (fahrenheit - 32) * 5/9
+
+' Angle conversions
+radians = degrees * 3.14159 / 180
+degrees = radians * 180 / 3.14159
+```
+
+---
+
+## Batch Operations
+
+Batch operations work with multiple devices of the same type simultaneously.
+
+### BATCHREAD
+
+```basic
+' Read from all devices of a type
+BATCHREAD(prefabHash, property, mode)
+
+' Modes:
+' 0 = Average
+' 1 = Sum
+' 2 = Minimum
+' 3 = Maximum
+
+' Examples
+DEFINE SOLAR_HASH -539224550
+
+' Total power from all solar panels
+totalPower = BATCHREAD(SOLAR_HASH, PowerGeneration, 1)    ' Sum
+
+' Average temperature across all gas sensors
+avgTemp = BATCHREAD(GAS_SENSOR_HASH, Temperature, 0)      ' Average
+
+' Minimum charge across all batteries
+minCharge = BATCHREAD(BATTERY_HASH, Charge, 2)            ' Minimum
+```
+
+### BATCHWRITE
+
+```basic
+' Write to all devices of a type
+BATCHWRITE(prefabHash, property, value)
+
+' Examples
+' Turn on all wall heaters
+BATCHWRITE(HEATER_HASH, On, 1)
+
+' Set all pumps to same pressure
+BATCHWRITE(PUMP_HASH, Setting, 100)
+```
+
+### Named Batch Operations
+
+```basic
+' Read from devices with specific name
+value = BATCHNAMEREAD(nameHash, property, mode)
+
+' Write to devices with specific name
+BATCHNAMEWRITE(nameHash, property, value)
+
+' Example
+DEFINE MY_SENSORS_NAME 12345678    ' Hash of "MySensors"
+temp = BATCHNAMEREAD(MY_SENSORS_NAME, Temperature, 0)
+```
+
+### Batch Slot Operations
+
+```basic
+' Read slot property from all devices of type
+value = BATCHSLOTREAD(prefabHash, slotIndex, property, mode)
+
+' Example: Count total items in slot 0 of all storage
+totalItems = BATCHSLOTREAD(STORAGE_HASH, 0, Quantity, 1)  ' Sum
+```
+
+---
+
+## Stack Operations
+
+IC10 has a 512-value stack for temporary storage.
+
+### PUSH and POP
+
+```basic
+' Push value onto stack
+PUSH value
+PUSH 42
+PUSH temperature
+
+' Pop value from stack
+POP variable
+POP result
+```
+
+### PEEK
+
+```basic
+' Read top of stack without removing
+PEEK variable
+PEEK topValue
+```
+
+### Stack Usage Example
+
+```basic
+' Subroutine with multiple return values
+CalculateStats:
+    PUSH sum
+    PUSH average
+    PUSH count
+    RETURN
+
+main:
+    GOSUB CalculateStats
+    POP myCount
+    POP myAverage
+    POP mySum
+```
+
+### Stack as Array
+
+```basic
+' Use stack as temporary array
+FOR i = 0 TO 9
+    PUSH readings(i)
+NEXT i
+
+' Process in reverse order
+FOR i = 0 TO 9
+    POP value
+    ' Process value
+NEXT i
+```
+
+---
+
+## Advanced Features
+
+### Ternary Expression
+
+```basic
+' Conditional assignment
+result = IF condition THEN trueValue ELSE falseValue
+
+' Example
+status = IF temp > 100 THEN 1 ELSE 0
+
+' Compiles to SELECT instruction
+```
+
+### Multiple Assignment
+
+```basic
+' Not directly supported, use separate statements
+x = 10
+y = 10
+z = 10
+```
+
+### Inline Operations
+
+```basic
+' Increment/Decrement
+x = x + 1
+x = x - 1
+
+' Compound assignment (use explicit form)
+total = total + value
+count = count * 2
+```
+
+### Device Existence Check
+
+```basic
+' Check if device is connected
+IF sensor THEN
+    temp = sensor.Temperature
+ELSE
+    temp = 0
+ENDIF
+```
+
+### Reagent Operations
+
+```basic
+' Read reagent values from devices
+reagentAmount = REAGENTREAD(device, reagentHash, mode)
+
+' Modes:
+' 0 = Contents (current amount)
+' 1 = Required (amount needed)
+' 2 = Recipe (amount in recipe)
+```
+
+### Slot Reagent Operations
+
+```basic
+' Read reagent from specific slot
+amount = SLOTREAGENTREAD(device, slot, reagentHash, mode)
+```
+
+### Line Number Access
+
+```basic
+' Get current line number (useful for debugging)
+currentLine = LINENUMBER
+
+' Jump to specific line number (advanced)
+GOTO lineNumber
+```
+
+### HCF - Halt and Catch Fire
+
+```basic
+' Stop execution permanently
+IF criticalError THEN
+    HCF    ' Halts the IC10
+ENDIF
+```
+
+### YIELD vs SLEEP
+
+```basic
+' YIELD - Pause for one game tick, allow device updates
+main:
+    ' Read sensors
+    temp = sensor.Temperature
+    YIELD    ' Required for device values to update
+    GOTO main
+
+' SLEEP - Pause for specified seconds
+SLEEP 1      ' Wait 1 second
+SLEEP 0.5    ' Wait 0.5 seconds
+SLEEP 0      ' Same as YIELD
+```
+
+### Register Aliases
+
+```basic
+' Direct register access (advanced)
+REGISTER r0 AS counter
+REGISTER r1 AS temp
+REGISTER r2 AS result
+
+counter = 0
+temp = sensor.Temperature
+result = counter + temp
+```
+
+---
+
+## Code Examples
+
+### Complete Temperature Controller
+
+```basic
+' ============================================
+' Smart Temperature Controller
+' Controls heating/cooling to maintain temp
+' ============================================
+
+' Devices
+ALIAS sensor d0
+ALIAS heater d1
+ALIAS cooler d2
+ALIAS display d3
+
+' Constants
+DEFINE TARGET 293.15    ' 20°C
+DEFINE TOLERANCE 2      ' ±2°
+DEFINE UPDATE_INTERVAL 2
+
+' Variables
+VAR currentTemp = 0
+VAR mode = 0            ' 0=off, 1=heat, 2=cool
+VAR timer = 0
+
+' Main program
+main:
+    GOSUB ReadSensors
+    GOSUB ControlLogic
+    GOSUB UpdateOutputs
+    GOSUB UpdateDisplay
+
+    timer = timer + 1
+    YIELD
+    GOTO main
+
+ReadSensors:
+    currentTemp = sensor.Temperature
+    RETURN
+
+ControlLogic:
+    IF currentTemp < TARGET - TOLERANCE THEN
+        mode = 1    ' Need heating
+    ELSEIF currentTemp > TARGET + TOLERANCE THEN
+        mode = 2    ' Need cooling
+    ELSEIF currentTemp >= TARGET - 1 AND currentTemp <= TARGET + 1 THEN
+        mode = 0    ' At target, turn off
+    ENDIF
+    RETURN
+
+UpdateOutputs:
+    IF mode = 1 THEN
+        heater.On = 1
+        cooler.On = 0
+    ELSEIF mode = 2 THEN
+        heater.On = 0
+        cooler.On = 1
+    ELSE
+        heater.On = 0
+        cooler.On = 0
+    ENDIF
+    RETURN
+
+UpdateDisplay:
+    display.Setting = currentTemp - 273.15    ' Show Celsius
+    RETURN
+
+END
+```
+
+### Solar Panel Tracker
+
+```basic
+' Solar Panel Sun Tracker
+ALIAS panel d0
+
+VAR horizontal = 0
+VAR vertical = 0
+VAR solarAngle = 0
+
+main:
+    solarAngle = panel.SolarAngle
+
+    ' Calculate optimal angles
+    horizontal = solarAngle
+    vertical = 60    ' Fixed tilt for latitude
+
+    ' Apply to panel
+    panel.Horizontal = horizontal
+    panel.Vertical = vertical
+
+    YIELD
+    GOTO main
+END
+```
+
+### Airlock Controller
+
+```basic
+' Airlock Door Controller
+ALIAS innerDoor d0
+ALIAS outerDoor d1
+ALIAS pump d2
+ALIAS sensor d3
+
+DEFINE VACUUM_THRESHOLD 1
+DEFINE PRESSURIZE_THRESHOLD 90
+
+VAR pressure = 0
+VAR state = 0    ' 0=idle, 1=depressurize, 2=pressurize
+
+main:
+    pressure = sensor.Pressure
+
+    IF state = 0 THEN
+        ' Idle - both doors can be controlled manually
+        pump.On = 0
+    ELSEIF state = 1 THEN
+        ' Depressurizing
+        GOSUB Depressurize
+    ELSEIF state = 2 THEN
+        ' Pressurizing
+        GOSUB Pressurize
+    ENDIF
+
+    YIELD
+    GOTO main
+
+Depressurize:
+    innerDoor.Open = 0
+    innerDoor.Lock = 1
+    pump.On = 1
+    pump.Mode = 0    ' Outward
+
+    IF pressure < VACUUM_THRESHOLD THEN
+        outerDoor.Lock = 0
+        state = 0
+    ENDIF
+    RETURN
+
+Pressurize:
+    outerDoor.Open = 0
+    outerDoor.Lock = 1
+    pump.On = 1
+    pump.Mode = 1    ' Inward
+
+    IF pressure > PRESSURIZE_THRESHOLD THEN
+        innerDoor.Lock = 0
+        state = 0
+    ENDIF
+    RETURN
+
+END
+```
+
+---
+
+## Best Practices
+
+### Code Organization
+
+1. Start with comments explaining the program
+2. Define all aliases at the top
+3. Define constants next
+4. Declare variables
+5. Main loop
+6. Subroutines at the end
+7. End with END statement
+
+### Performance
+
+1. Use YIELD, not SLEEP 0
+2. Cache device reads in variables
+3. Use batch operations for multiple devices
+4. Avoid unnecessary calculations in loops
+
+### Readability
+
+1. Use meaningful variable names
+2. Comment complex logic
+3. Use consistent indentation
+4. Group related operations
+
+### Reliability
+
+1. Check for edge cases (NaN, division by zero)
+2. Use hysteresis to prevent oscillation
+3. Include error handling where possible
+4. Test with the simulator before deploying
