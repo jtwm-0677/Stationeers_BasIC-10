@@ -581,7 +581,7 @@ Reference ALL devices of a specific type on the network:
 ```basic
 ' Control all solar panels at once
 ALIAS panels = IC.Device[-539224550]        ' Solar Panel hash
-ALIAS panels = IC.Device["StructureSolarPanel"]  ' Or use type name
+ALIAS panels = IC.Device["ItemStructureSolarPanel"]  ' Or use type name
 
 ' Usage - affects ALL panels on network:
 panels.Horizontal = solarAngle
@@ -596,7 +596,7 @@ panels.Vertical = 60
 
 ```basic
 ' Get average temperature from all sensors
-ALIAS sensors = IC.Device["StructureGasSensor"]
+ALIAS sensors = IC.Device["ItemStructureGasSensor"]
 avgTemp = sensors.Temperature  ' Average from all sensors
 ```
 
@@ -608,9 +608,9 @@ Reference a SPECIFIC device by its custom name (set with labeler):
 
 ```basic
 ' Reference devices by their labeler-assigned names
-ALIAS bedroomLight = IC.Device["StructureWallLight"].Name["Bedroom Light"]
-ALIAS kitchenSensor = IC.Device["StructureGasSensor"].Name["Kitchen Sensor"]
-ALIAS mainPump = IC.Device["StructureVolumePump"].Name["Main Pump"]
+ALIAS bedroomLight = IC.Device["ItemStructureWallLight"].Name["Bedroom Light"]
+ALIAS kitchenSensor = IC.Device["ItemStructureGasSensor"].Name["Kitchen Sensor"]
+ALIAS mainPump = IC.Device["ItemStructurePumpVolume"].Name["Main Pump"]
 
 ' Now use them like any other device
 bedroomLight.On = 1
@@ -620,7 +620,7 @@ mainPump.Setting = 500
 
 **How it works:**
 1. Label your devices in-game using a Labeler
-2. Use `IC.Device[type].Name["Label"]` syntax
+2. Use `IC.Device[type].Name["Label"]` syntax (use Device Hash Database F4 for type names)
 3. The compiler generates `lbn`/`sbn` instructions that target specific named devices
 4. You can reference UNLIMITED devices this way!
 
@@ -628,12 +628,12 @@ mainPump.Setting = 500
 
 ```basic
 ' Temperature control across multiple rooms
-ALIAS room1_sensor = IC.Device["StructureGasSensor"].Name["Room 1 Sensor"]
-ALIAS room1_heater = IC.Device["StructureWallHeater"].Name["Room 1 Heater"]
-ALIAS room2_sensor = IC.Device["StructureGasSensor"].Name["Room 2 Sensor"]
-ALIAS room2_heater = IC.Device["StructureWallHeater"].Name["Room 2 Heater"]
-ALIAS room3_sensor = IC.Device["StructureGasSensor"].Name["Room 3 Sensor"]
-ALIAS room3_heater = IC.Device["StructureWallHeater"].Name["Room 3 Heater"]
+ALIAS room1_sensor = IC.Device["ItemStructureGasSensor"].Name["Room 1 Sensor"]
+ALIAS room1_heater = IC.Device["ItemStructureWallHeater"].Name["Room 1 Heater"]
+ALIAS room2_sensor = IC.Device["ItemStructureGasSensor"].Name["Room 2 Sensor"]
+ALIAS room2_heater = IC.Device["ItemStructureWallHeater"].Name["Room 2 Heater"]
+ALIAS room3_sensor = IC.Device["ItemStructureGasSensor"].Name["Room 3 Sensor"]
+ALIAS room3_heater = IC.Device["ItemStructureWallHeater"].Name["Room 3 Heater"]
 
 ' ... add as many as you need!
 
