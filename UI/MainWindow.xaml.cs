@@ -16,6 +16,7 @@ using BasicToMips.Editor.Highlighting;
 using BasicToMips.Editor.Completion;
 using BasicToMips.Editor.ErrorHighlighting;
 using BasicToMips.UI.Services;
+using BasicToMips.Shared;
 
 namespace BasicToMips.UI;
 
@@ -33,6 +34,11 @@ public partial class MainWindow : Window
     private TextMarkerService? _textMarkerService;
     private readonly ErrorChecker _errorChecker = new();
     private DispatcherTimer? _errorCheckTimer;
+
+    // Bidirectional editing sync
+    private bool _suppressBasicUpdate = false;
+    private bool _suppressMipsUpdate = false;
+    private DispatcherTimer? _mipsSyncTimer;
 
     public MainWindow()
     {
@@ -64,9 +70,26 @@ public partial class MainWindow : Window
         // Setup error highlighting
         SetupErrorHighlighting();
 
+        // Setup bidirectional editing
+        SetupBidirectionalSync();
+
         // Set initial content
         BasicEditor.Text = GetWelcomeCode();
         UpdateLineCount();
+    }
+
+    private void SetupBidirectionalSync()
+    {
+        // Setup timer for delayed IC10 → BASIC sync (avoid re-compiling on every keystroke)
+        _mipsSyncTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(800)
+        };
+        _mipsSyncTimer.Tick += (s, e) =>
+        {
+            _mipsSyncTimer.Stop();
+            // Don't auto-decompile - let user click the button
+        };
     }
 
     private void SetupErrorHighlighting()
@@ -555,9 +578,20 @@ END
 
             if (result.Success)
             {
+                _suppressMipsUpdate = true;
                 MipsOutput.Text = result.Output;
+                _suppressMipsUpdate = false;
+
                 UpdateLineCount();
-                SetStatus($"Compiled successfully ({result.LineCount} lines)", true);
+
+                // Show detected language in status
+                var langInfo = result.DetectedLanguage switch
+                {
+                    LanguageType.IC10 => " (IC10 passthrough)",
+                    LanguageType.Basic => " (BASIC)",
+                    _ => ""
+                };
+                SetStatus($"Compiled successfully ({result.LineCount} lines){langInfo}", true);
                 return true;
             }
             else
@@ -944,6 +978,72 @@ END
         UpdateLineCount();
         ModifiedIndicator.Visibility = Visibility.Visible;
         RestartErrorCheckTimer();
+
+        // Auto-compile if not being suppressed (prevents infinite loop)
+        if (!_suppressBasicUpdate && AutoCompileMenu.IsChecked)
+        {
+            _suppressMipsUpdate = true;
+            Compile();
+            _suppressMipsUpdate = false;
+        }
+    }
+
+    private void MipsOutput_TextChanged(object sender, EventArgs e)
+    {
+        if (_suppressMipsUpdate) return;
+
+        UpdateLineCount();
+        // Mark as modified when user edits IC10 directly
+        _isModified = true;
+        ModifiedIndicator.Visibility = Visibility.Visible;
+        UpdateTitle();
+    }
+
+    private void Decompile_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(MipsOutput.Text))
+        {
+            SetStatus("No IC10 code to decompile", false);
+            return;
+        }
+
+        try
+        {
+            var result = _compiler.Decompile(MipsOutput.Text);
+
+            if (result.Success && !string.IsNullOrEmpty(result.Output))
+            {
+                var response = MessageBox.Show(
+                    "Replace BASIC source with decompiled code?\n\nThis will overwrite your current BASIC code.",
+                    "Confirm Decompile",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (response == MessageBoxResult.Yes)
+                {
+                    _suppressBasicUpdate = true;
+                    BasicEditor.Text = result.Output;
+                    _suppressBasicUpdate = false;
+                    SetStatus("IC10 decompiled to BASIC successfully", true);
+                }
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Decompilation failed:\n{result.ErrorMessage}",
+                    "Decompile Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Error during decompilation:\n{ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void UpdateTitle()
