@@ -1,26 +1,53 @@
 # BASIC-IC10 Code Examples
 
-A collection of ready-to-use example programs for common Stationeers automation tasks.
+A collection of ready-to-use example programs for common Stationeers automation tasks. All examples are included in the `examples/` folder and can be loaded directly into the BASIC-IC10 Compiler.
 
-## Table of Contents
-1. [Basic Examples](#basic-examples)
-2. [Atmospheric Control](#atmospheric-control)
-3. [Power Management](#power-management)
-4. [Manufacturing Automation](#manufacturing-automation)
-5. [Advanced Systems](#advanced-systems)
+## Loading Examples
+
+**In the BASIC-IC10 Compiler:**
+1. Click **File > Open** (or Ctrl+O)
+2. Navigate to the `examples/` folder
+3. Select any `.bas` file
+4. Press **F5** to compile
+5. Press **F9** to test in the simulator
+
+**Or use the built-in example loader:**
+- Click the **"Load Example"** dropdown in the toolbar
+- Select from categorized examples
 
 ---
 
-## Basic Examples
+## Example Categories
 
-### 1. Blink a Light
+| # | File | Difficulty | Description |
+|---|------|------------|-------------|
+| 01 | blink_light.bas | Beginner | Toggle a light on/off |
+| 02 | button_toggle.bas | Beginner | Button with edge detection |
+| 03 | thermostat.bas | Beginner | Temperature control |
+| 04 | pressure_regulator.bas | Intermediate | Room pressure management |
+| 05 | oxygen_monitor.bas | Intermediate | O2 alarm with color coding |
+| 06 | solar_tracker.bas | Beginner | Automatic solar positioning |
+| 07 | battery_backup.bas | Intermediate | Generator backup system |
+| 08 | airlock.bas | Advanced | Full airlock state machine |
+| 09 | furnace_controller.bas | Intermediate | Smelting temperature control |
+| 10 | greenhouse.bas | Advanced | Multi-system plant control |
+| 11 | batch_solar_array.bas | Advanced | Batch device operations |
+| 12 | base_status_monitor.bas | Advanced | Comprehensive monitoring |
+| 13 | math_demo.bas | Reference | Math function examples |
+| 14 | dial_pump_control.bas | Beginner | Analog dial input |
+| 15 | item_sorter.bas | Intermediate | Hash-based sorting |
 
-The simplest program - toggles a light on and off.
+---
+
+## Beginner Examples
+
+### 01: Blink a Light
+
+The simplest IC10 program - toggles a light on and off every second.
+
+**Devices:** d0 = Wall Light
 
 ```basic
-' Blink a Light
-' Connect a wall light to d0
-
 ALIAS light d0
 
 main:
@@ -32,15 +59,28 @@ main:
 END
 ```
 
-### 2. Button Toggle
+**Compiled IC10:**
+```
+alias light d0
+main:
+s light On 1
+sleep 1
+s light On 0
+sleep 1
+j main
+```
 
-Toggle a device on/off with a button press.
+---
+
+### 02: Button Toggle
+
+Toggle a device on/off with each button press. Demonstrates edge detection.
+
+**Devices:** d0 = Logic Button, d1 = Device to control
+
+**Key Concept:** Edge detection triggers only on the button press (0→1 transition), not while held.
 
 ```basic
-' Button Toggle
-' d0 = Logic Button
-' d1 = Device to toggle
-
 ALIAS button d0
 ALIAS device d1
 
@@ -51,10 +91,12 @@ VAR deviceOn = 0
 main:
     currentState = button.Setting
 
-    ' Detect button press (rising edge)
     IF currentState = 1 AND lastState = 0 THEN
-        ' Toggle device
-        deviceOn = NOT deviceOn
+        IF deviceOn = 0 THEN
+            deviceOn = 1
+        ELSE
+            deviceOn = 0
+        ENDIF
         device.On = deviceOn
     ENDIF
 
@@ -64,75 +106,23 @@ main:
 END
 ```
 
-### 3. Dial-Controlled Setting
-
-Use a dial to control a device's setting.
-
-```basic
-' Dial-Controlled Pump
-' d0 = Dial (0-100)
-' d1 = Volume Pump
-
-ALIAS dial d0
-ALIAS pump d1
-
-VAR targetPressure = 0
-
-main:
-    ' Map dial (0-100) to pressure (0-1000 kPa)
-    targetPressure = dial.Setting * 10
-    pump.Setting = targetPressure
-
-    YIELD
-    GOTO main
-END
-```
-
-### 4. LED Display Counter
-
-Display a counting value on an LED display.
-
-```basic
-' LED Counter
-' d0 = LED Display
-
-ALIAS display d0
-
-VAR counter = 0
-
-main:
-    display.Setting = counter
-    counter = counter + 1
-
-    IF counter > 999 THEN
-        counter = 0
-    ENDIF
-
-    SLEEP 1
-    GOTO main
-END
-```
-
 ---
 
-## Atmospheric Control
+### 03: Simple Thermostat
 
-### 5. Simple Thermostat
+Maintains room temperature with hysteresis to prevent rapid on/off cycling.
 
-Maintains temperature within a range.
+**Devices:** d0 = Gas Sensor, d1 = Wall Heater, d2 = Wall Cooler
+
+**Key Concept:** Hysteresis uses a tolerance band (±2°) to prevent oscillation.
 
 ```basic
-' Simple Thermostat
-' d0 = Gas Sensor
-' d1 = Wall Heater
-' d2 = Wall Cooler
-
 ALIAS sensor d0
 ALIAS heater d1
 ALIAS cooler d2
 
-DEFINE TARGET_TEMP 293.15    ' 20°C in Kelvin
-DEFINE TOLERANCE 2           ' ±2 degrees
+DEFINE TARGET_TEMP 293.15   ' 20°C in Kelvin
+DEFINE TOLERANCE 2
 
 VAR temp = 0
 
@@ -155,68 +145,51 @@ main:
 END
 ```
 
-### 6. Pressure Regulator
+---
 
-Maintains pressure in a room.
+### 06: Solar Panel Tracker
+
+Automatically positions solar panels to track the sun.
+
+**Devices:** d0 = Any Solar Panel (controls all networked panels)
 
 ```basic
-' Pressure Regulator
-' d0 = Gas Sensor (room)
-' d1 = Active Vent (intake)
-' d2 = Active Vent (exhaust)
+ALIAS panel d0
 
-ALIAS sensor d0
-ALIAS intake d1
-ALIAS exhaust d2
-
-DEFINE TARGET_PRESSURE 101.325  ' 1 atm
-DEFINE LOW_THRESHOLD 90
-DEFINE HIGH_THRESHOLD 110
-
-VAR pressure = 0
+VAR solarAngle = 0
 
 main:
-    pressure = sensor.Pressure
-
-    IF pressure < LOW_THRESHOLD THEN
-        ' Low pressure - bring in air
-        intake.On = 1
-        intake.Open = 1
-        intake.Mode = 1      ' Inward
-        exhaust.On = 0
-    ELSEIF pressure > HIGH_THRESHOLD THEN
-        ' High pressure - vent air
-        intake.On = 0
-        exhaust.On = 1
-        exhaust.Open = 1
-        exhaust.Mode = 0     ' Outward
-    ELSE
-        ' Pressure OK - idle
-        intake.On = 0
-        exhaust.On = 0
-    ENDIF
+    solarAngle = panel.SolarAngle
+    panel.Horizontal = solarAngle
+    panel.Vertical = 60
 
     YIELD
     GOTO main
 END
 ```
 
-### 7. Oxygen Monitor with Alarm
+---
 
-Monitors O2 levels and triggers alarm.
+## Intermediate Examples
+
+### 05: Oxygen Monitor with Alarm
+
+Monitors O2 levels and displays status using color-coded light.
+
+**Devices:** d0 = Gas Sensor, d1 = Wall Light, d2 = LED Display
+
+**Color Reference:**
+- Red (16711680): Danger - Low O2
+- Yellow (16776960): Warning - High O2
+- Green (65280): Safe
 
 ```basic
-' Oxygen Monitor
-' d0 = Gas Sensor
-' d1 = Wall Light (alarm indicator)
-' d2 = Console (display)
-
 ALIAS sensor d0
 ALIAS alarm d1
 ALIAS display d2
 
-DEFINE MIN_OXYGEN 0.16       ' 16% minimum safe O2
-DEFINE MAX_OXYGEN 0.25       ' 25% maximum safe O2
+DEFINE MIN_OXYGEN 0.18
+DEFINE MAX_OXYGEN 0.23
 
 VAR oxygenRatio = 0
 VAR oxygenPercent = 0
@@ -224,19 +197,15 @@ VAR oxygenPercent = 0
 main:
     oxygenRatio = sensor.RatioOxygen
     oxygenPercent = oxygenRatio * 100
-
     display.Setting = oxygenPercent
 
     IF oxygenRatio < MIN_OXYGEN THEN
-        ' Low oxygen alarm
         alarm.On = 1
         alarm.Color = 16711680   ' Red
     ELSEIF oxygenRatio > MAX_OXYGEN THEN
-        ' High oxygen warning
         alarm.On = 1
         alarm.Color = 16776960   ' Yellow
     ELSE
-        ' Normal - green
         alarm.On = 1
         alarm.Color = 65280      ' Green
     ENDIF
@@ -246,156 +215,21 @@ main:
 END
 ```
 
-### 8. Advanced Atmosphere Controller
-
-Full atmospheric control with temperature, pressure, and O2.
-
-```basic
-' Advanced Atmosphere Controller
-' d0 = Room Gas Sensor
-' d1 = Wall Heater
-' d2 = Wall Cooler
-' d3 = Intake Vent
-' d4 = Exhaust Vent
-' d5 = Console Display
-
-ALIAS sensor d0
-ALIAS heater d1
-ALIAS cooler d2
-ALIAS intake d3
-ALIAS exhaust d4
-ALIAS display d5
-
-' Temperature settings (Kelvin)
-DEFINE TEMP_TARGET 293.15
-DEFINE TEMP_TOLERANCE 3
-
-' Pressure settings (kPa)
-DEFINE PRESS_TARGET 101
-DEFINE PRESS_TOLERANCE 10
-
-' Oxygen settings (ratio)
-DEFINE O2_MIN 0.18
-DEFINE O2_MAX 0.23
-
-VAR temp = 0
-VAR pressure = 0
-VAR oxygen = 0
-VAR status = 0
-
-main:
-    GOSUB ReadSensors
-    GOSUB ControlTemperature
-    GOSUB ControlPressure
-    GOSUB UpdateDisplay
-
-    YIELD
-    GOTO main
-
-ReadSensors:
-    temp = sensor.Temperature
-    pressure = sensor.Pressure
-    oxygen = sensor.RatioOxygen
-    RETURN
-
-ControlTemperature:
-    IF temp < TEMP_TARGET - TEMP_TOLERANCE THEN
-        heater.On = 1
-        cooler.On = 0
-    ELSEIF temp > TEMP_TARGET + TEMP_TOLERANCE THEN
-        heater.On = 0
-        cooler.On = 1
-    ELSE
-        heater.On = 0
-        cooler.On = 0
-    ENDIF
-    RETURN
-
-ControlPressure:
-    ' Also considers oxygen level
-    IF pressure < PRESS_TARGET - PRESS_TOLERANCE THEN
-        intake.On = 1
-        intake.Mode = 1
-        exhaust.On = 0
-    ELSEIF pressure > PRESS_TARGET + PRESS_TOLERANCE THEN
-        intake.On = 0
-        exhaust.On = 1
-        exhaust.Mode = 0
-    ELSEIF oxygen < O2_MIN THEN
-        ' Low O2 - need fresh air
-        intake.On = 1
-        intake.Mode = 1
-        exhaust.On = 1
-        exhaust.Mode = 0
-    ELSE
-        intake.On = 0
-        exhaust.On = 0
-    ENDIF
-    RETURN
-
-UpdateDisplay:
-    ' Cycle through displays
-    status = status + 1
-    IF status > 2 THEN status = 0
-
-    IF status = 0 THEN
-        display.Setting = temp - 273.15     ' Celsius
-    ELSEIF status = 1 THEN
-        display.Setting = pressure
-    ELSE
-        display.Setting = oxygen * 100      ' Percent
-    ENDIF
-    RETURN
-
-END
-```
-
 ---
 
-## Power Management
+### 07: Battery Backup System
 
-### 9. Solar Panel Tracker
+Manages battery with automatic generator backup using hysteresis.
 
-Tracks the sun for optimal power generation.
-
-```basic
-' Solar Panel Tracker
-' d0 = Solar Panel (one panel controls all)
-
-ALIAS panel d0
-
-VAR solarAngle = 0
-
-main:
-    solarAngle = panel.SolarAngle
-
-    ' Set horizontal to track sun
-    panel.Horizontal = solarAngle
-
-    ' Set vertical for optimal angle (adjust for your latitude)
-    panel.Vertical = 60
-
-    YIELD
-    GOTO main
-END
-```
-
-### 10. Battery Monitor with Generator Backup
-
-Manages battery charge with backup generator.
+**Devices:** d0 = Battery, d1 = Generator, d2 = LED Display
 
 ```basic
-' Battery Backup System
-' d0 = Battery (Large)
-' d1 = Solid Fuel Generator
-' d2 = Console Display
-
 ALIAS battery d0
 ALIAS generator d1
 ALIAS display d2
 
-DEFINE LOW_CHARGE 0.20      ' Start generator below 20%
-DEFINE HIGH_CHARGE 0.90     ' Stop generator above 90%
+DEFINE LOW_CHARGE 0.20
+DEFINE HIGH_CHARGE 0.90
 
 VAR charge = 0
 VAR genOn = 0
@@ -403,7 +237,6 @@ VAR genOn = 0
 main:
     charge = battery.Charge
 
-    ' Hysteresis control
     IF charge < LOW_CHARGE THEN
         genOn = 1
     ELSEIF charge > HIGH_CHARGE THEN
@@ -418,216 +251,22 @@ main:
 END
 ```
 
-### 11. Load Shedding Controller
-
-Disconnects non-essential loads when power is low.
-
-```basic
-' Load Shedding Controller
-' d0 = APC (monitors power)
-' d1 = Low priority circuit
-' d2 = Medium priority circuit
-' d3 = High priority (always on)
-
-ALIAS apc d0
-ALIAS lowPriority d1
-ALIAS medPriority d2
-ALIAS highPriority d3
-
-DEFINE CRITICAL_POWER 500
-DEFINE LOW_POWER 1000
-
-VAR available = 0
-
-main:
-    available = apc.PowerPotential - apc.PowerActual
-
-    IF available < CRITICAL_POWER THEN
-        ' Critical - only essential
-        lowPriority.On = 0
-        medPriority.On = 0
-    ELSEIF available < LOW_POWER THEN
-        ' Low - reduce load
-        lowPriority.On = 0
-        medPriority.On = 1
-    ELSE
-        ' Normal - all on
-        lowPriority.On = 1
-        medPriority.On = 1
-    ENDIF
-
-    ' High priority always on
-    highPriority.On = 1
-
-    YIELD
-    GOTO main
-END
-```
-
-### 12. Smart Solar Array (Batch Operations)
-
-Controls all solar panels using batch operations.
-
-```basic
-' Smart Solar Array Controller
-' Uses batch operations - no direct device connections needed
-
-DEFINE SOLAR_HASH -539224550
-
-VAR solarAngle = 0
-VAR totalPower = 0
-VAR panelCount = 0
-
-main:
-    ' Get solar angle from any panel
-    solarAngle = BATCHREAD(SOLAR_HASH, SolarAngle, 0)
-
-    ' Set all panels to track sun
-    BATCHWRITE(SOLAR_HASH, Horizontal, solarAngle)
-    BATCHWRITE(SOLAR_HASH, Vertical, 60)
-
-    ' Monitor total power
-    totalPower = BATCHREAD(SOLAR_HASH, PowerGeneration, 1)
-
-    YIELD
-    GOTO main
-END
-```
-
 ---
 
-## Manufacturing Automation
+## Advanced Examples
 
-### 13. Furnace Temperature Controller
+### 08: Airlock Controller
 
-Maintains furnace at optimal temperature.
+Full airlock automation with state machine and safety interlocks.
 
-```basic
-' Furnace Controller
-' d0 = Furnace
-' d1 = Console (display)
+**Devices:** d0 = Inner Door, d1 = Outer Door, d2 = Pump, d3 = Gas Sensor, d4 = Inner Button, d5 = Outer Button
 
-ALIAS furnace d0
-ALIAS display d1
-
-DEFINE TARGET_TEMP 800      ' 800K for smelting
-
-VAR temp = 0
-
-main:
-    temp = furnace.Temperature
-
-    ' Turn on if below target
-    IF temp < TARGET_TEMP THEN
-        furnace.On = 1
-    ELSE
-        furnace.On = 0
-    ENDIF
-
-    display.Setting = temp
-
-    YIELD
-    GOTO main
-END
-```
-
-### 14. Autolathe Queue Monitor
-
-Monitors autolathe production.
+**State Machine:**
+- State 0: Idle (waiting for request)
+- State 1: Depressurizing (pumping air out)
+- State 2: Pressurizing (pumping air in)
 
 ```basic
-' Autolathe Monitor
-' d0 = Autolathe
-' d1 = LED Display (completions)
-' d2 = Wall Light (status)
-
-ALIAS lathe d0
-ALIAS counter d1
-ALIAS status d2
-
-VAR completions = 0
-VAR isWorking = 0
-
-main:
-    completions = lathe.Completions
-    isWorking = lathe.On
-
-    counter.Setting = completions
-
-    IF lathe.Error > 0 THEN
-        ' Error state - red
-        status.On = 1
-        status.Color = 16711680
-    ELSEIF isWorking > 0 THEN
-        ' Working - blue
-        status.On = 1
-        status.Color = 255
-    ELSE
-        ' Idle - green
-        status.On = 1
-        status.Color = 65280
-    ENDIF
-
-    YIELD
-    GOTO main
-END
-```
-
-### 15. Sorter Controller
-
-Controls sorting of items based on type.
-
-```basic
-' Item Sorter
-' d0 = Sorter
-' d1 = Stacker (output)
-
-ALIAS sorter d0
-ALIAS output d1
-
-' Define item hashes to sort
-DEFINE IRON_HASH 226410516
-DEFINE COPPER_HASH -707307845
-DEFINE GOLD_HASH -929742000
-
-VAR itemHash = 0
-
-main:
-    ' Check what's in the sorter
-    itemHash = sorter[0].OccupantHash
-
-    IF itemHash = IRON_HASH THEN
-        sorter.Mode = 1     ' Output to slot 1
-    ELSEIF itemHash = COPPER_HASH THEN
-        sorter.Mode = 2     ' Output to slot 2
-    ELSEIF itemHash = GOLD_HASH THEN
-        sorter.Mode = 3     ' Output to slot 3
-    ELSE
-        sorter.Mode = 0     ' Default output
-    ENDIF
-
-    YIELD
-    GOTO main
-END
-```
-
----
-
-## Advanced Systems
-
-### 16. Airlock Controller
-
-Full airlock automation with safety interlocks.
-
-```basic
-' Airlock Controller
-' d0 = Inner Door
-' d1 = Outer Door
-' d2 = Pump
-' d3 = Airlock Gas Sensor
-' d4 = Inner Button
-' d5 = Outer Button
-
 ALIAS innerDoor d0
 ALIAS outerDoor d1
 ALIAS pump d2
@@ -639,14 +278,10 @@ DEFINE VACUUM 1
 DEFINE PRESSURIZED 90
 
 VAR pressure = 0
-VAR state = 0       ' 0=idle, 1=depressurizing, 2=pressurizing
-VAR innerRequest = 0
-VAR outerRequest = 0
+VAR state = 0
 
 main:
     pressure = sensor.Pressure
-    innerRequest = innerButton.Setting
-    outerRequest = outerButton.Setting
 
     IF state = 0 THEN
         GOSUB IdleState
@@ -661,14 +296,11 @@ main:
 
 IdleState:
     pump.On = 0
-
-    IF innerRequest = 1 THEN
-        ' Want to enter - pressurize
+    IF innerButton.Setting = 1 THEN
         outerDoor.Open = 0
         outerDoor.Lock = 1
         state = 2
-    ELSEIF outerRequest = 1 THEN
-        ' Want to exit - depressurize
+    ELSEIF outerButton.Setting = 1 THEN
         innerDoor.Open = 0
         innerDoor.Lock = 1
         state = 1
@@ -678,8 +310,7 @@ IdleState:
 Depressurize:
     innerDoor.Lock = 1
     pump.On = 1
-    pump.Mode = 0       ' Outward
-
+    pump.Mode = 0
     IF pressure < VACUUM THEN
         pump.On = 0
         outerDoor.Lock = 0
@@ -691,8 +322,7 @@ Depressurize:
 Pressurize:
     outerDoor.Lock = 1
     pump.On = 1
-    pump.Mode = 1       ' Inward
-
+    pump.Mode = 1
     IF pressure > PRESSURIZED THEN
         pump.On = 0
         innerDoor.Lock = 0
@@ -704,192 +334,59 @@ Pressurize:
 END
 ```
 
-### 17. Greenhouse Controller
+---
 
-Automated greenhouse with light, water, and atmosphere.
+### 11: Batch Solar Array
 
-```basic
-' Greenhouse Controller
-' d0 = Hydroponics Tray
-' d1 = Grow Light
-' d2 = Gas Sensor
-' d3 = Wall Heater
-' d4 = Volume Pump (CO2)
-' d5 = Console Display
+Control unlimited solar panels using batch operations.
 
-ALIAS tray d0
-ALIAS light d1
-ALIAS sensor d2
-ALIAS heater d3
-ALIAS co2pump d4
-ALIAS display d5
+**Devices:** d0 = LED Display (optional)
 
-DEFINE OPTIMAL_TEMP 303.15      ' 30°C
-DEFINE TEMP_TOLERANCE 5
-DEFINE MIN_CO2 0.02             ' 2% CO2
-
-VAR temp = 0
-VAR co2 = 0
-VAR growth = 0
-VAR mature = 0
-
-main:
-    temp = sensor.Temperature
-    co2 = sensor.RatioCarbonDioxide
-    growth = tray.Growth
-    mature = tray.Mature
-
-    GOSUB ControlLight
-    GOSUB ControlTemperature
-    GOSUB ControlCO2
-    GOSUB UpdateDisplay
-
-    YIELD
-    GOTO main
-
-ControlLight:
-    ' Keep light on during growth
-    IF mature = 0 THEN
-        light.On = 1
-    ELSE
-        light.On = 0
-    ENDIF
-    RETURN
-
-ControlTemperature:
-    IF temp < OPTIMAL_TEMP - TEMP_TOLERANCE THEN
-        heater.On = 1
-    ELSEIF temp > OPTIMAL_TEMP + TEMP_TOLERANCE THEN
-        heater.On = 0
-    ENDIF
-    RETURN
-
-ControlCO2:
-    IF co2 < MIN_CO2 THEN
-        co2pump.On = 1
-    ELSE
-        co2pump.On = 0
-    ENDIF
-    RETURN
-
-UpdateDisplay:
-    display.Setting = growth * 100
-    RETURN
-
-END
-```
-
-### 18. Mining Drill Controller
-
-Automates mining drill operation.
+**Batch Modes:**
+- 0 = Average
+- 1 = Sum
+- 2 = Minimum
+- 3 = Maximum
 
 ```basic
-' Mining Drill Controller
-' d0 = Mining Drill
-' d1 = Storage Crate
-' d2 = Console Display
+ALIAS display d0
 
-ALIAS drill d0
-ALIAS storage d1
-ALIAS display d2
+DEFINE SOLAR_HASH -539224550
 
-DEFINE MAX_STORAGE_RATIO 0.9
-
-VAR storageRatio = 0
-VAR drilling = 0
+VAR solarAngle = 0
+VAR totalPower = 0
 
 main:
-    storageRatio = storage.Ratio
-    display.Setting = storageRatio * 100
+    solarAngle = BATCHREAD(SOLAR_HASH, SolarAngle, 0)
 
-    ' Stop drilling if storage is full
-    IF storageRatio > MAX_STORAGE_RATIO THEN
-        drill.On = 0
-        drilling = 0
-    ELSE
-        drill.On = 1
-        drilling = 1
-    ENDIF
+    BATCHWRITE(SOLAR_HASH, Horizontal, solarAngle)
+    BATCHWRITE(SOLAR_HASH, Vertical, 60)
+
+    totalPower = BATCHREAD(SOLAR_HASH, PowerGeneration, 1)
+    display.Setting = totalPower
 
     YIELD
     GOTO main
 END
 ```
 
-### 19. Multi-Zone Temperature System
+---
 
-Controls multiple heating zones.
+### 12: Base Status Monitor
 
-```basic
-' Multi-Zone Temperature System
-' Uses batch operations for scalability
+Comprehensive base monitoring using batch operations.
 
-DEFINE SENSOR_HASH 1255689925    ' Gas Sensor hash
-DEFINE HEATER_HASH -1253014094   ' Wall Heater hash
-DEFINE COOLER_HASH 1621028804    ' Wall Cooler hash
-
-DEFINE TARGET_TEMP 293.15
-DEFINE TOLERANCE 3
-
-VAR avgTemp = 0
-VAR minTemp = 0
-VAR maxTemp = 0
-
-main:
-    ' Get temperature stats from all sensors
-    avgTemp = BATCHREAD(SENSOR_HASH, Temperature, 0)
-    minTemp = BATCHREAD(SENSOR_HASH, Temperature, 2)
-    maxTemp = BATCHREAD(SENSOR_HASH, Temperature, 3)
-
-    ' Control all heaters
-    IF avgTemp < TARGET_TEMP - TOLERANCE THEN
-        BATCHWRITE(HEATER_HASH, On, 1)
-        BATCHWRITE(COOLER_HASH, On, 0)
-    ELSEIF avgTemp > TARGET_TEMP + TOLERANCE THEN
-        BATCHWRITE(HEATER_HASH, On, 0)
-        BATCHWRITE(COOLER_HASH, On, 1)
-    ELSE
-        BATCHWRITE(HEATER_HASH, On, 0)
-        BATCHWRITE(COOLER_HASH, On, 0)
-    ENDIF
-
-    YIELD
-    GOTO main
-END
-```
-
-### 20. Complete Base Status Monitor
-
-Monitors all critical base systems.
+**Devices:** d0-d3 = LED Displays, d4 = Alarm Light
 
 ```basic
-' Base Status Monitor
-' d0 = Console (main display)
-' d1 = LED Display (power)
-' d2 = LED Display (O2)
-' d3 = LED Display (pressure)
-' d4 = LED Display (temp)
-' d5 = Alarm Light
+ALIAS powerDisp d0
+ALIAS o2Disp d1
+ALIAS pressDisp d2
+ALIAS tempDisp d3
+ALIAS alarm d4
 
-ALIAS mainDisplay d0
-ALIAS powerDisplay d1
-ALIAS o2Display d2
-ALIAS pressDisplay d3
-ALIAS tempDisplay d4
-ALIAS alarm d5
-
-' Device hashes
 DEFINE BATTERY_HASH -1388288459
 DEFINE SENSOR_HASH 1255689925
-
-' Thresholds
-DEFINE POWER_LOW 0.2
-DEFINE O2_LOW 0.18
-DEFINE O2_HIGH 0.25
-DEFINE PRESS_LOW 80
-DEFINE PRESS_HIGH 120
-DEFINE TEMP_LOW 283.15      ' 10°C
-DEFINE TEMP_HIGH 308.15     ' 35°C
 
 VAR power = 0
 VAR oxygen = 0
@@ -898,44 +395,28 @@ VAR temp = 0
 VAR alarmState = 0
 
 main:
-    ' Read all values using batch
-    power = BATCHREAD(BATTERY_HASH, Charge, 2)          ' Minimum
-    oxygen = BATCHREAD(SENSOR_HASH, RatioOxygen, 0)     ' Average
-    pressure = BATCHREAD(SENSOR_HASH, Pressure, 0)      ' Average
-    temp = BATCHREAD(SENSOR_HASH, Temperature, 0)       ' Average
+    power = BATCHREAD(BATTERY_HASH, Charge, 2)
+    oxygen = BATCHREAD(SENSOR_HASH, RatioOxygen, 0)
+    pressure = BATCHREAD(SENSOR_HASH, Pressure, 0)
+    temp = BATCHREAD(SENSOR_HASH, Temperature, 0)
 
-    ' Update displays
-    powerDisplay.Setting = power * 100
-    o2Display.Setting = oxygen * 100
-    pressDisplay.Setting = pressure
-    tempDisplay.Setting = temp - 273.15
+    powerDisp.Setting = power * 100
+    o2Disp.Setting = oxygen * 100
+    pressDisp.Setting = pressure
+    tempDisp.Setting = temp - 273.15
 
-    ' Check for alarms
     alarmState = 0
+    IF power < 0.2 THEN alarmState = 1
+    IF oxygen < 0.18 THEN alarmState = 1
+    IF oxygen > 0.25 THEN alarmState = 1
+    IF pressure < 80 THEN alarmState = 1
+    IF pressure > 120 THEN alarmState = 1
 
-    IF power < POWER_LOW THEN
-        alarmState = 1
-    ENDIF
-
-    IF oxygen < O2_LOW OR oxygen > O2_HIGH THEN
-        alarmState = 1
-    ENDIF
-
-    IF pressure < PRESS_LOW OR pressure > PRESS_HIGH THEN
-        alarmState = 1
-    ENDIF
-
-    IF temp < TEMP_LOW OR temp > TEMP_HIGH THEN
-        alarmState = 1
-    ENDIF
-
-    ' Set alarm
+    alarm.On = 1
     IF alarmState = 1 THEN
-        alarm.On = 1
-        alarm.Color = 16711680  ' Red
+        alarm.Color = 16711680
     ELSE
-        alarm.On = 1
-        alarm.Color = 65280     ' Green
+        alarm.Color = 65280
     ENDIF
 
     YIELD
@@ -945,13 +426,72 @@ END
 
 ---
 
-## Tips for Your Own Programs
+## Reference: Math Functions
 
-1. **Start Simple**: Begin with basic examples and add complexity
-2. **Test in Simulator**: Use F9 to test before deploying
-3. **Use Comments**: Document your code for future reference
-4. **Monitor Line Count**: Stay under 128 lines
-5. **Use YIELD**: Required for device values to update
-6. **Batch Operations**: More efficient for multiple similar devices
-7. **Hysteresis**: Prevent oscillation in control systems
-8. **Error Handling**: Check for error states on devices
+All available math functions:
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `ABS(x)` | Absolute value | `ABS(-5)` → 5 |
+| `SQRT(x)` | Square root | `SQRT(16)` → 4 |
+| `SIN(x)` | Sine (radians) | `SIN(3.14159/2)` → 1 |
+| `COS(x)` | Cosine (radians) | `COS(0)` → 1 |
+| `TAN(x)` | Tangent (radians) | `TAN(0)` → 0 |
+| `ASIN(x)` | Arc sine | `ASIN(1)` → 1.57... |
+| `ACOS(x)` | Arc cosine | `ACOS(0)` → 1.57... |
+| `ATAN(x)` | Arc tangent | `ATAN(1)` → 0.785... |
+| `ATAN2(y,x)` | Arc tangent of y/x | `ATAN2(1,1)` → 0.785... |
+| `LOG(x)` | Natural logarithm | `LOG(2.718)` → 1 |
+| `EXP(x)` | e^x | `EXP(1)` → 2.718... |
+| `CEIL(x)` | Round up | `CEIL(3.2)` → 4 |
+| `FLOOR(x)` | Round down | `FLOOR(3.8)` → 3 |
+| `ROUND(x)` | Round nearest | `ROUND(3.5)` → 4 |
+| `TRUNC(x)` | Truncate | `TRUNC(3.9)` → 3 |
+| `MIN(a,b)` | Smaller value | `MIN(5,3)` → 3 |
+| `MAX(a,b)` | Larger value | `MAX(5,3)` → 5 |
+| `RAND` | Random 0-1 | `RAND` → 0.xxxxx |
+| `x ^ y` | Power | `2 ^ 3` → 8 |
+
+---
+
+## Reference: Common Device Properties
+
+### All Devices
+- `.On` - Power state (0 or 1)
+- `.Setting` - Configurable value
+- `.Error` - Error state (0 = OK)
+
+### Gas Sensors
+- `.Temperature` - In Kelvin
+- `.Pressure` - In kPa
+- `.RatioOxygen` - O2 ratio (0-1)
+- `.RatioCarbonDioxide` - CO2 ratio (0-1)
+
+### Batteries
+- `.Charge` - Charge level (0-1)
+
+### Solar Panels
+- `.SolarAngle` - Sun position
+- `.Horizontal` - Panel rotation
+- `.Vertical` - Panel tilt
+- `.PowerGeneration` - Current output
+
+### Doors
+- `.Open` - Open state (0/1)
+- `.Lock` - Lock state (0/1)
+
+### Pumps/Vents
+- `.Mode` - Direction (0=out, 1=in)
+- `.Setting` - Target pressure
+
+---
+
+## Tips for Success
+
+1. **Always use YIELD** in loops - required for device values to update
+2. **Use hysteresis** to prevent rapid on/off switching
+3. **Test in simulator** (F9) before deploying
+4. **Watch line count** - IC10 has 128-line limit
+5. **Use batch operations** for multiple identical devices
+6. **Check .Error property** to detect malfunctions
+7. **Document with comments** - they're stripped during compilation
