@@ -22,8 +22,9 @@ This document describes the IC10 assembly instructions that the BASIC compiler g
 ### General Purpose Registers (r0-r15)
 
 IC10 has 16 general-purpose registers for storing values:
-- `r0` through `r15`
+- `r0` through `r15` (only these exist - r16, r17, etc. are **invalid**)
 - All hold 64-bit floating-point values
+- The compiler uses r0-r13 for variables and r14-r15 as temporary registers
 
 ### Special Registers
 
@@ -450,6 +451,16 @@ define MAX_TEMP 373.15    # Constant definition
 myLabel:            # Define a label (jump target)
 ```
 
+### Comments
+
+IC10 MIPS uses `#` as the **only** comment character:
+
+```mips
+# This is a comment
+move r0 1           # Inline comment
+# Note: ' and REM are NOT valid in IC10 (those are BASIC-only)
+```
+
 ### Sleep and Yield
 
 ```mips
@@ -597,6 +608,8 @@ l r0 db LineNumber  # r0 = current line number (PC)
 ---
 
 ## Common Hash Values
+
+Stationeers uses **CRC-32** for all hash calculations. The compiler and Device Hash Database both use this algorithm to generate compatible hash values.
 
 ### Device Types
 

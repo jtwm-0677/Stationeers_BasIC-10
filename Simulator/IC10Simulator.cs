@@ -2,11 +2,12 @@ namespace BasicToMips.Simulator;
 
 public class IC10Simulator
 {
-    public const int RegisterCount = 18; // r0-r15, sp (r16), ra (r17)
-    public const int DeviceCount = 6;    // d0-d5
+    public const int NumericRegisterCount = 16; // r0-r15 (valid user registers)
+    public const int TotalRegisterCount = 18;   // r0-r15 + sp (index 16) + ra (index 17) for internal storage
+    public const int DeviceCount = 6;           // d0-d5
     public const int StackSize = 512;
 
-    public double[] Registers { get; } = new double[RegisterCount];
+    public double[] Registers { get; } = new double[TotalRegisterCount];
     public SimDevice[] Devices { get; } = new SimDevice[DeviceCount];
     public double[] Stack { get; } = new double[StackSize];
     public int StackPointer { get; private set; } = 0;
@@ -302,10 +303,10 @@ public class IC10Simulator
 
     private double GetValue(string operand)
     {
-        // Check for register
+        // Check for register (r0-r15 only)
         if (operand.StartsWith("r"))
         {
-            if (int.TryParse(operand.Substring(1), out int regNum) && regNum >= 0 && regNum < RegisterCount)
+            if (int.TryParse(operand.Substring(1), out int regNum) && regNum >= 0 && regNum < NumericRegisterCount)
             {
                 return Registers[regNum];
             }
@@ -316,7 +317,7 @@ public class IC10Simulator
         }
         else if (operand == "ra")
         {
-            return Registers[17];
+            return Registers[17]; // Return address stored at internal index 17
         }
 
         // Check for define
@@ -338,18 +339,19 @@ public class IC10Simulator
     {
         if (operand.StartsWith("r"))
         {
-            if (int.TryParse(operand.Substring(1), out int regNum) && regNum >= 0 && regNum < RegisterCount)
+            // IC10 only has r0-r15 (16 registers)
+            if (int.TryParse(operand.Substring(1), out int regNum) && regNum >= 0 && regNum < NumericRegisterCount)
             {
                 return regNum;
             }
         }
         else if (operand == "sp")
         {
-            return 16;
+            return 16; // Internal index for stack pointer
         }
         else if (operand == "ra")
         {
-            return 17;
+            return 17; // Internal index for return address
         }
 
         throw new InvalidOperationException($"Invalid register: {operand}");

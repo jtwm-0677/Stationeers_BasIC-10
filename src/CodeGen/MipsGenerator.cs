@@ -19,10 +19,10 @@ public class MipsGenerator
     private int _nextRegister = 0;
     private int _nextLabel = 0;
     private int _stackPointer = 0;
-    private const int MaxRegisters = 15; // r0-r14 available for variables
-    private const int TempRegister = 15; // r15 for temp operations
-    private const int TempRegister2 = 16; // r16 for temp operations
-    private const int StackPointerReg = 17; // sp (r17) for stack operations
+    private const int MaxRegisters = 14; // r0-r13 available for variables
+    private const int TempRegister = 14; // r14 for temp operations
+    private const int TempRegister2 = 15; // r15 for second temp operations
+    // Note: IC10 uses 'sp' and 'ra' as named registers, not numbered
 
     public string Generate(ProgramNode program)
     {
@@ -1146,16 +1146,42 @@ public class MipsGenerator
         return resultReg;
     }
 
-    // Stationeers hash algorithm (FNV-1a variant)
-    private static long CalculateHash(string str)
+    // Stationeers uses CRC-32 for hash calculation
+    private static readonly uint[] Crc32Table = GenerateCrc32Table();
+
+    private static uint[] GenerateCrc32Table()
     {
-        // Simple hash for now - matches Stationeers behavior approximately
-        long hash = 0;
+        var table = new uint[256];
+        const uint polynomial = 0xEDB88320; // Standard CRC-32 polynomial (reversed)
+
+        for (uint i = 0; i < 256; i++)
+        {
+            uint crc = i;
+            for (int j = 0; j < 8; j++)
+            {
+                if ((crc & 1) == 1)
+                    crc = (crc >> 1) ^ polynomial;
+                else
+                    crc >>= 1;
+            }
+            table[i] = crc;
+        }
+        return table;
+    }
+
+    private static int CalculateHash(string str)
+    {
+        // Stationeers CRC-32 hash calculation
+        uint crc = 0xFFFFFFFF;
+
         foreach (char c in str)
         {
-            hash = hash * 31 + c;
+            byte b = (byte)c;
+            crc = (crc >> 8) ^ Crc32Table[(crc ^ b) & 0xFF];
         }
-        return hash;
+
+        // Return as signed int32 (Stationeers convention)
+        return unchecked((int)(crc ^ 0xFFFFFFFF));
     }
 
     // Register allocation

@@ -83,7 +83,10 @@ ALIAS panel d0
 angle = SolarAngle  ' Get current sun position
 ```
 
-Note: Comments are stripped during compilation and don't count toward the 128-line limit.
+**Important Notes:**
+- BASIC comments (`'` and `REM`) are stripped during compilation and don't count toward the IC10 128-line limit
+- The compiled IC10 assembly uses `#` for comments (added by the compiler for debug info)
+- IC10 MIPS only recognizes `#` as the comment character - never use `'` or `REM` in raw IC10 code
 
 ---
 
@@ -681,7 +684,7 @@ machine[0].Quantity = 10
 |----------|-------------|---------|------|
 | `ISNAN(x)` | Check if NaN | `ISNAN(0/0)` → 1 | snan |
 | `SELECT(c,t,f)` | Conditional select | `SELECT(1>0, 5, 10)` → 5 | select |
-| `HASH(s)` | String hash | `HASH("On")` | - |
+| `HASH(s)` | CRC-32 string hash | `HASH("On")` → 1112093520 | - |
 | `CLAMP(v,min,max)` | Clamp to range | `CLAMP(150,0,100)` → 100 | max+min |
 | `LERP(a,b,t)` | Linear interpolate | `LERP(0,100,0.5)` → 50 | - |
 | `INRANGE(v,min,max)` | Check if in range | `INRANGE(50,0,100)` → 1 | - |
