@@ -561,6 +561,119 @@ ALIAS vent d4            ' d4 = Active Vent
 ALIAS logic d5           ' d5 = Logic Memory
 ```
 
+### Advanced Device References (Named Devices)
+
+IC10 chips have only 6 device pins (d0-d5), which can be limiting for complex automation. BASIC-IC10 supports advanced device referencing that bypasses this limitation using batch operations.
+
+#### IC.Pin - Direct Pin Reference
+
+Explicit pin reference (equivalent to simple d0-d5):
+
+```basic
+ALIAS sensor = IC.Pin[0]      ' Same as: ALIAS sensor d0
+ALIAS heater = IC.Pin[1]      ' Same as: ALIAS heater d1
+```
+
+#### IC.Device - Batch Operations by Type
+
+Reference ALL devices of a specific type on the network:
+
+```basic
+' Control all solar panels at once
+ALIAS panels = IC.Device[-539224550]        ' Solar Panel hash
+ALIAS panels = IC.Device["StructureSolarPanel"]  ' Or use type name
+
+' Usage - affects ALL panels on network:
+panels.Horizontal = solarAngle
+panels.Vertical = 60
+```
+
+**Batch read modes** (used automatically for reads):
+- Mode 0: Average of all matching devices
+- Mode 1: Sum of all matching devices
+- Mode 2: Minimum value
+- Mode 3: Maximum value
+
+```basic
+' Get average temperature from all sensors
+ALIAS sensors = IC.Device["StructureGasSensor"]
+avgTemp = sensors.Temperature  ' Average from all sensors
+```
+
+#### IC.Device.Name - Named Device Reference (KEY FEATURE!)
+
+**This is the most important feature for bypassing the 6-pin limit!**
+
+Reference a SPECIFIC device by its custom name (set with labeler):
+
+```basic
+' Reference devices by their labeler-assigned names
+ALIAS bedroomLight = IC.Device["StructureWallLight"].Name["Bedroom Light"]
+ALIAS kitchenSensor = IC.Device["StructureGasSensor"].Name["Kitchen Sensor"]
+ALIAS mainPump = IC.Device["StructureVolumePump"].Name["Main Pump"]
+
+' Now use them like any other device
+bedroomLight.On = 1
+temp = kitchenSensor.Temperature
+mainPump.Setting = 500
+```
+
+**How it works:**
+1. Label your devices in-game using a Labeler
+2. Use `IC.Device[type].Name["Label"]` syntax
+3. The compiler generates `lbn`/`sbn` instructions that target specific named devices
+4. You can reference UNLIMITED devices this way!
+
+**Example - Control 10+ devices with one IC10 chip:**
+
+```basic
+' Temperature control across multiple rooms
+ALIAS room1_sensor = IC.Device["StructureGasSensor"].Name["Room 1 Sensor"]
+ALIAS room1_heater = IC.Device["StructureWallHeater"].Name["Room 1 Heater"]
+ALIAS room2_sensor = IC.Device["StructureGasSensor"].Name["Room 2 Sensor"]
+ALIAS room2_heater = IC.Device["StructureWallHeater"].Name["Room 2 Heater"]
+ALIAS room3_sensor = IC.Device["StructureGasSensor"].Name["Room 3 Sensor"]
+ALIAS room3_heater = IC.Device["StructureWallHeater"].Name["Room 3 Heater"]
+
+' ... add as many as you need!
+
+main:
+    ' Control Room 1
+    IF room1_sensor.Temperature < 293 THEN
+        room1_heater.On = 1
+    ELSE
+        room1_heater.On = 0
+    ENDIF
+
+    ' Control Room 2
+    IF room2_sensor.Temperature < 293 THEN
+        room2_heater.On = 1
+    ELSE
+        room2_heater.On = 0
+    ENDIF
+
+    YIELD
+    GOTO main
+END
+```
+
+#### IC.ID - Reference by ID
+
+Reference a device by its Reference ID (from configuration card):
+
+```basic
+ALIAS myDevice = IC.ID[123456789]
+```
+
+#### IC.Port.Channel - Channel Communication
+
+For IC socket-based communication:
+
+```basic
+ALIAS comm = IC.Port[0].Channel[1]
+ALIAS pinComm = IC.Pin[0].Port[0].Channel[1]
+```
+
 ### Reading Device Properties
 
 ```basic

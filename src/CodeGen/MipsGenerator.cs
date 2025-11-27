@@ -11,6 +11,7 @@ public class MipsGenerator
     private readonly Dictionary<int, string> _lineLabels = new();
     private readonly Dictionary<string, string> _labelMap = new();
     private readonly Dictionary<string, string> _aliases = new();
+    private readonly Dictionary<string, DeviceReference> _deviceReferences = new();
     private readonly Dictionary<string, double> _defines = new();
     private readonly Stack<string> _loopEndLabels = new();
     private readonly Stack<string> _loopStartLabels = new();
@@ -492,8 +493,81 @@ public class MipsGenerator
 
     private void GenerateAlias(AliasStatement alias)
     {
-        _aliases[alias.AliasName] = alias.DeviceSpec;
-        Emit($"alias {alias.AliasName} {alias.DeviceSpec}");
+        // Check for advanced device reference
+        if (alias.DeviceReference != null)
+        {
+            var devRef = alias.DeviceReference;
+            _deviceReferences[alias.AliasName] = devRef;
+
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.Pin:
+                    // IC.Pin[n] -> alias name dn
+                    var pinSpec = $"d{devRef.PinIndex}";
+                    _aliases[alias.AliasName] = pinSpec;
+                    Emit($"alias {alias.AliasName} {pinSpec}");
+                    break;
+
+                case DeviceReferenceType.Device:
+                    // IC.Device[hash] - batch reference, no alias emitted
+                    // The hash is stored for use in lb/sb operations
+                    EmitComment($"Batch device alias: {alias.AliasName}");
+                    if (devRef.DeviceHash is NumberLiteral numHash)
+                    {
+                        Emit($"define {alias.AliasName}_HASH {FormatNumber(numHash.Value)}");
+                    }
+                    else if (devRef.DeviceHash is StringLiteral strHash)
+                    {
+                        var hash = CalculateHash(strHash.Value);
+                        Emit($"define {alias.AliasName}_HASH {hash}");
+                        EmitComment($"Device type: {strHash.Value}");
+                    }
+                    break;
+
+                case DeviceReferenceType.DeviceNamed:
+                    // IC.Device[hash].Name["name"] - named device reference
+                    // This is the key feature for bypassing 6-pin limit!
+                    EmitComment($"Named device alias: {alias.AliasName} = \"{devRef.DeviceName}\"");
+                    if (devRef.DeviceHash is NumberLiteral numHash2)
+                    {
+                        Emit($"define {alias.AliasName}_HASH {FormatNumber(numHash2.Value)}");
+                    }
+                    else if (devRef.DeviceHash is StringLiteral strHash2)
+                    {
+                        var hash = CalculateHash(strHash2.Value);
+                        Emit($"define {alias.AliasName}_HASH {hash}");
+                        EmitComment($"Device type: {strHash2.Value}");
+                    }
+                    // Store name hash for lbn/sbn operations
+                    var nameHash = CalculateHash(devRef.DeviceName!);
+                    Emit($"define {alias.AliasName}_NAME {nameHash}");
+                    EmitComment($"Device name: \"{devRef.DeviceName}\"");
+                    break;
+
+                case DeviceReferenceType.ReferenceId:
+                    // IC.ID[refId] - reference by ID
+                    EmitComment($"Reference ID alias: {alias.AliasName} = ID[{devRef.ReferenceId}]");
+                    Emit($"define {alias.AliasName}_REFID {devRef.ReferenceId}");
+                    break;
+
+                case DeviceReferenceType.Channel:
+                    // IC.Port[n].Channel[m] or IC.Pin[n].Port[m].Channel[c]
+                    EmitComment($"Channel alias: {alias.AliasName}");
+                    if (devRef.PinIndex.HasValue)
+                    {
+                        Emit($"define {alias.AliasName}_PIN {devRef.PinIndex}");
+                    }
+                    Emit($"define {alias.AliasName}_PORT {devRef.PortIndex}");
+                    Emit($"define {alias.AliasName}_CHANNEL {devRef.ChannelIndex}");
+                    break;
+            }
+        }
+        else
+        {
+            // Simple alias (d0, db, etc.)
+            _aliases[alias.AliasName] = alias.DeviceSpec;
+            Emit($"alias {alias.AliasName} {alias.DeviceSpec}");
+        }
     }
 
     private void GenerateDefine(DefineStatement define)
@@ -526,6 +600,42 @@ public class MipsGenerator
     private void GenerateDeviceWrite(DeviceWriteStatement write)
     {
         var valueReg = GenerateExpression(write.Value);
+
+        // Check for advanced device reference (batch/named)
+        if (_deviceReferences.TryGetValue(write.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.Device:
+                    // Batch write: sb HASH Property value
+                    Emit($"sb {write.DeviceName}_HASH {write.PropertyName} {valueReg}");
+                    FreeRegister(valueReg);
+                    return;
+
+                case DeviceReferenceType.DeviceNamed:
+                    // Named device write: sbn HASH NAMEHASH Property value
+                    Emit($"sbn {write.DeviceName}_HASH {write.DeviceName}_NAME {write.PropertyName} {valueReg}");
+                    FreeRegister(valueReg);
+                    return;
+
+                case DeviceReferenceType.ReferenceId:
+                    // Reference ID write (limited support)
+                    EmitComment($"Warning: Reference ID write for {write.DeviceName}");
+                    Emit($"sbn {write.DeviceName}_REFID 0 {write.PropertyName} {valueReg}");
+                    FreeRegister(valueReg);
+                    return;
+
+                case DeviceReferenceType.Pin:
+                    // Pin reference - use standard device write
+                    break;
+
+                case DeviceReferenceType.Channel:
+                    // Channel write - not typically used for property writes
+                    break;
+            }
+        }
+
+        // Standard device write
         var deviceSpec = _aliases.GetValueOrDefault(write.DeviceName, write.DeviceName);
 
         if (write.SlotIndex != null)
@@ -829,6 +939,41 @@ public class MipsGenerator
     private string GenerateDeviceRead(DeviceReadExpression read)
     {
         var resultReg = AllocateRegister();
+
+        // Check for advanced device reference (batch/named)
+        if (_deviceReferences.TryGetValue(read.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.Device:
+                    // Batch read: lb result HASH Property Mode
+                    Emit($"lb {resultReg} {read.DeviceName}_HASH {read.PropertyName} 0");
+                    return resultReg;
+
+                case DeviceReferenceType.DeviceNamed:
+                    // Named device read: lbn result HASH NAMEHASH Property Mode
+                    // Named devices return single device value, use mode 0 (average for single = same value)
+                    Emit($"lbn {resultReg} {read.DeviceName}_HASH {read.DeviceName}_NAME {read.PropertyName} 0");
+                    return resultReg;
+
+                case DeviceReferenceType.ReferenceId:
+                    // Reference ID read: lbns or direct batch named with ID
+                    // Use lr instruction for reference ID based reads
+                    Emit($"lbn {resultReg} {read.DeviceName}_REFID 0 {read.PropertyName} 0");
+                    EmitComment("Warning: Reference ID read may need adjustment");
+                    return resultReg;
+
+                case DeviceReferenceType.Pin:
+                    // Pin reference - use standard device read
+                    break;
+
+                case DeviceReferenceType.Channel:
+                    // Channel read - not typically used for property reads
+                    break;
+            }
+        }
+
+        // Standard device read
         var deviceSpec = _aliases.GetValueOrDefault(read.DeviceName, read.DeviceName);
 
         if (read.SlotIndex != null)
