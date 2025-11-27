@@ -1,0 +1,36 @@
+# Build results
+bin/
+obj/
+out/
+
+# .NET specific
+*.user
+*.userosscache
+*.suo
+*.cache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.rsuser
+*.sln.iml
+
+# JetBrains Rider
+.idea/
+*.sln.DotSettings.user
+
+# NuGet packages
+*.nupkg
+packages/
+
+# OS generated
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Compiled output
+*.ic10
+
+# Logs
+*.log
