@@ -259,7 +259,14 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE756;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock Text=" IC10 MIPS Output" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <TextBlock Text=" IC10 MIPS" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    <TextBlock x:Name="MipsEditableIndicator" Text=" (Editable)" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" FontStyle="Italic" FontSize="12"/>
+                                    <Button x:Name="DecompileButton" Style="{StaticResource IconButtonStyle}" ToolTip="Decompile to BASIC" Click="Decompile_Click" Margin="8,0,0,0" Padding="4,2">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
+                                            <TextBlock Text=" To BASIC" FontSize="11" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <TextBlock x:Name="MipsLineCountText" Text="Lines: 0 / 128" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
@@ -273,7 +280,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- MIPS Output -->
+                        <!-- MIPS Output (Now Editable) -->
                         <avalon:TextEditor x:Name="MipsOutput"
                                           Grid.Row="1"
                                           FontFamily="{StaticResource CodeFont}"
@@ -282,10 +289,10 @@
                                           Foreground="{StaticResource PrimaryTextBrush}"
                                           LineNumbersForeground="{StaticResource SecondaryTextBrush}"
                                           ShowLineNumbers="True"
-                                          IsReadOnly="True"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Auto"
-                                          Padding="4"/>
+                                          Padding="4"
+                                          TextChanged="MipsOutput_TextChanged"/>
                     </Grid>
                 </Border>
             </Grid>

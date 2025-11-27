@@ -121,6 +121,7 @@ public class Lexer
             '>' => ScanGreaterThan(startLine, startColumn),
             '"' => ScanString(startLine, startColumn),
             '\'' => ScanComment(startLine, startColumn),
+            '#' => ScanIC10Comment(startLine, startColumn),
             _ when char.IsDigit(c) => ScanNumber(c, startLine, startColumn),
             _ when char.IsLetter(c) || c == '_' => ScanIdentifier(c, startLine, startColumn),
             _ => throw new LexerException($"Unexpected character '{c}'", startLine, startColumn)
@@ -177,6 +178,22 @@ public class Lexer
 
     private Token ScanComment(int line, int column)
     {
+        // Skip everything until end of line (BASIC ' comment)
+        while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
+        {
+            Advance();
+        }
+        // Return null to skip comment, or handle newline
+        if (!IsAtEnd())
+        {
+            return ScanToken()!;
+        }
+        return new Token(TokenType.Eof, "", _line, _column);
+    }
+
+    private Token ScanIC10Comment(int line, int column)
+    {
+        // IC10 style comment (# comment)
         // Skip everything until end of line
         while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
         {

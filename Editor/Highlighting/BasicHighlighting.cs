@@ -105,7 +105,7 @@ public static class BasicHighlighting
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(numberColor) }
         });
 
-        // Comments (both ' and REM)
+        // Comments (BASIC style: ' and REM)
         definition.AddRule(new HighlightingRule
         {
             Pattern = @"'.*$",
@@ -117,6 +117,27 @@ public static class BasicHighlighting
             Pattern = @"\bREM\b.*$",
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(commentColor) },
             IgnoreCase = true
+        });
+
+        // IC10 style comments (# comment) - for hybrid mode
+        definition.AddRule(new HighlightingRule
+        {
+            Pattern = @"#.*$",
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(commentColor) }
+        });
+
+        // IC10 instructions (for hybrid mode)
+        definition.AddRule(new HighlightingRule
+        {
+            Pattern = @"\b(move|add|sub|mul|div|mod|and|or|xor|nor|slt|sgt|seq|sne|sle|sge|beq|bne|blt|bgt|ble|bge|beqz|bnez|bgtz|bltz|bgez|blez|j|jal|jr|push|pop|peek|yield|sleep|hcf|select)\b",
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(keywordColor) }
+        });
+
+        // IC10 registers (for hybrid mode)
+        definition.AddRule(new HighlightingRule
+        {
+            Pattern = @"\br([0-9]|1[0-5])\b",
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(propertyColor) }
         });
 
         return definition;
@@ -143,10 +164,10 @@ public static class MipsHighlighting
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(instructionColor) }
         });
 
-        // Registers
+        // Registers (r0-r15 only, plus sp and ra)
         definition.AddRule(new HighlightingRule
         {
-            Pattern = @"\b(r[0-9]|r1[0-7]|sp|ra)\b",
+            Pattern = @"\b(r[0-9]|r1[0-5]|sp|ra)\b",
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(registerColor) }
         });
 

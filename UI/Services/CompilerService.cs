@@ -1,6 +1,8 @@
 using BasicToMips.Lexer;
 using BasicToMips.Parser;
 using BasicToMips.CodeGen;
+using BasicToMips.IC10;
+using BasicToMips.Shared;
 
 namespace BasicToMips.UI.Services;
 
@@ -11,30 +13,47 @@ public class CompilationResult
     public string? ErrorMessage { get; set; }
     public int? ErrorLine { get; set; }
     public int LineCount { get; set; }
+    public LanguageType DetectedLanguage { get; set; }
 }
 
 public class CompilerService
 {
+    /// <summary>
+    /// Compile BASIC to IC10, or pass through raw IC10
+    /// </summary>
     public CompilationResult Compile(string source, int optimizationLevel = 1)
     {
         try
         {
-            // Lexical analysis
-            var lexer = new Lexer.Lexer(source);
-            var tokens = lexer.Tokenize();
+            // Detect the language
+            var language = LanguageDetector.Detect(source);
 
-            // Parsing
-            var parser = new Parser.Parser(tokens);
-            var program = parser.Parse();
-
-            // Code generation
-            var generator = new MipsGenerator();
-            var output = generator.Generate(program);
-
-            // Apply optimization
-            if (optimizationLevel > 0)
+            string output;
+            if (language == LanguageType.IC10)
             {
-                output = Optimize(output, optimizationLevel);
+                // It's already IC10 - pass through with validation
+                output = ValidateAndCleanIC10(source);
+            }
+            else
+            {
+                // It's BASIC - compile it
+                // Lexical analysis
+                var lexer = new Lexer.Lexer(source);
+                var tokens = lexer.Tokenize();
+
+                // Parsing
+                var parser = new Parser.Parser(tokens);
+                var program = parser.Parse();
+
+                // Code generation
+                var generator = new MipsGenerator();
+                output = generator.Generate(program);
+
+                // Apply optimization
+                if (optimizationLevel > 0)
+                {
+                    output = Optimize(output, optimizationLevel);
+                }
             }
 
             var lineCount = output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -44,7 +63,8 @@ public class CompilerService
             {
                 Success = true,
                 Output = output,
-                LineCount = lineCount
+                LineCount = lineCount,
+                DetectedLanguage = language
             };
         }
         catch (LexerException ex)
@@ -53,7 +73,8 @@ public class CompilerService
             {
                 Success = false,
                 ErrorMessage = ex.Message,
-                ErrorLine = ex.Line
+                ErrorLine = ex.Line,
+                DetectedLanguage = LanguageType.Basic
             };
         }
         catch (ParserException ex)
@@ -62,7 +83,8 @@ public class CompilerService
             {
                 Success = false,
                 ErrorMessage = ex.Message,
-                ErrorLine = ex.Line
+                ErrorLine = ex.Line,
+                DetectedLanguage = LanguageType.Basic
             };
         }
         catch (Exception ex)
@@ -70,9 +92,61 @@ public class CompilerService
             return new CompilationResult
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = ex.Message,
+                DetectedLanguage = LanguageType.Unknown
             };
         }
+    }
+
+    /// <summary>
+    /// Decompile IC10 back to BASIC
+    /// </summary>
+    public CompilationResult Decompile(string ic10Source)
+    {
+        try
+        {
+            var parser = new IC10Parser();
+            var program = parser.Parse(ic10Source);
+
+            var decompiler = new IC10Decompiler(program);
+            var output = decompiler.Decompile();
+
+            return new CompilationResult
+            {
+                Success = true,
+                Output = output,
+                DetectedLanguage = LanguageType.IC10
+            };
+        }
+        catch (Exception ex)
+        {
+            return new CompilationResult
+            {
+                Success = false,
+                ErrorMessage = $"Decompilation error: {ex.Message}",
+                DetectedLanguage = LanguageType.IC10
+            };
+        }
+    }
+
+    /// <summary>
+    /// Validate and clean IC10 code
+    /// </summary>
+    private string ValidateAndCleanIC10(string source)
+    {
+        var lines = source.Split('\n');
+        var result = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (!string.IsNullOrWhiteSpace(trimmed))
+            {
+                result.Add(trimmed);
+            }
+        }
+
+        return string.Join("\n", result);
     }
 
     private string Optimize(string code, int level)
