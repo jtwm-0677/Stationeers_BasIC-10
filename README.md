@@ -1,35 +1,52 @@
 # BASIC to IC10 Compiler for Stationeers
 
-A professional Windows application that compiles BASIC programming language code into optimized IC10 MIPS assembly for [Stationeers](https://store.steampowered.com/app/544550/Stationeers/).
+A professional Windows IDE that compiles BASIC programming language code into optimized IC10 MIPS assembly for [Stationeers](https://store.steampowered.com/app/544550/Stationeers/).
 
 ![Screenshot](docs/screenshot.png)
 
 ## Features
 
 ### Modern IDE Experience
-- **Professional dark-themed interface** - Easy on the eyes during long coding sessions
-- **Split-pane editor** - BASIC source on top, IC10 output below
-- **Real-time line counts** - Track both BASIC lines and IC10 output (with 128-line limit warnings)
+- **Professional dark/light themed interface** - Easy on the eyes with theme switching
+- **Bidirectional editing** - Edit BASIC *or* IC10 directly, with automatic sync
+- **IC10 decompiler** - Convert existing IC10 code back to BASIC
+- **Split-pane editor** - BASIC source on top, IC10 output below (both editable)
+- **Real-time line counts** - Track IC10 output with 128-line limit warnings
 - **Syntax highlighting** - Full color coding for BASIC and MIPS code
 - **IntelliSense auto-complete** - Press Ctrl+Space for smart suggestions
-- **Code snippets** - Insert common patterns quickly
+- **Find & Replace** - With regex support
+- **Real-time error highlighting** - Squiggly underlines for syntax errors
 
 ### Powerful Compiler
 - **Full BASIC language support** - Variables, expressions, control flow, functions
-- **Automatic register allocation** - No manual memory management needed
+- **Hybrid mode** - Mix BASIC and IC10 syntax in the same file
+- **Language auto-detection** - Automatically detects BASIC vs IC10 input
+- **Automatic register allocation** - Uses r0-r13 for variables, r14-r15 as temps
 - **Multiple optimization levels** - From fast compile to aggressive size optimization
-- **Real-time error reporting** - Catch mistakes as you type
+- **CRC-32 hash calculation** - Matching Stationeers' hash algorithm
+
+### IC10 Simulator
+- **Step-through debugging** - Execute IC10 code line by line
+- **Register inspection** - View all 16 registers (r0-r15) in real-time
+- **Device simulation** - Configure virtual d0-d5 devices with properties
+- **Stack visualization** - Monitor push/pop operations
+- **Breakpoints** - Pause execution at specific lines
+
+### Device Hash Database
+- **Searchable database** - Find device and property hashes quickly
+- **CRC-32 calculator** - Generate hashes for any string
+- **Copy to clipboard** - Insert hashes directly into your code
 
 ### Stationeers Integration
-- **Auto-detect game directory** - Finds your Stationeers installation automatically
+- **Auto-detect game directory** - Finds your Stationeers installation
 - **One-click deployment** - Save & Deploy sends code directly to the game
-- **Auto-compile on save** - IC10 output updates automatically when you save
+- **Auto-compile on save** - IC10 output updates automatically
 
 ### Comprehensive Documentation
 - **Built-in quick reference** - Always-visible documentation panel
 - **Language reference** - Complete BASIC-IC10 language guide
-- **Example programs** - Learn from working code samples
-- **Context-sensitive help** - Press F1 anytime
+- **IC10 instruction reference** - All MIPS opcodes documented
+- **20+ example programs** - Learn from working code samples
 
 ## Installation
 
@@ -62,7 +79,7 @@ The standalone executable will be in `bin/Release/net8.0-windows/win-x64/publish
 ## Quick Start
 
 1. **Launch the application**
-2. **Write your BASIC code** in the top editor
+2. **Write your BASIC code** in the top editor (or paste IC10 code)
 3. **Press F5** or click **Compile** to generate IC10 code
 4. **Click Save & Deploy** to send the code to Stationeers
 
@@ -73,7 +90,7 @@ The standalone executable will be in `bin/Release/net8.0-windows/win-x64/publish
 ALIAS sensor d0
 ALIAS heater d1
 
-CONST TARGET = 20
+DEFINE TARGET 293.15    ' 20°C in Kelvin
 
 main:
     VAR temp = sensor.Temperature
@@ -89,6 +106,24 @@ main:
 END
 ```
 
+### Bidirectional Editing
+
+Both editors are fully editable:
+
+- **BASIC → IC10**: Write BASIC, auto-compiles to IC10
+- **IC10 → BASIC**: Paste IC10, click "To BASIC" to decompile
+- **Hybrid mode**: Mix both syntaxes with `'` or `#` comments
+
+```basic
+' BASIC comment style
+# IC10 comment style (also valid in BASIC editor)
+
+ALIAS sensor d0
+VAR temp = sensor.Temperature   ' High-level BASIC
+
+# You can even include raw IC10 if needed
+```
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -99,6 +134,7 @@ END
 | Ctrl+Shift+S | Save as |
 | F5 | Compile |
 | F6 | Compile and copy to clipboard |
+| F9 | Run Simulator |
 | Ctrl+Space | Show auto-complete |
 | F1 | Show documentation |
 | Ctrl+Z/Y | Undo/Redo |
@@ -111,7 +147,8 @@ END
 
 ```basic
 VAR temperature = 0      ' Variable declaration
-CONST MAX_TEMP = 100     ' Compile-time constant
+LET x = 5                ' Traditional BASIC assignment
+DEFINE MAX_TEMP 373.15   ' Compile-time constant
 ALIAS sensor d0          ' Device alias
 ```
 
@@ -135,7 +172,7 @@ NEXT i
 WHILE condition
     ' code
     YIELD
-ENDWHILE
+WEND
 
 ' Subroutines
 GOSUB my_routine
@@ -155,9 +192,11 @@ VAR temp = sensor.Temperature
 ' Write device property
 heater.On = 1
 
-' Common properties
-' Temperature, Pressure, Power, On, Open, Lock
-' Setting, Ratio, Quantity, Occupied, Mode, Charge
+' Slot access
+VAR item = storage[0].OccupantHash
+
+' Batch operations (all devices of a type)
+VAR totalPower = BATCHREAD(-539224550, "PowerGeneration", Sum)
 ```
 
 ### Built-in Functions
@@ -166,28 +205,65 @@ heater.On = 1
 |----------|-----------|
 | Math | ABS, SQRT, SIN, COS, TAN, ASIN, ACOS, ATAN, ATAN2 |
 | Rounding | CEIL, FLOOR, ROUND, TRUNC, INT |
-| Comparison | MIN, MAX, SGN |
-| Other | EXP, LOG, RND, POW |
+| Comparison | MIN, MAX, SGN, CLAMP |
+| Other | EXP, LOG, RND, POW, HASH |
+| Stack | PUSH, POP, PEEK |
 | Control | YIELD, SLEEP, END |
+
+## IC10 Technical Details
+
+### Registers
+- **r0-r15**: General purpose (r0-r13 for variables, r14-r15 temps)
+- **sp**: Stack pointer (0-511)
+- **ra**: Return address for subroutines
+
+### Hash Calculation
+Uses CRC-32 algorithm matching Stationeers:
+```basic
+' Get hash for device/property names
+VAR hash = HASH("Temperature")  ' Returns 466104759
+```
+
+### Line Limit
+IC10 programs are limited to **128 lines**. The compiler shows warnings when approaching this limit.
 
 ## Project Structure
 
 ```
 BasicToMips/
 ├── src/
-│   ├── Lexer/          # Tokenization
-│   ├── Parser/         # AST generation
-│   ├── AST/            # Abstract syntax tree
-│   └── CodeGen/        # IC10 code generation
+│   ├── Lexer/           # Tokenization
+│   ├── Parser/          # AST generation
+│   ├── AST/             # Abstract syntax tree
+│   ├── CodeGen/         # IC10 code generation
+│   ├── IC10/            # IC10 parser & decompiler
+│   └── Shared/          # Language detection
 ├── Editor/
-│   ├── Highlighting/   # Syntax highlighting
-│   └── Completion/     # Auto-complete
+│   ├── Highlighting/    # Syntax highlighting
+│   ├── Completion/      # Auto-complete
+│   └── ErrorHighlighting/  # Real-time error markers
+├── Simulator/           # IC10 step-through debugger
+├── Data/                # Device hash database
 ├── UI/
-│   ├── Themes/         # Dark theme resources
-│   ├── Services/       # App services
-│   └── *.xaml          # Window definitions
-└── examples/           # Sample BASIC programs
+│   ├── Themes/          # Dark/Light themes
+│   ├── Services/        # Compiler, settings services
+│   └── *.xaml           # Window definitions
+├── docs/                # Documentation
+│   ├── UserGuide.md
+│   ├── LanguageReference.md
+│   ├── IC10Reference.md
+│   ├── Examples.md
+│   └── QuickReference.md
+└── examples/            # Sample BASIC programs
 ```
+
+## Documentation
+
+- **[User Guide](docs/UserGuide.md)** - Complete usage instructions
+- **[Language Reference](docs/LanguageReference.md)** - BASIC-IC10 syntax
+- **[IC10 Reference](docs/IC10Reference.md)** - MIPS instruction set
+- **[Examples](docs/Examples.md)** - 20+ sample programs
+- **[Quick Reference](docs/QuickReference.md)** - Printable cheat sheet
 
 ## Contributing
 
@@ -201,3 +277,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - Built with [AvalonEdit](https://github.com/icsharpcode/AvalonEdit) for the code editor
 - Inspired by the Stationeers community's automation needs
+- CRC-32 implementation for Stationeers-compatible hash values
