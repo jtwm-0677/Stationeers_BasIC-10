@@ -34,3 +34,16 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Publish output
+publish/
+
+# Release packages
+*.zip
+
+# MCP config (local)
+.mcp.json
+
+# Temp/notes
+nul
+CONTINUATION_NOTES.md

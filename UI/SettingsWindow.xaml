@@ -103,6 +103,47 @@
                            Margin="150,0,0,0"
                            TextWrapping="Wrap"/>
 
+                <!-- Script Metadata -->
+                <TextBlock Text="Script Metadata" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,24,0,12"/>
+
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Author:" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ScriptAuthorText"
+                             Grid.Column="1"
+                             Style="{StaticResource ModernTextBoxStyle}"/>
+                </Grid>
+
+                <TextBlock Text="Your name or alias - used in instruction.xml for saved scripts."
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           FontSize="11"
+                           Margin="150,0,0,8"
+                           TextWrapping="Wrap"/>
+
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Description:" VerticalAlignment="Top" Margin="0,4,0,0"/>
+                    <TextBox x:Name="ScriptDescriptionText"
+                             Grid.Column="1"
+                             Style="{StaticResource ModernTextBoxStyle}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="60"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+
+                <TextBlock Text="Default description for your scripts. 'Built in Basic-10' will be appended automatically."
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           FontSize="11"
+                           Margin="150,0,0,0"
+                           TextWrapping="Wrap"/>
+
                 <!-- About -->
                 <TextBlock Text="About" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,24,0,12"/>
 

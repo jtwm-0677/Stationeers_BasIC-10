@@ -1,0 +1,247 @@
+Instruction	Fields
+bdns	d?	a(r?|num)	 	 
+» Branch to line a if device d isn't set
+bdnsal	d?	a(r?|num)	 	 
+» Jump execution to line a and store next line number if device is not set
+bdse	d?	a(r?|num)	 	 
+» Branch to line a if device d is set
+bdseal	d?	a(r?|num)	 	 
+» Jump execution to line a and store next line number if device is set
+brdns	d?	a(r?|num)	 	 
+» Relative jump to line a if device is not set
+brdse	d?	a(r?|num)	 	 
+» Relative jump to line a if device is set
+l	r?	d?	var	 
+» Loads device var to register.
+lb	r?	type	var	batchMode
+» Loads var from all output network devices with provided type hash using the provide batch mode. Average (0), Sum (1), Minimum (2), Maximum (3). Can use either the word, or the number.
+lr	r?	d?	reagentMode	reagent
+» Loads reagent of device's reagentMode to register. Contents (0), Required (1), Recipe (2). Can use either the word, or the number.
+ls	r?	d?	int	var
+» Loads slot var on device to register.
+s	d?	var	r?	 
+» Stores register value to var on device.
+sb	type	var	r?	 
+» Stores register value to var on all output network devices with provided type hash.
+Flow Control, Branches and Jumps
+Instruction	Fields
+bap	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Branch to line d if abs(a - b) <= max(c * max(abs(a), abs(b)), float.epsilon * 8)
+bapal	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Branch to line c if a != b and store next line number in ra
+bapz	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if abs(a) <= float.epsilon * 8
+bapzal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if abs(a) <= float.epsilon * 8
+beq	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a == b
+beqal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a == b and store next line number in ra
+beqz	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a == 0
+beqzal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a == 0 and store next line number in ra
+bge	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a >= b
+bgeal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a >= b and store next line number in ra
+bgez	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a >= 0
+bgezal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a >= 0 and store next line number in ra
+bgt	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a > b
+bgtal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a > b and store next line number in ra
+bgtz	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a > 0
+bgtzal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a > 0 and store next line number in ra
+ble	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a <= b
+bleal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a <= b and store next line number in ra
+blez	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a <= 0
+blezal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a <= 0 and store next line number in ra
+blt	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a < b
+bltal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a < b and store next line number in ra
+bltz	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a < 0
+bltzal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a < 0 and store next line number in ra
+bna	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Branch to line d if abs(a - b) > max(c * max(abs(a), abs(b)), float.epsilon * 8)
+bnaal	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Branch to line d if abs(a - b) <= max(c * max(abs(a), abs(b)), float.epsilon * 8) and store next line number in ra
+bnaz	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if abs(a) > float.epsilon * 8
+bnazal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if abs(a) > float.epsilon * 8
+bne	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a != b
+bneal	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Branch to line c if a != b and store next line number in ra
+bnez	a(r?|num)	b(r?|num)	 	 
+» branch to line b if a != 0
+bnezal	a(r?|num)	b(r?|num)	 	 
+» Branch to line b if a != 0 and store next line number in ra
+brap	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Relative branch to line d if abs(a - b) <= max(c * max(abs(a), abs(b)), float.epsilon * 8)
+brapz	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative branch to line c if abs(a) <= float.epsilon * 8
+breq	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative branch to line c if a == b
+breqz	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a == 0
+brge	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative jump to line c if a >= b
+brgez	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a >= 0
+brgt	a(r?|num)	b(r?|num)	c(r?|num)	 
+» relative jump to line c if a > b
+brgtz	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a > 0
+brle	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative jump to line c if a <= b
+brlez	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a <= 0
+brlt	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative jump to line c if a < b
+brltz	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a < 0
+brna	a(r?|num)	b(r?|num)	c(r?|num)	d(r?|num)
+» Relative branch to line d if abs(a - b) > max(c * max(abs(a), abs(b)), float.epsilon * 8)
+brnaz	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative branch to line c if abs(a) > float.epsilon * 8
+brne	a(r?|num)	b(r?|num)	c(r?|num)	 
+» Relative branch to line c if a != b
+brnez	a(r?|num)	b(r?|num)	 	 
+» Relative branch to line b if a != 0
+j	int	 	 	 
+» Jump execution to line a
+jal	int	 	 	 
+» Jump execution to line a and store next line number in ra
+jr	int	 	 	 
+» Relative jump to line a
+Variable Selection
+Instruction	Fields
+sap	r?	a(r?|num)	b(r?|num)	c(r?|num)
+» Register = 1 if abs(a - b) <= max(c * max(abs(a), abs(b)), float.epsilon * 8), otherwise 0
+sapz	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if |a| <= float.epsilon * 8, otherwise 0
+sdns	r?	d?	 	 
+» Register = 1 if device is not set, otherwise 0
+sdse	r?	d?	 	 
+» Register = 1 if device is set, otherwise 0.
+select	r?	a(r?|num)	b(r?|num)	c(r?|num)
+» Register = b if a is non-zero, otherwise c
+seq	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a == b, otherwise 0
+seqz	r?	a(r?|num)	 	 
+» Register = 1 if a == 0, otherwise 0
+sge	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a >= b, otherwise 0
+sgez	r?	a(r?|num)	 	 
+» Register = 1 if a >= 0, otherwise 0
+sgt	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a > b, otherwise 0
+sgtz	r?	a(r?|num)	 	 
+» Register = 1 if a > 0, otherwise 0
+sle	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a <= b, otherwise 0
+slez	r?	a(r?|num)	 	 
+» Register = 1 if a <= 0, otherwise 0
+slt	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a < b, otherwise 0
+sltz	r?	a(r?|num)	 	 
+» Register = 1 if a < 0, otherwise 0
+sna	r?	a(r?|num)	b(r?|num)	c(r?|num)
+» Register = 1 if abs(a - b) > max(c * max(abs(a), abs(b)), float.epsilon * 8), otherwise 0
+snaz	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if |a| > float.epsilon, otherwise 0
+sne	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a != b, otherwise 0
+snez	r?	a(r?|num)	 	 
+» Register = 1 if a != 0, otherwise 0
+Mathematical Operations
+Instruction	Fields
+abs	r?	a(r?|num)	 	 
+» Register = the absolute value of a
+acos	r?	a(r?|num)	 	 
+» Returns the cosine of the specified angle
+add	r?	a(r?|num)	b(r?|num)	 
+» Register = a + b.
+asin	r?	a(r?|num)	 	 
+» Returns the angle whos sine is the specified value
+atan	r?	a(r?|num)	 	 
+» Returns the angle whos tan is the specified value
+ceil	r?	a(r?|num)	 	 
+» Register = smallest integer greater than a
+cos	r?	a(r?|num)	 	 
+» Returns the cosine of the specified angle
+div	r?	a(r?|num)	b(r?|num)	 
+» Register = a / b
+exp	r?	a(r?|num)	 	 
+» Register = exp(a)
+floor	r?	a(r?|num)	 	 
+» Register = largest integer less than a
+log	r?	a(r?|num)	 	 
+» Register = log(a)
+max	r?	a(r?|num)	b(r?|num)	 
+» Register = max of a or b
+min	r?	a(r?|num)	b(r?|num)	 
+» Register = min of a or b
+mod	r?	a(r?|num)	b(r?|num)	 
+» Register = a mod b (note: NOT a % b)
+mul	r?	a(r?|num)	b(r?|num)	 
+» Register = a * b
+rand	r?	 	 	 
+» Register = a random value x with 0 <= x < 1
+round	r?	a(r?|num)	 	 
+» Register = a rounded to nearest integer
+sin	r?	a(r?|num)	 	 
+» Returns the sine of the specified angle
+sqrt	r?	a(r?|num)	 	 
+» Register = square root of a
+sub	r?	a(r?|num)	b(r?|num)	 
+» Register = a - b.
+tan	r?	a(r?|num)	 	 
+» Returns the tan of the specified angle
+trunc	r?	a(r?|num)	 	 
+» Register = a with fractional part removed
+Logic
+Instruction	Fields
+and	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a and b not zero, otherwise 0
+nor	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a and b are 0, otherwise 0
+or	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if a and/or b not 0, otherwise 0
+xor	r?	a(r?|num)	b(r?|num)	 
+» Register = 1 if either a or b not 0, otherwise 0
+Stack
+Instruction	Fields
+peek	r?	 	 	 
+» Register = the value at the top of the stack
+pop	r?	 	 	 
+» Register = the value at the top of the stack and decrements sp
+push	a(r?|num)	 	 	 
+» Pushes the value of a to the stack at sp and increments sp
+Misc
+Instruction	Fields
+alias	str	r?|d?	 	 
+» Labels register or device reference with name, device references also affect what shows on the screws on the IC base.
+define	str	num	 	 
+» Creates a label that will be replaced throughout the program with the provided value.
+hcf	 	 	 	 
+» Halt and catch fire
+move	r?	a(r?|num)	 	 
+» Register = provided num or register value.
+sleep	a(r?|num)	 	 	 
+» Pauses execution on the IC for a seconds
+yield	 	 	 	 
+» Pauses execution for 1 tick

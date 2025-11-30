@@ -23,12 +23,21 @@ public class IC10Simulator
     public HashSet<int> Breakpoints { get; } = new();
     public List<string> OutputLog { get; } = new();
 
+    /// <summary>
+    /// Current call depth (tracks jal/j ra pairs).
+    /// </summary>
+    public int CallDepth { get; private set; } = 0;
+
     private string[] _lines = Array.Empty<string>();
     private Dictionary<string, int> _labels = new();
     private Dictionary<string, int> _defines = new();
+    private int _stepOverTargetDepth = -1;
+    private int _stepOutTargetDepth = -1;
 
     public event EventHandler? StateChanged;
+#pragma warning disable CS0067 // Event is never used - part of public API for future use
     public event EventHandler<string>? OutputProduced;
+#pragma warning restore CS0067
 
     public IC10Simulator()
     {
@@ -46,6 +55,9 @@ public class IC10Simulator
         IsPaused = false;
         IsHalted = false;
         IsYielding = false;
+        CallDepth = 0;
+        _stepOverTargetDepth = -1;
+        _stepOutTargetDepth = -1;
         ErrorMessage = null;
         OutputLog.Clear();
 
@@ -189,6 +201,93 @@ public class IC10Simulator
     {
         IsRunning = false;
         IsHalted = true;
+    }
+
+    /// <summary>
+    /// Step Into - execute one instruction, stepping into subroutine calls.
+    /// </summary>
+    public bool StepInto()
+    {
+        _stepOverTargetDepth = -1;
+        _stepOutTargetDepth = -1;
+        return Step();
+    }
+
+    /// <summary>
+    /// Step Over - execute one instruction, treating subroutine calls as single step.
+    /// If current instruction is jal (call), runs until returning to same call depth.
+    /// </summary>
+    public void StepOver()
+    {
+        if (IsHalted || ProgramCounter >= _lines.Length) return;
+
+        var currentLine = _lines[ProgramCounter].Trim();
+        var parts = currentLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        // Check if this is a call instruction (jal)
+        if (parts.Length > 0 && parts[0].Equals("jal", StringComparison.OrdinalIgnoreCase))
+        {
+            // Run until we return to current depth
+            _stepOverTargetDepth = CallDepth;
+            _stepOutTargetDepth = -1;
+
+            // Execute the call
+            if (!Step()) return;
+
+            // Run until depth returns to target
+            while (!IsHalted && !IsPaused && CallDepth > _stepOverTargetDepth)
+            {
+                if (!Step()) break;
+
+                // Safety limit
+                if (InstructionCount > 10000)
+                {
+                    ErrorMessage = "Step over limit exceeded";
+                    IsPaused = true;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Normal step
+            Step();
+        }
+
+        _stepOverTargetDepth = -1;
+    }
+
+    /// <summary>
+    /// Step Out - run until returning from current subroutine (call depth decreases).
+    /// </summary>
+    public void StepOut()
+    {
+        if (IsHalted || CallDepth == 0) return;
+
+        _stepOutTargetDepth = CallDepth - 1;
+        _stepOverTargetDepth = -1;
+
+        while (!IsHalted && !IsPaused && CallDepth > _stepOutTargetDepth)
+        {
+            if (!Step()) break;
+
+            // Check for breakpoints
+            if (Breakpoints.Contains(ProgramCounter))
+            {
+                IsPaused = true;
+                break;
+            }
+
+            // Safety limit
+            if (InstructionCount > 10000)
+            {
+                ErrorMessage = "Step out limit exceeded";
+                IsPaused = true;
+                break;
+            }
+        }
+
+        _stepOutTargetDepth = -1;
     }
 
     private void ExecuteInstruction(string line)
@@ -427,7 +526,18 @@ public class IC10Simulator
 
     private void Jump(string[] parts)
     {
-        ProgramCounter = GetLabel(parts[1]);
+        var target = parts[1];
+
+        // Check if jumping to ra (return from subroutine)
+        if (target.Equals("ra", StringComparison.OrdinalIgnoreCase))
+        {
+            ProgramCounter = (int)Registers[17]; // Return to saved address
+            CallDepth = Math.Max(0, CallDepth - 1);
+        }
+        else
+        {
+            ProgramCounter = GetLabel(target);
+        }
     }
 
     private void JumpRelative(string[] parts)
@@ -438,8 +548,9 @@ public class IC10Simulator
 
     private void JumpAndLink(string[] parts)
     {
-        Registers[17] = ProgramCounter + 1; // ra
+        Registers[17] = ProgramCounter + 1; // ra (return address)
         ProgramCounter = GetLabel(parts[1]);
+        CallDepth++; // Entering subroutine
     }
 
     private void BranchIf(string[] parts, Func<double, double, bool> condition)
@@ -592,8 +703,8 @@ public class IC10Simulator
         // Check for alias
         for (int i = 0; i < DeviceCount; i++)
         {
-            if (Devices[i].Alias != null &&
-                Devices[i].Alias.Equals(operand, StringComparison.OrdinalIgnoreCase))
+            var alias = Devices[i].Alias;
+            if (alias != null && alias.Equals(operand, StringComparison.OrdinalIgnoreCase))
             {
                 return i;
             }

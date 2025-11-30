@@ -1,0 +1,106 @@
+<Window x:Class="BasicToMips.UI.Dialogs.ScriptSelectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Open Script"
+        Width="450" Height="400"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Border Background="#1E1E1E" BorderBrush="#007ACC" BorderThickness="2" CornerRadius="8">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock Grid.Row="0"
+                       Text="Select Script to Open"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="#FFFFFF"
+                       Margin="0,0,0,12"/>
+
+            <!-- Script List -->
+            <Border Grid.Row="1"
+                    Background="#252526"
+                    BorderBrush="#3F3F46"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ScriptList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Name}"
+                                        Tag="{Binding Path}"
+                                        Click="ScriptButton_Click"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        Foreground="#CCCCCC"
+                                        BorderThickness="0"
+                                        Padding="12,10"
+                                        FontSize="14"
+                                        Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border"
+                                                                Background="{TemplateBinding Background}"
+                                                                Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#3F3F46"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Empty state message -->
+            <TextBlock x:Name="EmptyMessage"
+                       Grid.Row="1"
+                       Text="No scripts found in scripts folder"
+                       Foreground="#808080"
+                       FontStyle="Italic"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed"/>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Content="Browse..."
+                        Width="80"
+                        Padding="0,6"
+                        Background="#3F3F46"
+                        Foreground="#FFFFFF"
+                        BorderThickness="0"
+                        Margin="0,0,8,0"
+                        Click="Browse_Click"/>
+                <Button Content="Cancel"
+                        Width="80"
+                        Padding="0,6"
+                        Background="#3F3F46"
+                        Foreground="#FFFFFF"
+                        BorderThickness="0"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

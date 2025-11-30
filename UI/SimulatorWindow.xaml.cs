@@ -249,6 +249,18 @@ public partial class SimulatorWindow : Window
     {
         _runTimer.Stop();
     }
+
+    /// <summary>
+    /// Load new IC10 code into the simulator
+    /// </summary>
+    public void LoadCode(string ic10Code)
+    {
+        _runTimer.Stop();
+        CodeEditor.Text = ic10Code;
+        _simulator.Reset();
+        _simulator.LoadProgram(ic10Code);
+        UpdateUI();
+    }
 }
 
 public class RegisterItem

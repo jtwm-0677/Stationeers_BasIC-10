@@ -8,10 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>BasicToMips</RootNamespace>
-    <AssemblyName>BasicToMips</AssemblyName>
-    <Version>1.0.0</Version>
-    <Authors>BasicToMips Compiler</Authors>
-    <Description>A BASIC to Stationeers MIPS (IC10) compiler with GUI</Description>
+    <AssemblyName>Basic_10</AssemblyName>
+    <Version>1.7.3</Version>
+    <Authors>Dog Tired Studios</Authors>
+    <Description>Stationeers Basic-10 - A BASIC to IC10 compiler</Description>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
 
     <!-- Windows-specific settings for standalone exe -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -23,6 +24,60 @@
 
   <ItemGroup>
     <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <!-- ASP.NET Core for HTTP API Server (MCP integration) -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Application icon as embedded resource for window icon -->
+  <ItemGroup>
+    <Resource Include="icon.ico" />
+    <Resource Include="logo.png" />
+    <Resource Include="Basic-10Banner.png" />
+    <None Include="Apple.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Include="trs80computer.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Copy docs folder to output (exclude from compilation) -->
+  <ItemGroup>
+    <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="docs" />
+    <Compile Remove="docs\**\*" />
+  </ItemGroup>
+
+  <!-- Copy Data folder non-code files to output -->
+  <ItemGroup>
+    <None Include="Data\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="Data" />
+    <None Include="Data\**\*.template.json" CopyToOutputDirectory="PreserveNewest" LinkBase="Data" />
+    <None Include="Data\CustomDevices\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="Data\CustomDevices" />
+  </ItemGroup>
+
+  <!-- Exclude publish folder from compilation -->
+  <ItemGroup>
+    <Compile Remove="publish\**\*" />
+    <None Remove="publish\**\*" />
+  </ItemGroup>
+
+  <!-- Exclude tools folder from compilation -->
+  <ItemGroup>
+    <Compile Remove="tools\**\*" />
+    <None Remove="tools\**\*" />
+    <Content Remove="tools\**\*" />
+  </ItemGroup>
+
+  <!-- Exclude MCP Server project from main compilation (it's a separate project) -->
+  <ItemGroup>
+    <Compile Remove="Basic10.Mcp\**\*" />
+    <None Remove="Basic10.Mcp\**\*" />
+    <Content Remove="Basic10.Mcp\**\*" />
   </ItemGroup>
 
 </Project>

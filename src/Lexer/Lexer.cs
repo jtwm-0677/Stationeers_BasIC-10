@@ -7,6 +7,7 @@ public class Lexer
     private int _line;
     private int _column;
     private bool _atLineStart;
+    private bool _preserveComments;
 
     private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -34,6 +35,7 @@ public class Lexer
         ["END"] = TokenType.End,
         ["REM"] = TokenType.Rem,
         ["DIM"] = TokenType.Dim,
+        ["ARRAY"] = TokenType.Dim,  // ARRAY is a synonym for DIM
         ["AS"] = TokenType.As,
         ["INTEGER"] = TokenType.Integer,
         ["SINGLE"] = TokenType.Single,
@@ -52,19 +54,49 @@ public class Lexer
         ["CALL"] = TokenType.Call,
         ["EXIT"] = TokenType.Exit,
         ["SLEEP"] = TokenType.Sleep,
+        ["WAIT"] = TokenType.Sleep,  // WAIT is a synonym for SLEEP
         ["YIELD"] = TokenType.Yield,
         ["DEVICE"] = TokenType.Device,
         ["ALIAS"] = TokenType.Alias,
-        ["DEFINE"] = TokenType.Define
+        ["DEFINE"] = TokenType.Define,
+        // Additional keywords
+        ["VAR"] = TokenType.Var,
+        ["CONST"] = TokenType.Const,
+        ["BREAK"] = TokenType.Break,
+        ["CONTINUE"] = TokenType.Continue,
+        ["SELECT"] = TokenType.Select,
+        ["CASE"] = TokenType.Case,
+        ["DEFAULT"] = TokenType.Default,
+        ["ENDSELECT"] = TokenType.EndSelect,
+        ["END SELECT"] = TokenType.EndSelect,
+        ["PUSH"] = TokenType.Push,
+        ["POP"] = TokenType.Pop,
+        ["PEEK"] = TokenType.Peek,
+        ["INCLUDE"] = TokenType.Include,
+        ["ON"] = TokenType.On,
+        ["DATA"] = TokenType.Data,
+        ["READ"] = TokenType.Read,
+        ["RESTORE"] = TokenType.Restore,
+        // Bitwise keywords
+        ["SHL"] = TokenType.Shl,
+        ["SHR"] = TokenType.Shr,
+        ["BAND"] = TokenType.BitAnd,
+        ["BOR"] = TokenType.BitOr,
+        ["BXOR"] = TokenType.BitXor,
+        ["BNOT"] = TokenType.BitNot,
+        // Boolean literals
+        ["TRUE"] = TokenType.True,
+        ["FALSE"] = TokenType.False
     };
 
-    public Lexer(string source)
+    public Lexer(string source, bool preserveComments = true)
     {
         _source = source;
         _position = 0;
         _line = 1;
         _column = 1;
         _atLineStart = true;
+        _preserveComments = preserveComments;
     }
 
     public List<Token> Tokenize()
@@ -117,11 +149,14 @@ public class Lexer
             ':' => new Token(TokenType.Colon, ":", startLine, startColumn),
             ';' => new Token(TokenType.Semicolon, ";", startLine, startColumn),
             '.' => new Token(TokenType.Dot, ".", startLine, startColumn),
-            '=' => new Token(TokenType.Equal, "=", startLine, startColumn),
+            '=' => ScanEqual(startLine, startColumn),
             '<' => ScanLessThan(startLine, startColumn),
             '>' => ScanGreaterThan(startLine, startColumn),
+            '|' => ScanPipe(startLine, startColumn),
+            '&' => ScanAmpersand(startLine, startColumn),
+            '~' => new Token(TokenType.Tilde, "~", startLine, startColumn),
+            '!' => ScanExclamation(startLine, startColumn),
             '"' => ScanString(startLine, startColumn),
-            '\'' => ScanComment(startLine, startColumn),
             '#' => ScanIC10Comment(startLine, startColumn),
             _ when char.IsDigit(c) => ScanNumber(c, startLine, startColumn),
             _ when char.IsLetter(c) || c == '_' => ScanIdentifier(c, startLine, startColumn),
@@ -147,17 +182,50 @@ public class Lexer
         return new Token(TokenType.Newline, "\\n", line, column);
     }
 
+    private Token ScanEqual(int line, int column)
+    {
+        // == is equality comparison (same as single = in BASIC context)
+        if (Match('=')) return new Token(TokenType.Equal, "==", line, column);
+        return new Token(TokenType.Equal, "=", line, column);
+    }
+
+    private Token ScanExclamation(int line, int column)
+    {
+        // != is not-equal (same as <> in BASIC)
+        if (Match('=')) return new Token(TokenType.NotEqual, "!=", line, column);
+        // Single ! is logical NOT (same as NOT keyword)
+        return new Token(TokenType.Not, "!", line, column);
+    }
+
     private Token ScanLessThan(int line, int column)
     {
         if (Match('=')) return new Token(TokenType.LessEqual, "<=", line, column);
         if (Match('>')) return new Token(TokenType.NotEqual, "<>", line, column);
+        if (Match('<')) return new Token(TokenType.ShiftLeft, "<<", line, column);
         return new Token(TokenType.LessThan, "<", line, column);
     }
 
     private Token ScanGreaterThan(int line, int column)
     {
         if (Match('=')) return new Token(TokenType.GreaterEqual, ">=", line, column);
+        if (Match('>')) return new Token(TokenType.ShiftRight, ">>", line, column);
         return new Token(TokenType.GreaterThan, ">", line, column);
+    }
+
+    private Token ScanPipe(int line, int column)
+    {
+        // || is logical OR (same as OR keyword)
+        if (Match('|')) return new Token(TokenType.Or, "||", line, column);
+        // Single | is bitwise OR
+        return new Token(TokenType.Pipe, "|", line, column);
+    }
+
+    private Token ScanAmpersand(int line, int column)
+    {
+        // && is logical AND (same as AND keyword)
+        if (Match('&')) return new Token(TokenType.And, "&&", line, column);
+        // Single & is bitwise AND
+        return new Token(TokenType.Ampersand, "&", line, column);
     }
 
     private Token ScanString(int line, int column)
@@ -179,12 +247,20 @@ public class Lexer
 
     private Token ScanComment(int line, int column)
     {
-        // Skip everything until end of line (BASIC ' comment)
+        // BASIC ' comment
+        var sb = new System.Text.StringBuilder();
         while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
         {
-            Advance();
+            sb.Append(Advance());
         }
-        // Return null to skip comment, or handle newline
+
+        if (_preserveComments)
+        {
+            // Return comment token with the text (prepend # for IC10 output)
+            return new Token(TokenType.Comment, sb.ToString().Trim(), line, column);
+        }
+
+        // Skip comment - return next token
         if (!IsAtEnd())
         {
             return ScanToken()!;
@@ -195,12 +271,33 @@ public class Lexer
     private Token ScanIC10Comment(int line, int column)
     {
         // IC10 style comment (# comment)
-        // Skip everything until end of line
+        var sb = new System.Text.StringBuilder();
+
+        // Check for ##Meta: directive
+        bool isMeta = false;
+        if (Peek() == '#')
+        {
+            sb.Append(Advance()); // Second #
+            if (_source.Substring(_position).StartsWith("Meta:", StringComparison.OrdinalIgnoreCase))
+            {
+                isMeta = true;
+            }
+        }
+
+        // Read rest of comment
         while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
         {
-            Advance();
+            sb.Append(Advance());
         }
-        // Return null to skip comment, or handle newline
+
+        if (_preserveComments || isMeta)
+        {
+            // Return comment/meta token with the text
+            var tokenType = isMeta ? TokenType.MetaComment : TokenType.Comment;
+            return new Token(tokenType, sb.ToString().Trim(), line, column);
+        }
+
+        // Skip comment - return next token
         if (!IsAtEnd())
         {
             return ScanToken()!;
@@ -297,7 +394,9 @@ public class Lexer
 
         if (Keywords.TryGetValue(upperText, out var type))
         {
-            return new Token(type, upperText, line, column);
+            // Preserve original case for property names (On, Color, etc.)
+            // but use uppercase for actual BASIC keywords in statements
+            return new Token(type, text, line, column);
         }
 
         return new Token(TokenType.Identifier, text, line, column);

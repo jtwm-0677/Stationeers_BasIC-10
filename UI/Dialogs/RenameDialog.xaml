@@ -1,0 +1,67 @@
+<Window x:Class="BasicToMips.UI.Dialogs.RenameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rename Symbol"
+        Height="180" Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{DynamicResource BackgroundBrush}">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   Text="Current name:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,10,10"
+                   Foreground="{DynamicResource ForegroundBrush}"/>
+        <TextBox Grid.Row="0" Grid.Column="1"
+                 x:Name="CurrentNameTextBox"
+                 IsReadOnly="True"
+                 Margin="0,0,0,10"
+                 Background="{DynamicResource TextBoxBackgroundBrush}"
+                 Foreground="{DynamicResource ForegroundBrush}"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0"
+                   Text="New name:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,10,10"
+                   Foreground="{DynamicResource ForegroundBrush}"/>
+        <TextBox Grid.Row="1" Grid.Column="1"
+                 x:Name="NewNameTextBox"
+                 Margin="0,0,0,10"
+                 Background="{DynamicResource TextBoxBackgroundBrush}"
+                 Foreground="{DynamicResource ForegroundBrush}"/>
+
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                   x:Name="InfoTextBlock"
+                   Text=""
+                   FontStyle="Italic"
+                   Foreground="Gray"
+                   Margin="0,0,0,10"/>
+
+        <StackPanel Grid.Row="4" Grid.ColumnSpan="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button x:Name="RenameButton"
+                    Content="Rename"
+                    Width="80"
+                    Margin="0,0,10,0"
+                    IsDefault="True"
+                    Click="RenameButton_Click"/>
+            <Button Content="Cancel"
+                    Width="80"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

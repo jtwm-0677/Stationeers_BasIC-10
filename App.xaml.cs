@@ -1,10 +1,11 @@
 using System.Windows;
+using BasicToMips.UI;
 
 namespace BasicToMips;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -18,5 +19,20 @@ public partial class App : Application
                 MessageBoxImage.Error);
             args.Handled = true;
         };
+
+        // Show splash screen
+        var splash = new SplashWindow();
+        splash.Show();
+
+        // Wait for 2 seconds while showing splash
+        await Task.Delay(2000);
+
+        // Create and show main window
+        var mainWindow = new MainWindow();
+        MainWindow = mainWindow;
+        mainWindow.Show();
+
+        // Close splash
+        splash.Close();
     }
 }

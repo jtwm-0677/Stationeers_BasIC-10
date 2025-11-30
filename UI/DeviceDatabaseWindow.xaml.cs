@@ -22,6 +22,8 @@ public partial class DeviceDatabaseWindow : Window
         LogicTypesGrid.ItemsSource = DeviceDatabase.LogicTypes;
         SlotLogicTypesGrid.ItemsSource = DeviceDatabase.SlotLogicTypes;
         BatchModesGrid.ItemsSource = DeviceDatabase.BatchModes;
+        ReagentModesGrid.ItemsSource = DeviceDatabase.ReagentModes;
+        SortingClassesGrid.ItemsSource = DeviceDatabase.SortingClasses;
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -34,6 +36,8 @@ public partial class DeviceDatabaseWindow : Window
         if (string.IsNullOrWhiteSpace(query))
         {
             SlotLogicTypesGrid.ItemsSource = DeviceDatabase.SlotLogicTypes;
+            ReagentModesGrid.ItemsSource = DeviceDatabase.ReagentModes;
+            SortingClassesGrid.ItemsSource = DeviceDatabase.SortingClasses;
         }
         else
         {
@@ -41,6 +45,15 @@ public partial class DeviceDatabaseWindow : Window
             SlotLogicTypesGrid.ItemsSource = DeviceDatabase.SlotLogicTypes
                 .Where(s => s.Name.ToLowerInvariant().Contains(lower) ||
                            s.DisplayName.ToLowerInvariant().Contains(lower) ||
+                           s.Hash.ToString().Contains(query))
+                .ToList();
+            ReagentModesGrid.ItemsSource = DeviceDatabase.ReagentModes
+                .Where(r => r.Name.ToLowerInvariant().Contains(lower) ||
+                           r.Value.ToString().Contains(query))
+                .ToList();
+            SortingClassesGrid.ItemsSource = DeviceDatabase.SortingClasses
+                .Where(s => s.Name.ToLowerInvariant().Contains(lower) ||
+                           s.Value.ToString().Contains(query) ||
                            s.Hash.ToString().Contains(query))
                 .ToList();
         }
@@ -119,7 +132,9 @@ public partial class DeviceDatabaseWindow : Window
             1 => (LogicTypesGrid.SelectedItem as LogicType)?.Hash.ToString(),
             2 => (SlotLogicTypesGrid.SelectedItem as SlotLogicType)?.Hash.ToString(),
             3 => (BatchModesGrid.SelectedItem as BatchMode)?.Value.ToString(),
-            4 => !string.IsNullOrEmpty(HashResultDecimal.Text) ? HashResultDecimal.Text : null,
+            4 => (ReagentModesGrid.SelectedItem as ReagentMode)?.Value.ToString(),
+            5 => (SortingClassesGrid.SelectedItem as SortingClass)?.Hash.ToString(),
+            6 => !string.IsNullOrEmpty(HashResultDecimal.Text) ? HashResultDecimal.Text : null,
             _ => null
         };
     }
@@ -134,7 +149,9 @@ public partial class DeviceDatabaseWindow : Window
             1 => (LogicTypesGrid.SelectedItem as LogicType)?.Name,
             2 => (SlotLogicTypesGrid.SelectedItem as SlotLogicType)?.Name,
             3 => (BatchModesGrid.SelectedItem as BatchMode)?.Name,
-            4 => HashInputBox.Text,
+            4 => (ReagentModesGrid.SelectedItem as ReagentMode)?.Name,
+            5 => (SortingClassesGrid.SelectedItem as SortingClass)?.Name,
+            6 => HashInputBox.Text,
             _ => null
         };
     }
@@ -144,7 +161,8 @@ public partial class DeviceDatabaseWindow : Window
         var deviceCount = (DevicesGrid.ItemsSource as IEnumerable<DeviceInfo>)?.Count() ?? 0;
         var logicCount = (LogicTypesGrid.ItemsSource as IEnumerable<LogicType>)?.Count() ?? 0;
         var slotCount = (SlotLogicTypesGrid.ItemsSource as IEnumerable<SlotLogicType>)?.Count() ?? 0;
+        var sortingCount = (SortingClassesGrid.ItemsSource as IEnumerable<SortingClass>)?.Count() ?? 0;
 
-        StatusText.Text = $"Showing: {deviceCount} devices, {logicCount} logic types, {slotCount} slot types";
+        StatusText.Text = $"Showing: {deviceCount} devices, {logicCount} logic types, {slotCount} slot types, {sortingCount} sorting classes";
     }
 }

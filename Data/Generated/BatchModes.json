@@ -1,0 +1,22 @@
+[
+  {
+    "Name": "Average",
+    "Value": 0,
+    "Hash": 1828591333
+  },
+  {
+    "Name": "Sum",
+    "Value": 1,
+    "Hash": -252651091
+  },
+  {
+    "Name": "Minimum",
+    "Value": 2,
+    "Hash": -702337835
+  },
+  {
+    "Name": "Maximum",
+    "Value": 3,
+    "Hash": -707736422
+  }
+]

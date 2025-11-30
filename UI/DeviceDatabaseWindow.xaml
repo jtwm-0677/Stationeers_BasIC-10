@@ -176,6 +176,30 @@
                 </DataGrid>
             </TabItem>
 
+            <!-- Reagent Modes Tab -->
+            <TabItem Header="Reagent Modes">
+                <DataGrid x:Name="ReagentModesGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180"/>
+                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="100"/>
+                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- Sorting Classes Tab -->
+            <TabItem Header="Sorting Classes">
+                <DataGrid x:Name="SortingClassesGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Single" CanUserSortColumns="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180"/>
+                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="100"/>
+                        <DataGridTextColumn Header="Hash" Binding="{Binding Hash}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
             <!-- Hash Calculator Tab -->
             <TabItem Header="Hash Calculator">
                 <StackPanel Margin="20">

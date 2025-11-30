@@ -1,5 +1,6 @@
 using BasicToMips.Lexer;
 using BasicToMips.Parser;
+using BasicToMips.UI.Services;
 
 namespace BasicToMips.Editor.ErrorHighlighting;
 
@@ -21,33 +22,66 @@ public class ErrorChecker
         Info
     }
 
-    public List<ErrorInfo> Check(string code)
+    public List<ErrorInfo> Check(string code, CancellationToken cancellationToken = default)
     {
         var errors = new List<ErrorInfo>();
 
         if (string.IsNullOrWhiteSpace(code))
             return errors;
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         try
         {
             // Run lexer
-            var lexer = new BasicLexer();
-            var tokens = lexer.Tokenize(code);
+            DebugLogger.Log("ErrorChecker", "Running lexer...");
+            cancellationToken.ThrowIfCancellationRequested();
+            var lexer = new Lexer.Lexer(code, false); // Don't preserve comments for error checking
+            var tokens = lexer.Tokenize();
+            DebugLogger.Log("ErrorChecker", $"Lexer done in {sw.ElapsedMilliseconds}ms, {tokens.Count} tokens");
 
             // Check for unclosed strings or other lexer issues
+            DebugLogger.Log("ErrorChecker", "Checking lexer issues...");
+            cancellationToken.ThrowIfCancellationRequested();
             CheckLexerIssues(code, errors);
+            DebugLogger.Log("ErrorChecker", $"Lexer issues done in {sw.ElapsedMilliseconds}ms");
 
-            // Run parser
-            var parser = new BasicParser();
+            // Run parser with timeout protection
+            DebugLogger.Log("ErrorChecker", "Running parser...");
+            cancellationToken.ThrowIfCancellationRequested();
+            var parser = new Parser.Parser(tokens);
             try
             {
-                var ast = parser.Parse(tokens);
+                // Run parser with timeout on separate task
+                var parseTask = Task.Run(() => parser.Parse(), cancellationToken);
+
+                // Wait for parser with timeout (5 seconds for parser itself, separate from outer timeout)
+                if (!parseTask.Wait(TimeSpan.FromSeconds(5), cancellationToken))
+                {
+                    DebugLogger.Log("ErrorChecker", "Parser timeout - likely infinite loop");
+                    errors.Add(new ErrorInfo
+                    {
+                        Line = 1,
+                        Column = 1,
+                        Length = 1,
+                        Message = "Parser timeout: Code may contain syntax that causes infinite loop",
+                        Severity = ErrorSeverity.Error
+                    });
+                    return errors; // Return early on timeout
+                }
+
+                var ast = parseTask.Result;
+                DebugLogger.Log("ErrorChecker", $"Parser done in {sw.ElapsedMilliseconds}ms");
 
                 // Semantic checks
+                DebugLogger.Log("ErrorChecker", "Running semantic checks...");
+                cancellationToken.ThrowIfCancellationRequested();
                 CheckSemantics(ast, errors);
+                DebugLogger.Log("ErrorChecker", $"Semantic checks done in {sw.ElapsedMilliseconds}ms");
             }
-            catch (ParseException ex)
+            catch (Parser.ParserException ex)
             {
+                DebugLogger.Log("ErrorChecker", $"Parser exception: {ex.Message}");
                 errors.Add(new ErrorInfo
                 {
                     Line = ex.Line,
@@ -57,9 +91,28 @@ public class ErrorChecker
                     Severity = ErrorSeverity.Error
                 });
             }
+            catch (AggregateException ex) when (ex.InnerException is Parser.ParserException pex)
+            {
+                DebugLogger.Log("ErrorChecker", $"Parser exception (aggregate): {pex.Message}");
+                errors.Add(new ErrorInfo
+                {
+                    Line = pex.Line,
+                    Column = pex.Column,
+                    Length = 10,
+                    Message = pex.Message,
+                    Severity = ErrorSeverity.Error
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            DebugLogger.Log("ErrorChecker", "Operation cancelled");
+            // Don't add error message for cancellation, just return what we have
+            return errors;
         }
         catch (Exception ex)
         {
+            DebugLogger.Log("ErrorChecker", $"General exception: {ex.Message}");
             // General parsing error
             errors.Add(new ErrorInfo
             {
@@ -72,7 +125,17 @@ public class ErrorChecker
         }
 
         // Check for common issues
-        CheckCommonIssues(code, errors);
+        DebugLogger.Log("ErrorChecker", "Checking common issues...");
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CheckCommonIssues(code, errors);
+            DebugLogger.Log("ErrorChecker", $"Common issues done in {sw.ElapsedMilliseconds}ms, total errors: {errors.Count}");
+        }
+        catch (OperationCanceledException)
+        {
+            DebugLogger.Log("ErrorChecker", "Operation cancelled during common issues check");
+        }
 
         return errors;
     }
@@ -357,18 +420,23 @@ public class ErrorChecker
                 }
             }
 
-            // Check for deprecated or invalid constructs
+            // Check for deprecated GOTO to line numbers (GOTO label is fine for IC10)
             if (line.Contains("GOTO") && !line.StartsWith("'"))
             {
-                // GOTO warning (not error)
-                errors.Add(new ErrorInfo
+                // Only warn if GOTO is followed by a number (line number reference)
+                var gotoMatch = System.Text.RegularExpressions.Regex.Match(
+                    line, @"\bGOTO\s+(\d+)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (gotoMatch.Success)
                 {
-                    Line = i + 1,
-                    Column = line.IndexOf("GOTO", StringComparison.OrdinalIgnoreCase) + 1,
-                    Length = 4,
-                    Message = "Consider using structured control flow instead of GOTO",
-                    Severity = ErrorSeverity.Info
-                });
+                    errors.Add(new ErrorInfo
+                    {
+                        Line = i + 1,
+                        Column = line.IndexOf("GOTO", StringComparison.OrdinalIgnoreCase) + 1,
+                        Length = gotoMatch.Length,
+                        Message = "GOTO to line numbers is deprecated. Use labels instead (e.g., GOTO main)",
+                        Severity = ErrorSeverity.Info
+                    });
+                }
             }
         }
 

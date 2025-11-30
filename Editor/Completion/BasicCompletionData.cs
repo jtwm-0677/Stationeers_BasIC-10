@@ -3,6 +3,7 @@ using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.CodeCompletion;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Editing;
+using BasicToMips.Shared;
 
 namespace BasicToMips.Editor.Completion;
 
@@ -95,6 +96,7 @@ public static class BasicCompletionData
         new("ALIAS", "Create device alias: ALIAS name d0", CompletionItemType.Keyword),
         new("DEFINE", "Define constant: DEFINE name value", CompletionItemType.Keyword),
         new("DIM", "Declare array: DIM array(size)", CompletionItemType.Keyword),
+        new("ARRAY", "Declare array: ARRAY name[size]", CompletionItemType.Keyword),
         new("LET", "Assign value: LET var = value", CompletionItemType.Keyword),
 
         // Control keywords
@@ -174,6 +176,28 @@ public static class BasicCompletionData
         new("RatioNitrogen", "Nitrogen ratio", CompletionItemType.Property),
         new("RatioVolatiles", "Volatiles ratio", CompletionItemType.Property),
         new("TotalMoles", "Total moles in atmosphere", CompletionItemType.Property),
+        new("Color", "Light/display color (0-11)", CompletionItemType.Property),
+
+        // Built-in color constants
+        new("Blue", "Color constant (0)", CompletionItemType.Variable),
+        new("Gray", "Color constant (1)", CompletionItemType.Variable),
+        new("Grey", "Color constant (1) - alias for Gray", CompletionItemType.Variable),
+        new("Green", "Color constant (2)", CompletionItemType.Variable),
+        new("Orange", "Color constant (3)", CompletionItemType.Variable),
+        new("Red", "Color constant (4)", CompletionItemType.Variable),
+        new("Yellow", "Color constant (5)", CompletionItemType.Variable),
+        new("White", "Color constant (6)", CompletionItemType.Variable),
+        new("Black", "Color constant (7)", CompletionItemType.Variable),
+        new("Brown", "Color constant (8)", CompletionItemType.Variable),
+        new("Khaki", "Color constant (9)", CompletionItemType.Variable),
+        new("Pink", "Color constant (10)", CompletionItemType.Variable),
+        new("Purple", "Color constant (11)", CompletionItemType.Variable),
+
+        // Built-in slot type constants
+        new("Import", "Slot type constant (0)", CompletionItemType.Variable),
+        new("Export", "Slot type constant (1)", CompletionItemType.Variable),
+        new("Content", "Slot type constant (2)", CompletionItemType.Variable),
+        new("Fuel", "Slot type constant (3)", CompletionItemType.Variable),
 
         // Code snippets
         new("IF condition THEN\n    \nENDIF", "If block template", CompletionItemType.Snippet),
@@ -182,6 +206,18 @@ public static class BasicCompletionData
         new("main:\n    \n    YIELD\n    GOTO main", "Main loop template", CompletionItemType.Snippet)
     };
 
+    // Store metadata from last compilation for dynamic completions
+    private static SourceMetadata? _currentMetadata;
+
+    /// <summary>
+    /// Update completion data with metadata extracted from source code.
+    /// Called after successful compilation.
+    /// </summary>
+    public static void UpdateFromMetadata(SourceMetadata? metadata)
+    {
+        _currentMetadata = metadata;
+    }
+
     public static List<ICompletionData> GetCompletionData(TextEditor editor, string prefix)
     {
         var results = new List<ICompletionData>();
@@ -189,9 +225,11 @@ public static class BasicCompletionData
 
         // Check if we're after a dot (property access)
         var offset = editor.CaretOffset;
+        var checkOffset = offset - prefix.Length - 1;
         var isPropertyAccess = prefix.Contains('.') ||
-            (offset > 0 && editor.Document.GetCharAt(offset - prefix.Length - 1) == '.');
+            (checkOffset >= 0 && editor.Document.GetCharAt(checkOffset) == '.');
 
+        // Add static completion items
         foreach (var item in AllItems)
         {
             // Filter by context
@@ -217,6 +255,113 @@ public static class BasicCompletionData
                 item.Text.ToLowerInvariant().Contains(lowerPrefix))
             {
                 results.Add(item);
+            }
+        }
+
+        // Add dynamic completion items from metadata
+        if (_currentMetadata != null && !isPropertyAccess)
+        {
+            // Add declared variables
+            foreach (var variable in _currentMetadata.Variables)
+            {
+                if (string.IsNullOrEmpty(prefix) ||
+                    variable.ToLowerInvariant().StartsWith(lowerPrefix) ||
+                    variable.ToLowerInvariant().Contains(lowerPrefix))
+                {
+                    // Avoid duplicates
+                    if (!results.Any(r => r.Text == variable))
+                    {
+                        results.Add(new BasicCompletionItem(variable, "Variable declared in source", CompletionItemType.Variable));
+                    }
+                }
+            }
+
+            // Add declared constants
+            foreach (var (name, value) in _currentMetadata.Constants)
+            {
+                if (string.IsNullOrEmpty(prefix) ||
+                    name.ToLowerInvariant().StartsWith(lowerPrefix) ||
+                    name.ToLowerInvariant().Contains(lowerPrefix))
+                {
+                    if (!results.Any(r => r.Text == name))
+                    {
+                        results.Add(new BasicCompletionItem(name, $"Constant = {value}", CompletionItemType.Variable));
+                    }
+                }
+            }
+
+            // Add declared labels
+            foreach (var label in _currentMetadata.Labels)
+            {
+                if (string.IsNullOrEmpty(prefix) ||
+                    label.ToLowerInvariant().StartsWith(lowerPrefix) ||
+                    label.ToLowerInvariant().Contains(lowerPrefix))
+                {
+                    if (!results.Any(r => r.Text == label))
+                    {
+                        results.Add(new BasicCompletionItem(label, "Label declared in source", CompletionItemType.Keyword));
+                    }
+                }
+            }
+
+            // Add declared device aliases
+            foreach (var (aliasName, deviceType) in _currentMetadata.DeviceTypes)
+            {
+                if (string.IsNullOrEmpty(prefix) ||
+                    aliasName.ToLowerInvariant().StartsWith(lowerPrefix) ||
+                    aliasName.ToLowerInvariant().Contains(lowerPrefix))
+                {
+                    if (!results.Any(r => r.Text == aliasName))
+                    {
+                        results.Add(new BasicCompletionItem(aliasName, $"Device alias ({deviceType})", CompletionItemType.Device));
+                    }
+                }
+            }
+
+            // Add user-defined functions
+            foreach (var (funcName, paramCount) in _currentMetadata.Functions)
+            {
+                if (string.IsNullOrEmpty(prefix) ||
+                    funcName.ToLowerInvariant().StartsWith(lowerPrefix) ||
+                    funcName.ToLowerInvariant().Contains(lowerPrefix))
+                {
+                    if (!results.Any(r => r.Text == funcName))
+                    {
+                        results.Add(new BasicCompletionItem(funcName, $"User function ({paramCount} params)", CompletionItemType.Function));
+                    }
+                }
+            }
+        }
+
+        // Add device-specific properties when accessing known device type
+        if (isPropertyAccess && _currentMetadata != null)
+        {
+            // Try to determine which device is being accessed
+            var lineStart = editor.Document.GetLineByOffset(offset).Offset;
+            var textBeforeDot = editor.Document.GetText(lineStart, offset - lineStart);
+            var parts = textBeforeDot.Split('.');
+            if (parts.Length >= 1)
+            {
+                var deviceName = parts[^1].Trim();
+                // Check if this device has type info
+                if (_currentMetadata.DeviceTypes.TryGetValue(deviceName, out var deviceType))
+                {
+                    // Check if we have property hints for this type
+                    if (_currentMetadata.DeviceProperties.TryGetValue(deviceType, out var properties))
+                    {
+                        foreach (var prop in properties)
+                        {
+                            if (string.IsNullOrEmpty(prefix) ||
+                                prop.ToLowerInvariant().StartsWith(lowerPrefix))
+                            {
+                                if (!results.Any(r => r.Text == prop))
+                                {
+                                    results.Add(new BasicCompletionItem(prop, $"Property of {deviceType}", CompletionItemType.Property));
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

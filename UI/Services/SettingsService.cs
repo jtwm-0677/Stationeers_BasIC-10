@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using BasicToMips.Editor.Highlighting;
+using BasicToMips.Shared;
 
 namespace BasicToMips.UI.Services;
 
@@ -10,11 +12,34 @@ public class SettingsService
     public string? StationeersPath { get; set; }
     public bool ShowDocumentation { get; set; } = true;
     public bool AutoCompile { get; set; } = true;
+    public bool AutoCompleteEnabled { get; set; } = true;
     public List<string> RecentFiles { get; set; } = new();
     public double FontSize { get; set; } = 14;
     public bool WordWrap { get; set; } = false;
     public int OptimizationLevel { get; set; } = 1;
+    public OutputMode OutputMode { get; set; } = OutputMode.Readable;
     public string Theme { get; set; } = "Dark"; // "Dark" or "Light"
+    public bool AutoSaveEnabled { get; set; } = true;
+    public int AutoSaveIntervalSeconds { get; set; } = 60; // Default: 1 minute
+    public SyntaxColorSettings SyntaxColors { get; set; } = new();
+    public string SplitViewMode { get; set; } = "Vertical"; // "Vertical", "Horizontal", or "EditorOnly"
+
+    // Retro visual effects
+    public bool BlockCursorEnabled { get; set; } = true;
+    public bool CurrentLineHighlightEnabled { get; set; } = true;
+    public bool ScanlineOverlayEnabled { get; set; } = false;
+    public bool ScreenGlowEnabled { get; set; } = false;
+    public bool RetroFontEnabled { get; set; } = false;
+    public string RetroFontChoice { get; set; } = "Default"; // "Default", "Apple", "TRS80"
+    public bool StartupBeepEnabled { get; set; } = false;
+
+    // MCP Integration / HTTP API settings
+    public bool ApiServerEnabled { get; set; } = true;
+    public int ApiServerPort { get; set; } = 19410;
+
+    // Script metadata for instruction.xml
+    public string ScriptAuthor { get; set; } = "";
+    public string ScriptDescription { get; set; } = "";
 
     public SettingsService()
     {
@@ -37,11 +62,31 @@ public class SettingsService
                     StationeersPath = settings.StationeersPath;
                     ShowDocumentation = settings.ShowDocumentation;
                     AutoCompile = settings.AutoCompile;
+                    AutoCompleteEnabled = settings.AutoCompleteEnabled;
                     RecentFiles = settings.RecentFiles ?? new List<string>();
                     FontSize = settings.FontSize > 0 ? settings.FontSize : 14;
                     WordWrap = settings.WordWrap;
                     OptimizationLevel = settings.OptimizationLevel;
+                    OutputMode = settings.OutputMode;
                     Theme = settings.Theme ?? "Dark";
+                    AutoSaveEnabled = settings.AutoSaveEnabled;
+                    AutoSaveIntervalSeconds = settings.AutoSaveIntervalSeconds > 0 ? settings.AutoSaveIntervalSeconds : 60;
+                    SyntaxColors = settings.SyntaxColors ?? new SyntaxColorSettings();
+                    SplitViewMode = settings.SplitViewMode ?? "Vertical";
+                    // Retro effects
+                    BlockCursorEnabled = settings.BlockCursorEnabled;
+                    CurrentLineHighlightEnabled = settings.CurrentLineHighlightEnabled;
+                    ScanlineOverlayEnabled = settings.ScanlineOverlayEnabled;
+                    ScreenGlowEnabled = settings.ScreenGlowEnabled;
+                    RetroFontEnabled = settings.RetroFontEnabled;
+                    RetroFontChoice = settings.RetroFontChoice ?? "Default";
+                    StartupBeepEnabled = settings.StartupBeepEnabled;
+                    // API settings
+                    ApiServerEnabled = settings.ApiServerEnabled;
+                    ApiServerPort = settings.ApiServerPort > 0 ? settings.ApiServerPort : 19410;
+                    // Script metadata
+                    ScriptAuthor = settings.ScriptAuthor ?? "";
+                    ScriptDescription = settings.ScriptDescription ?? "";
                 }
             }
         }
@@ -60,11 +105,31 @@ public class SettingsService
                 StationeersPath = StationeersPath,
                 ShowDocumentation = ShowDocumentation,
                 AutoCompile = AutoCompile,
+                AutoCompleteEnabled = AutoCompleteEnabled,
                 RecentFiles = RecentFiles,
                 FontSize = FontSize,
                 WordWrap = WordWrap,
                 OptimizationLevel = OptimizationLevel,
-                Theme = Theme
+                OutputMode = OutputMode,
+                Theme = Theme,
+                AutoSaveEnabled = AutoSaveEnabled,
+                AutoSaveIntervalSeconds = AutoSaveIntervalSeconds,
+                SyntaxColors = SyntaxColors,
+                SplitViewMode = SplitViewMode,
+                // Retro effects
+                BlockCursorEnabled = BlockCursorEnabled,
+                CurrentLineHighlightEnabled = CurrentLineHighlightEnabled,
+                ScanlineOverlayEnabled = ScanlineOverlayEnabled,
+                ScreenGlowEnabled = ScreenGlowEnabled,
+                RetroFontEnabled = RetroFontEnabled,
+                RetroFontChoice = RetroFontChoice,
+                StartupBeepEnabled = StartupBeepEnabled,
+                // API settings
+                ApiServerEnabled = ApiServerEnabled,
+                ApiServerPort = ApiServerPort,
+                // Script metadata
+                ScriptAuthor = ScriptAuthor,
+                ScriptDescription = ScriptDescription
             };
 
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -92,10 +157,30 @@ public class SettingsService
         public string? StationeersPath { get; set; }
         public bool ShowDocumentation { get; set; }
         public bool AutoCompile { get; set; }
+        public bool AutoCompleteEnabled { get; set; } = true;
         public List<string>? RecentFiles { get; set; }
         public double FontSize { get; set; }
         public bool WordWrap { get; set; }
         public int OptimizationLevel { get; set; }
+        public OutputMode OutputMode { get; set; } = OutputMode.Readable;
         public string? Theme { get; set; }
+        public bool AutoSaveEnabled { get; set; } = true;
+        public int AutoSaveIntervalSeconds { get; set; } = 60;
+        public SyntaxColorSettings? SyntaxColors { get; set; }
+        public string? SplitViewMode { get; set; }
+        // Retro effects
+        public bool BlockCursorEnabled { get; set; } = true;
+        public bool CurrentLineHighlightEnabled { get; set; } = true;
+        public bool ScanlineOverlayEnabled { get; set; } = false;
+        public bool ScreenGlowEnabled { get; set; } = false;
+        public bool RetroFontEnabled { get; set; } = false;
+        public string? RetroFontChoice { get; set; } = "Default";
+        public bool StartupBeepEnabled { get; set; } = false;
+        // API settings
+        public bool ApiServerEnabled { get; set; } = true;
+        public int ApiServerPort { get; set; } = 19410;
+        // Script metadata
+        public string? ScriptAuthor { get; set; }
+        public string? ScriptDescription { get; set; }
     }
 }

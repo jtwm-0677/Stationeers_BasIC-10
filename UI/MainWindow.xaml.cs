@@ -15,14 +15,23 @@ using BasicToMips.CodeGen;
 using BasicToMips.Editor.Highlighting;
 using BasicToMips.Editor.Completion;
 using BasicToMips.Editor.ErrorHighlighting;
+using BasicToMips.Editor.Folding;
 using BasicToMips.UI.Services;
+using BasicToMips.UI.Dialogs;
 using BasicToMips.Shared;
+using BasicToMips.Refactoring;
+using BasicToMips.Editor;
+using BasicToMips.Editor.RetroEffects;
+using ICSharpCode.AvalonEdit.Folding;
+using BasicToMips.Services;
 
 namespace BasicToMips.UI;
 
 public partial class MainWindow : Window
 {
     private string? _currentFilePath;
+    private string? _workingDirectory;
+    private string? _tempAutoSavePath;
     private bool _isModified;
     private CompletionWindow? _completionWindow;
     private readonly CompilerService _compiler;
@@ -35,10 +44,37 @@ public partial class MainWindow : Window
     private readonly ErrorChecker _errorChecker = new();
     private DispatcherTimer? _errorCheckTimer;
 
+    // Code folding
+    private FoldingManager? _foldingManager;
+    private readonly BasicFoldingStrategy _foldingStrategy = new();
+    private DispatcherTimer? _foldingUpdateTimer;
+
     // Bidirectional editing sync
     private bool _suppressBasicUpdate = false;
     private bool _suppressMipsUpdate = false;
     private DispatcherTimer? _mipsSyncTimer;
+
+    // Source map for debugging (IC10 line ↔ BASIC line mapping)
+    private SourceMap? _sourceMap;
+
+    // Breakpoint management
+    private readonly BasicToMips.Editor.Debugging.BreakpointManager _breakpointManager = new();
+
+    // Bookmark management
+    private readonly BasicToMips.Editor.Debugging.BookmarkManager _bookmarkManager = new();
+
+    // Refactoring service
+    private readonly RefactoringService _refactoringService = new();
+
+    // Watch variables management
+    private readonly BasicToMips.Editor.Debugging.WatchManager _watchManager = new();
+
+    // HTTP API Server for MCP integration
+    private HttpApiServer? _httpApiServer;
+
+    // Autosave timer - saves every 30 seconds
+    private DispatcherTimer? _autoSaveTimer;
+    private DateTime _lastAutoSave = DateTime.MinValue;
 
     public MainWindow()
     {
@@ -48,16 +84,27 @@ public partial class MainWindow : Window
         _settings = new SettingsService();
         _docs = new DocumentationService();
 
+        InitializeTabManagement();
         SetupEditors();
         SetupAutoComplete();
+        SetupTabKeyboardShortcuts();
+        SetupF1Help();
+        SetupSymbolsTimer();
         LoadSettings();
         PopulateDocumentation();
         PopulateSnippetsMenu();
         UpdateRecentFilesMenu();
+        UpdateSymbolsList();
+        SetupAutoSaveTimer();
+        CheckForAutoSaveRecovery();
     }
 
     private void SetupEditors()
     {
+        // Apply saved syntax colors before creating highlighting
+        BasicHighlighting.SetColors(_settings.SyntaxColors);
+        MipsHighlighting.SetColors(_settings.SyntaxColors);
+
         // Apply BASIC syntax highlighting
         BasicEditor.SyntaxHighlighting = BasicHighlighting.Create();
         MipsOutput.SyntaxHighlighting = MipsHighlighting.Create();
@@ -67,15 +114,377 @@ public partial class MainWindow : Window
         BasicEditor.TextArea.TextEntering += TextArea_TextEntering;
         BasicEditor.TextArea.TextEntered += TextArea_TextEntered;
 
+        // Setup retro visual effects
+        SetupRetroEffects();
+
         // Setup error highlighting
         SetupErrorHighlighting();
+
+        // Setup code folding
+        SetupCodeFolding();
+
+        // Setup breakpoint margin
+        SetupBreakpoints();
+
+        // Setup bookmark margin
+        SetupBookmarks();
 
         // Setup bidirectional editing
         SetupBidirectionalSync();
 
+        // Setup source map navigation (click to jump between BASIC ↔ IC10)
+        SetupSourceMapNavigation();
+
         // Set initial content
         BasicEditor.Text = GetWelcomeCode();
         UpdateLineCount();
+    }
+
+    private void SetupSourceMapNavigation()
+    {
+        // Ctrl+Click on IC10 output jumps to corresponding BASIC line
+        MipsOutput.PreviewMouseLeftButtonDown += (s, e) =>
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control && _sourceMap != null)
+            {
+                var pos = MipsOutput.GetPositionFromPoint(e.GetPosition(MipsOutput));
+                if (pos.HasValue)
+                {
+                    var ic10Line = pos.Value.Line - 1; // 0-based
+                    var basicLine = _sourceMap.GetBasicLine(ic10Line);
+                    if (basicLine > 0)
+                    {
+                        // Jump to BASIC line
+                        var line = BasicEditor.Document.GetLineByNumber(basicLine);
+                        BasicEditor.ScrollToLine(basicLine);
+                        BasicEditor.TextArea.Caret.Offset = line.Offset;
+                        BasicEditor.TextArea.Caret.BringCaretToView();
+                        BasicEditor.Focus();
+
+                        // Flash highlight the line briefly
+                        HighlightLine(BasicEditor, basicLine);
+                        SetStatus($"IC10 line {ic10Line + 1} → BASIC line {basicLine}", true);
+                        e.Handled = true;
+                    }
+                }
+            }
+        };
+
+        // Ctrl+Click on BASIC editor jumps to corresponding IC10 line(s)
+        BasicEditor.PreviewMouseLeftButtonDown += (s, e) =>
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control && _sourceMap != null)
+            {
+                var pos = BasicEditor.GetPositionFromPoint(e.GetPosition(BasicEditor));
+                if (pos.HasValue)
+                {
+                    var basicLine = pos.Value.Line; // 1-based
+                    var ic10Lines = _sourceMap.GetIC10Lines(basicLine);
+                    if (ic10Lines.Count > 0)
+                    {
+                        // Jump to first IC10 line
+                        var ic10Line = ic10Lines[0] + 1; // 1-based for display
+                        if (ic10Line <= MipsOutput.Document.LineCount)
+                        {
+                            var line = MipsOutput.Document.GetLineByNumber(ic10Line);
+                            MipsOutput.ScrollToLine(ic10Line);
+                            MipsOutput.TextArea.Caret.Offset = line.Offset;
+                            MipsOutput.TextArea.Caret.BringCaretToView();
+                            MipsOutput.Focus();
+
+                            // Flash highlight
+                            HighlightLine(MipsOutput, ic10Line);
+                            var lineInfo = ic10Lines.Count > 1
+                                ? $"BASIC line {basicLine} → IC10 lines {string.Join(", ", ic10Lines.Select(l => l + 1))}"
+                                : $"BASIC line {basicLine} → IC10 line {ic10Line}";
+                            SetStatus(lineInfo, true);
+                            e.Handled = true;
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private void HighlightLine(ICSharpCode.AvalonEdit.TextEditor editor, int lineNumber)
+    {
+        // Temporarily highlight a line by selecting it
+        if (lineNumber > 0 && lineNumber <= editor.Document.LineCount)
+        {
+            var line = editor.Document.GetLineByNumber(lineNumber);
+            editor.Select(line.Offset, line.Length);
+
+            // Clear selection after a brief moment
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                editor.SelectionLength = 0;
+            };
+            timer.Start();
+        }
+    }
+
+    private void SetupRetroEffects()
+    {
+        // Block cursor (classic BASIC style)
+        if (_settings.BlockCursorEnabled)
+        {
+            BlockCaretManager.EnableBlockCaret(BasicEditor.TextArea, Color.FromRgb(0, 200, 255));
+        }
+
+        // Current line highlight
+        if (_settings.CurrentLineHighlightEnabled)
+        {
+            CurrentLineHighlighterManager.EnableHighlighter(BasicEditor.TextArea, Color.FromArgb(25, 100, 180, 255));
+        }
+
+        // Scanline overlay
+        if (_settings.ScanlineOverlayEnabled)
+        {
+            ScanlineOverlayManager.SetEnabled(BasicEditor.TextArea, true);
+        }
+
+        // Screen glow
+        if (_settings.ScreenGlowEnabled)
+        {
+            ScreenGlowManager.SetEnabled(BasicEditor, true);
+        }
+
+        // Retro font
+        if (_settings.RetroFontEnabled)
+        {
+            RetroFontManager.SetEnabled(BasicEditor, true, _settings.RetroFontChoice);
+            RetroFontManager.SetEnabled(MipsOutput, true, _settings.RetroFontChoice);
+        }
+
+        // Set font choice menu checkmarks
+        UpdateFontMenuCheckmarks();
+
+        // Startup beep
+        if (_settings.StartupBeepEnabled)
+        {
+            StartupBeepManager.PlayStartupBeep();
+        }
+    }
+
+    private void SetupBreakpoints()
+    {
+        // Add breakpoint margin to the left of the BASIC editor
+        var breakpointMargin = new BasicToMips.Editor.Debugging.BreakpointMargin(BasicEditor, _breakpointManager);
+        BasicEditor.TextArea.LeftMargins.Insert(0, breakpointMargin);
+
+        // Setup F9 to toggle breakpoints
+        BasicEditor.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.F9)
+            {
+                var line = BasicEditor.TextArea.Caret.Line;
+                var wasSet = _breakpointManager.ToggleBreakpoint(line);
+                SetStatus($"Breakpoint {(wasSet ? "set" : "removed")} at line {line}", true);
+                e.Handled = true;
+            }
+        };
+
+        // Track breakpoints when document changes (adjust line numbers)
+        BasicEditor.Document.Changed += (s, e) =>
+        {
+            // Calculate line delta from the change
+            if (e.InsertionLength > 0 || e.RemovalLength > 0)
+            {
+                var changeOffset = e.Offset;
+                var changeLine = BasicEditor.Document.GetLineByOffset(changeOffset).LineNumber;
+
+                // Count newlines in inserted/removed text
+                var insertedNewlines = e.InsertedText.Text.Count(c => c == '\n');
+                var removedNewlines = e.RemovedText.Text.Count(c => c == '\n');
+                var delta = insertedNewlines - removedNewlines;
+
+                if (delta != 0)
+                {
+                    _breakpointManager.AdjustForLineChange(changeLine, delta);
+                }
+            }
+        };
+    }
+
+    private void SetupBookmarks()
+    {
+        // Add bookmark margin to the left of the BASIC editor (after breakpoint margin)
+        var bookmarkMargin = new BasicToMips.Editor.Debugging.BookmarkMargin(BasicEditor, _bookmarkManager);
+        BasicEditor.TextArea.LeftMargins.Insert(1, bookmarkMargin); // Index 1, after breakpoints
+
+        // Setup Ctrl+B to toggle bookmarks
+        BasicEditor.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                var line = BasicEditor.TextArea.Caret.Line;
+                var wasSet = _bookmarkManager.ToggleBookmark(line);
+                SetStatus($"Bookmark {(wasSet ? "set" : "removed")} at line {line}", true);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F2 && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Navigate to next bookmark (Ctrl+F2)
+                NavigateToNextBookmark();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F2 && (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)))
+            {
+                // Navigate to previous bookmark (Ctrl+Shift+F2)
+                NavigateToPreviousBookmark();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F2 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Rename symbol (F2)
+                RenameSymbolAtCaret();
+                e.Handled = true;
+            }
+        };
+
+        // Track bookmarks when document changes (adjust line numbers)
+        BasicEditor.Document.Changed += (s, e) =>
+        {
+            if (e.InsertionLength > 0 || e.RemovalLength > 0)
+            {
+                var changeOffset = e.Offset;
+                var changeLine = BasicEditor.Document.GetLineByOffset(changeOffset).LineNumber;
+
+                var insertedNewlines = e.InsertedText.Text.Count(c => c == '\n');
+                var removedNewlines = e.RemovedText.Text.Count(c => c == '\n');
+                var delta = insertedNewlines - removedNewlines;
+
+                if (delta != 0)
+                {
+                    _bookmarkManager.AdjustForLineChange(changeLine, delta);
+                }
+            }
+        };
+    }
+
+    private void NavigateToNextBookmark()
+    {
+        var currentLine = BasicEditor.TextArea.Caret.Line;
+        var nextLine = _bookmarkManager.GetNextBookmark(currentLine);
+
+        if (nextLine > 0)
+        {
+            JumpToLine(nextLine);
+            SetStatus($"Bookmark at line {nextLine}", true);
+        }
+        else
+        {
+            SetStatus("No bookmarks set", false);
+        }
+    }
+
+    private void NavigateToPreviousBookmark()
+    {
+        var currentLine = BasicEditor.TextArea.Caret.Line;
+        var prevLine = _bookmarkManager.GetPreviousBookmark(currentLine);
+
+        if (prevLine > 0)
+        {
+            JumpToLine(prevLine);
+            SetStatus($"Bookmark at line {prevLine}", true);
+        }
+        else
+        {
+            SetStatus("No bookmarks set", false);
+        }
+    }
+
+    private void RenameSymbolAtCaret()
+    {
+        // Get the word at the caret position
+        var offset = BasicEditor.CaretOffset;
+        var document = BasicEditor.Document;
+
+        // Find word boundaries
+        var wordStart = offset;
+        var wordEnd = offset;
+
+        while (wordStart > 0 && IsWordChar(document.GetCharAt(wordStart - 1)))
+            wordStart--;
+
+        while (wordEnd < document.TextLength && IsWordChar(document.GetCharAt(wordEnd)))
+            wordEnd++;
+
+        if (wordStart == wordEnd)
+        {
+            SetStatus("No symbol at cursor position", false);
+            return;
+        }
+
+        var symbolName = document.GetText(wordStart, wordEnd - wordStart);
+
+        // Find all occurrences
+        var occurrences = _refactoringService.FindSymbolOccurrences(BasicEditor.Text, symbolName);
+
+        if (occurrences.Count == 0)
+        {
+            SetStatus($"Symbol '{symbolName}' not found", false);
+            return;
+        }
+
+        // Show rename dialog
+        var dialog = new RenameDialog(symbolName, occurrences.Count)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var newName = dialog.NewName;
+            var result = _refactoringService.Rename(BasicEditor.Text, symbolName, newName);
+
+            if (result.Success)
+            {
+                BasicEditor.Text = result.NewSource;
+                SetStatus($"Renamed '{symbolName}' to '{newName}' ({result.RenamedCount} occurrences)", true);
+            }
+            else
+            {
+                MessageBox.Show(result.ErrorMessage, "Rename Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private bool IsWordChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_' || c == '$';
+    }
+
+    private void SetupCodeFolding()
+    {
+        _foldingManager = FoldingManager.Install(BasicEditor.TextArea);
+
+        // Setup timer for delayed folding updates
+        _foldingUpdateTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(1000)
+        };
+        _foldingUpdateTimer.Tick += (s, e) =>
+        {
+            _foldingUpdateTimer.Stop();
+            UpdateFoldings();
+        };
+    }
+
+    private void UpdateFoldings()
+    {
+        if (_foldingManager != null)
+        {
+            _foldingStrategy.UpdateFoldings(_foldingManager, BasicEditor.Document);
+        }
+    }
+
+    private void RestartFoldingUpdateTimer()
+    {
+        _foldingUpdateTimer?.Stop();
+        _foldingUpdateTimer?.Start();
     }
 
     private void SetupBidirectionalSync()
@@ -201,6 +610,99 @@ public partial class MainWindow : Window
         _errorCheckTimer?.Start();
     }
 
+    private void FormatDocument_Click(object sender, RoutedEventArgs e) => FormatDocument();
+
+    private void FormatDocument()
+    {
+        try
+        {
+            // Only format BASIC code, not IC10
+            var language = LanguageDetector.Detect(BasicEditor.Text);
+            if (language == LanguageType.IC10)
+            {
+                SetStatus("Cannot format IC10 code (only BASIC)", false);
+                return;
+            }
+
+            var formatter = new BasicToMips.Analysis.CodeFormatter();
+            var formatted = formatter.Format(BasicEditor.Text);
+
+            // Preserve cursor position approximately
+            var caretOffset = BasicEditor.CaretOffset;
+            var caretLine = BasicEditor.Document.GetLineByOffset(caretOffset).LineNumber;
+
+            BasicEditor.Document.Text = formatted;
+
+            // Restore cursor to same line if possible
+            if (caretLine <= BasicEditor.Document.LineCount)
+            {
+                var line = BasicEditor.Document.GetLineByNumber(caretLine);
+                BasicEditor.CaretOffset = Math.Min(line.EndOffset, line.Offset + line.Length);
+            }
+
+            SetStatus("Document formatted (Ctrl+Shift+F)", true);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Format error: {ex.Message}", false);
+        }
+    }
+
+    private void DisplayAnalysisWarnings(List<BasicToMips.Analysis.AnalysisWarning> warnings)
+    {
+        if (_textMarkerService == null || warnings.Count == 0) return;
+
+        // Note: Don't clear existing markers - they may contain real errors from ErrorChecker
+        // Just add warning markers
+
+        foreach (var warning in warnings)
+        {
+            try
+            {
+                if (warning.Line <= 0 || warning.Line > BasicEditor.Document.LineCount) continue;
+
+                var line = BasicEditor.Document.GetLineByNumber(warning.Line);
+                int startOffset = line.Offset;
+                int length = line.Length;
+
+                // Try to find the specific identifier on the line
+                var lineText = BasicEditor.Document.GetText(line);
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    warning.Message, @"'([^']+)'");
+                if (match.Success)
+                {
+                    var identifier = match.Groups[1].Value;
+                    var idx = lineText.IndexOf(identifier, StringComparison.OrdinalIgnoreCase);
+                    if (idx >= 0)
+                    {
+                        startOffset = line.Offset + idx;
+                        length = identifier.Length;
+                    }
+                }
+
+                var marker = _textMarkerService.Create(startOffset, length);
+                if (marker != null)
+                {
+                    marker.MarkerType = TextMarkerType.SquigglyUnderline;
+                    marker.MarkerColor = warning.Type switch
+                    {
+                        BasicToMips.Analysis.WarningType.UnusedVariable => Colors.Gold,
+                        BasicToMips.Analysis.WarningType.UnusedLabel => Colors.Gold,
+                        BasicToMips.Analysis.WarningType.UnreachableCode => Colors.Gray,
+                        _ => Colors.Orange
+                    };
+                    marker.ToolTip = $"Warning: {warning.Message}";
+                }
+            }
+            catch
+            {
+                // Ignore marker creation errors
+            }
+        }
+
+        BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+    }
+
     private void SetupAutoComplete()
     {
         BasicEditor.TextArea.KeyDown += (s, e) =>
@@ -219,7 +721,7 @@ public partial class MainWindow : Window
 
         if (!string.IsNullOrEmpty(_settings.StationeersPath))
         {
-            StationeersPathText.Text = $"Stationeers: {_settings.StationeersPath}";
+            StationeersPathText.Text = $"Scripts: {_settings.StationeersPath}";
         }
 
         ShowDocsMenu.IsChecked = _settings.ShowDocumentation;
@@ -231,22 +733,37 @@ public partial class MainWindow : Window
         }
 
         AutoCompileMenu.IsChecked = _settings.AutoCompile;
+        AutoCompleteMenu.IsChecked = _settings.AutoCompleteEnabled;
+        AutoCompileCheckBox.IsChecked = _settings.AutoCompile;
+        AutoCompleteCheckBox.IsChecked = _settings.AutoCompleteEnabled;
+
+        // Retro effects menu states
+        BlockCursorMenu.IsChecked = _settings.BlockCursorEnabled;
+        CurrentLineHighlightMenu.IsChecked = _settings.CurrentLineHighlightEnabled;
+        ScanlineOverlayMenu.IsChecked = _settings.ScanlineOverlayEnabled;
+        ScreenGlowMenu.IsChecked = _settings.ScreenGlowEnabled;
+        RetroFontMenu.IsChecked = _settings.RetroFontEnabled;
+        StartupBeepMenu.IsChecked = _settings.StartupBeepEnabled;
+
+        // Apply custom editor background color if set
+        ApplySyntaxColors();
     }
 
     private string GetWelcomeCode()
     {
-        return @"' Welcome to BASIC-IC10 Compiler for Stationeers!
-' This compiler transforms BASIC code into IC10 MIPS assembly.
-'
-' Quick Start:
-' 1. Write your BASIC code in this editor
-' 2. Press F5 or click Compile to generate IC10 code
-' 3. Use Save & Deploy to automatically save to Stationeers
-'
-' Press Ctrl+Space for auto-complete suggestions
-' Press F1 for documentation
+        return @"# Welcome to BASIC-IC10 Compiler for Stationeers!
+# This compiler transforms BASIC code into IC10 MIPS assembly.
+#
+# Quick Start:
+# 1. Write your BASIC code in this editor
+# 2. Press F5 or click Compile to generate IC10 code
+# 3. Use Save & Deploy to automatically save to Stationeers
+#
+# Press Ctrl+Space for auto-complete suggestions
+# Press F1 for documentation
+# Check the Start tab for built-in constants (colors, slots)
 
-' Example: Simple temperature controller
+# Example: Simple temperature controller
 ALIAS sensor d0
 ALIAS heater d1
 DEFINE TARGET 20
@@ -270,29 +787,176 @@ END
 
     private void NewFile_Click(object sender, RoutedEventArgs e)
     {
-        if (!CheckSaveChanges()) return;
-
-        BasicEditor.Text = "";
-        _currentFilePath = null;
-        _isModified = false;
-        UpdateTitle();
-        ClearOutput();
+        // Create new tab instead of replacing current content
+        CreateNewTab();
     }
 
     private void OpenFile_Click(object sender, RoutedEventArgs e)
     {
         if (!CheckSaveChanges()) return;
 
-        var dialog = new OpenFileDialog
+        // Get scripts folder path
+        var scriptsFolder = GetScriptsFolder();
+        if (!string.IsNullOrEmpty(scriptsFolder))
         {
-            Filter = "BASIC Files (*.bas;*.basic)|*.bas;*.basic|All Files (*.*)|*.*",
-            Title = "Open BASIC File"
+            // Show script selection dialog
+            var dialog = new Dialogs.ScriptSelectDialog(scriptsFolder);
+            dialog.Owner = this;
+
+            if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.SelectedScriptPath))
+            {
+                OpenFile(dialog.SelectedScriptPath);
+                return;
+            }
+
+            // User clicked Browse - fall through to legacy browser
+            if (!dialog.BrowseRequested)
+            {
+                return;
+            }
+        }
+
+        // Fall back to folder browser dialog
+        OpenFileLegacy();
+    }
+
+    private void OpenFileLegacy()
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Select script folder (will auto-load .bas file)",
+            ShowNewFolderButton = false,
+            UseDescriptionForTitle = true
         };
 
-        if (dialog.ShowDialog() == true)
+        // Set initial directory to last working directory or user's documents
+        if (!string.IsNullOrEmpty(_workingDirectory) && Directory.Exists(_workingDirectory))
         {
-            OpenFile(dialog.FileName);
+            dialog.SelectedPath = _workingDirectory;
         }
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            OpenFolder(dialog.SelectedPath);
+        }
+    }
+
+    private void OpenFolder(string folderPath)
+    {
+        try
+        {
+            // Find .bas or .basic files in the folder
+            var basFiles = Directory.GetFiles(folderPath, "*.bas")
+                .Concat(Directory.GetFiles(folderPath, "*.basic"))
+                .ToArray();
+
+            if (basFiles.Length == 0)
+            {
+                MessageBox.Show(
+                    "No .bas or .basic files found in the selected folder.\n\nPlease select a folder containing a BASIC script.",
+                    "No Script Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            string fileToOpen;
+            if (basFiles.Length == 1)
+            {
+                fileToOpen = basFiles[0];
+            }
+            else
+            {
+                // Multiple files found - let user choose
+                var fileNames = basFiles.Select(f => Path.GetFileName(f)!).ToArray();
+                var result = ShowFileSelectionDialog(basFiles, fileNames);
+                if (result == null) return;
+                fileToOpen = result;
+            }
+
+            OpenFile(fileToOpen);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error opening folder:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private string? ShowFileSelectionDialog(string[] filePaths, string[] fileNames)
+    {
+        // Simple dialog to select from multiple .bas files
+        var dialog = new Window
+        {
+            Title = "Select Script File",
+            Width = 350,
+            Height = 250,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.NoResize
+        };
+
+        var listBox = new ListBox
+        {
+            Margin = new Thickness(10),
+            ItemsSource = fileNames
+        };
+        listBox.SelectedIndex = 0;
+
+        var okButton = new Button
+        {
+            Content = "Open",
+            Width = 80,
+            Height = 28,
+            Margin = new Thickness(5),
+            IsDefault = true
+        };
+
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Width = 80,
+            Height = 28,
+            Margin = new Thickness(5),
+            IsCancel = true
+        };
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(10, 0, 10, 10)
+        };
+        buttonPanel.Children.Add(okButton);
+        buttonPanel.Children.Add(cancelButton);
+
+        var mainPanel = new DockPanel();
+        DockPanel.SetDock(buttonPanel, Dock.Bottom);
+        mainPanel.Children.Add(buttonPanel);
+        mainPanel.Children.Add(listBox);
+
+        dialog.Content = mainPanel;
+
+        string? selectedFile = null;
+        okButton.Click += (s, e) =>
+        {
+            if (listBox.SelectedIndex >= 0)
+            {
+                selectedFile = filePaths[listBox.SelectedIndex];
+                dialog.DialogResult = true;
+            }
+        };
+
+        listBox.MouseDoubleClick += (s, e) =>
+        {
+            if (listBox.SelectedIndex >= 0)
+            {
+                selectedFile = filePaths[listBox.SelectedIndex];
+                dialog.DialogResult = true;
+            }
+        };
+
+        dialog.ShowDialog();
+        return selectedFile;
     }
 
     private void OpenFile(string path)
@@ -301,9 +965,11 @@ END
         {
             BasicEditor.Text = File.ReadAllText(path);
             _currentFilePath = path;
+            _workingDirectory = Path.GetDirectoryName(path);
             _isModified = false;
             _settings.AddRecentFile(path);
             UpdateTitle();
+            UpdateWorkingDirectoryDisplay();
             UpdateRecentFilesMenu();
             SetStatus("File opened", true);
 
@@ -315,6 +981,29 @@ END
         catch (Exception ex)
         {
             MessageBox.Show($"Error opening file:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void UpdateWorkingDirectoryDisplay()
+    {
+        if (string.IsNullOrEmpty(_workingDirectory))
+        {
+            WorkingDirectoryText.Text = "Unsaved script";
+            WorkingDirectoryText.FontStyle = FontStyles.Italic;
+            WorkingDirectoryText.Opacity = 0.8;
+        }
+        else
+        {
+            // Show folder name with path tooltip
+            var folderName = Path.GetFileName(_workingDirectory);
+            if (string.IsNullOrEmpty(folderName))
+            {
+                folderName = _workingDirectory; // Root directory
+            }
+            WorkingDirectoryText.Text = folderName;
+            WorkingDirectoryText.ToolTip = _workingDirectory;
+            WorkingDirectoryText.FontStyle = FontStyles.Normal;
+            WorkingDirectoryText.Opacity = 1.0;
         }
     }
 
@@ -340,6 +1029,36 @@ END
 
     private bool SaveFileAs()
     {
+        // Get scripts folder path
+        var scriptsFolder = GetScriptsFolder();
+        if (string.IsNullOrEmpty(scriptsFolder))
+        {
+            // Fall back to standard save dialog if no scripts folder configured
+            return SaveFileAsLegacy();
+        }
+
+        // Get default name from current file or empty
+        string? defaultName = null;
+        if (!string.IsNullOrEmpty(_currentFilePath))
+        {
+            defaultName = Path.GetFileNameWithoutExtension(_currentFilePath);
+        }
+
+        // Show script name dialog
+        var dialog = new Dialogs.ScriptNameDialog(defaultName);
+        dialog.Owner = this;
+
+        if (dialog.ShowDialog() == true)
+        {
+            var scriptName = dialog.ScriptName;
+            return SaveScriptToFolder(scriptsFolder, scriptName);
+        }
+
+        return false;
+    }
+
+    private bool SaveFileAsLegacy()
+    {
         var dialog = new SaveFileDialog
         {
             Filter = "BASIC Files (*.bas)|*.bas|All Files (*.*)|*.*",
@@ -361,26 +1080,167 @@ END
         return false;
     }
 
+    private string? GetScriptsFolder()
+    {
+        if (!string.IsNullOrEmpty(_settings.StationeersPath))
+        {
+            var scriptsPath = Path.Combine(_settings.StationeersPath, "scripts");
+            if (Directory.Exists(scriptsPath))
+            {
+                return scriptsPath;
+            }
+            // Try to create it
+            try
+            {
+                Directory.CreateDirectory(scriptsPath);
+                return scriptsPath;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private bool SaveScriptToFolder(string scriptsFolder, string scriptName)
+    {
+        try
+        {
+            // Create script folder
+            var scriptFolder = Path.Combine(scriptsFolder, scriptName);
+            if (!Directory.Exists(scriptFolder))
+            {
+                Directory.CreateDirectory(scriptFolder);
+            }
+
+            // Save .bas file
+            var basPath = Path.Combine(scriptFolder, $"{scriptName}.bas");
+            File.WriteAllText(basPath, BasicEditor.Text);
+
+            // Compile the code
+            var result = _compiler.Compile(BasicEditor.Text, _optimizationLevel);
+            string ic10Code = result.Success ? (result.Output ?? "") : "";
+
+            // Extract author from meta comments if present
+            string author = ExtractMetaAuthor(BasicEditor.Text);
+
+            // Generate and save instruction.xml (singular - matches game format)
+            var instructionPath = Path.Combine(scriptFolder, "instruction.xml");
+            GenerateInstructionXml(instructionPath, scriptName, ic10Code, author);
+
+            // Update state
+            _currentFilePath = basPath;
+            _workingDirectory = scriptFolder;
+            _isModified = false;
+            _settings.AddRecentFile(basPath);
+            UpdateTitle();
+            UpdateWorkingDirectoryDisplay();
+            UpdateRecentFilesMenu();
+            CleanupTempAutoSave();
+
+            // Update MIPS output panel
+            if (result.Success)
+            {
+                _suppressMipsUpdate = true;
+                MipsOutput.Text = result.Output;
+                _suppressMipsUpdate = false;
+                _sourceMap = result.SourceMap;
+                _watchManager.SetSourceMap(_sourceMap);
+                UpdateLineCount();
+            }
+
+            SetStatus($"Script saved: {scriptName}", true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error saving script:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+
+    private string ExtractMetaAuthor(string source)
+    {
+        foreach (var line in source.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("##Meta:Author=", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed.Substring("##Meta:Author=".Length).Trim();
+            }
+        }
+        return "";
+    }
+
+    private void GenerateInstructionXml(string path, string scriptName, string ic10Code, string author)
+    {
+        // Generate timestamp in game format (ticks)
+        var ticks = DateTime.UtcNow.Ticks;
+
+        // Escape the IC10 code for XML
+        var escapedCode = System.Security.SecurityElement.Escape(ic10Code);
+
+        // Use settings author first, then meta comment author, then default
+        var displayAuthor = !string.IsNullOrWhiteSpace(_settings.ScriptAuthor)
+            ? _settings.ScriptAuthor
+            : (!string.IsNullOrWhiteSpace(author) ? author : "Unknown");
+
+        // Build description: user's custom description + "Built in Basic-10"
+        var userDesc = _settings.ScriptDescription?.Trim() ?? "";
+        var description = string.IsNullOrEmpty(userDesc)
+            ? "Built in Basic-10"
+            : $"{userDesc}\n\nBuilt in Basic-10";
+
+        var xml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<InstructionData xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <DateTime>{ticks}</DateTime>
+  <GameVersion>0.2</GameVersion>
+  <Title>{System.Security.SecurityElement.Escape(scriptName)}</Title>
+  <Description>{System.Security.SecurityElement.Escape(description)}</Description>
+  <Author>{System.Security.SecurityElement.Escape(displayAuthor)}</Author>
+  <WorkshopFileHandle>0</WorkshopFileHandle>
+  <Instructions>{escapedCode}</Instructions>
+</InstructionData>";
+        File.WriteAllText(path, xml);
+    }
+
     private bool SaveToFile(string path)
     {
         try
         {
             File.WriteAllText(path, BasicEditor.Text);
             _currentFilePath = path;
+            _workingDirectory = Path.GetDirectoryName(path);
             _isModified = false;
             _settings.AddRecentFile(path);
             UpdateTitle();
+            UpdateWorkingDirectoryDisplay();
             UpdateRecentFilesMenu();
 
-            // Auto-compile if enabled
-            if (AutoCompileMenu.IsChecked)
-            {
-                Compile();
+            // Clear temp auto-save since we now have a real file
+            CleanupTempAutoSave();
 
-                // Auto-deploy to Stationeers
-                if (!string.IsNullOrEmpty(_settings.StationeersPath) && !string.IsNullOrEmpty(MipsOutput.Text))
+            // Compile and update instruction.xml
+            var result = _compiler.Compile(BasicEditor.Text, _optimizationLevel);
+            if (result.Success)
+            {
+                _suppressMipsUpdate = true;
+                MipsOutput.Text = result.Output ?? "";
+                _suppressMipsUpdate = false;
+                _sourceMap = result.SourceMap;
+                _watchManager.SetSourceMap(_sourceMap);
+                UpdateLineCount();
+
+                // Update instruction.xml in the same folder
+                // Use folder name as script title (Stationeers displays folder name in-game)
+                var folder = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(folder))
                 {
-                    DeployToStationeers();
+                    var instructionPath = Path.Combine(folder, "instruction.xml");
+                    var scriptName = Path.GetFileName(folder); // Use folder name, not file name
+                    var author = ExtractMetaAuthor(BasicEditor.Text);
+                    GenerateInstructionXml(instructionPath, scriptName, result.Output ?? "", author);
                 }
             }
 
@@ -391,6 +1251,140 @@ END
         {
             MessageBox.Show($"Error saving file:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
+        }
+    }
+
+    private void CleanupTempAutoSave()
+    {
+        try
+        {
+            // Clean up timestamped autosave
+            if (!string.IsNullOrEmpty(_tempAutoSavePath) && File.Exists(_tempAutoSavePath))
+            {
+                File.Delete(_tempAutoSavePath);
+                _tempAutoSavePath = null;
+            }
+
+            // Clean up recovery backup files
+            var tempDir = Path.Combine(Path.GetTempPath(), "BasicToMips_AutoSave");
+            var backupPath = Path.Combine(tempDir, "recovery_backup.bas");
+            var metaPath = Path.Combine(tempDir, "recovery_meta.txt");
+
+            if (File.Exists(backupPath)) File.Delete(backupPath);
+            if (File.Exists(metaPath)) File.Delete(metaPath);
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
+    }
+
+    private void AutoSaveToTemp()
+    {
+        if (string.IsNullOrWhiteSpace(BasicEditor.Text)) return;
+
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "BasicToMips_AutoSave");
+            Directory.CreateDirectory(tempDir);
+
+            // Always save to a consistent backup file for recovery
+            var backupPath = Path.Combine(tempDir, "recovery_backup.bas");
+            File.WriteAllText(backupPath, BasicEditor.Text);
+
+            // Also store original file path if known
+            var metaPath = Path.Combine(tempDir, "recovery_meta.txt");
+            File.WriteAllText(metaPath, _currentFilePath ?? "UNSAVED");
+
+            _lastAutoSave = DateTime.Now;
+
+            // Also keep a timestamped version for unsaved scripts
+            if (string.IsNullOrEmpty(_currentFilePath))
+            {
+                if (string.IsNullOrEmpty(_tempAutoSavePath))
+                {
+                    _tempAutoSavePath = Path.Combine(tempDir, $"autosave_{DateTime.Now:yyyyMMdd_HHmmss}.bas");
+                }
+                File.WriteAllText(_tempAutoSavePath, BasicEditor.Text);
+            }
+        }
+        catch
+        {
+            // Silently ignore auto-save errors
+        }
+    }
+
+    private void SetupAutoSaveTimer()
+    {
+        _autoSaveTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(30) // Save every 30 seconds
+        };
+        _autoSaveTimer.Tick += (s, e) =>
+        {
+            if (_isModified && !string.IsNullOrWhiteSpace(BasicEditor.Text))
+            {
+                AutoSaveToTemp();
+            }
+        };
+        _autoSaveTimer.Start();
+    }
+
+    private void CheckForAutoSaveRecovery()
+    {
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "BasicToMips_AutoSave");
+            var backupPath = Path.Combine(tempDir, "recovery_backup.bas");
+            var metaPath = Path.Combine(tempDir, "recovery_meta.txt");
+
+            if (!File.Exists(backupPath)) return;
+
+            var backupInfo = new FileInfo(backupPath);
+            // Only offer recovery if backup is less than 24 hours old
+            if (backupInfo.LastWriteTime < DateTime.Now.AddHours(-24))
+            {
+                // Old backup, delete it
+                File.Delete(backupPath);
+                if (File.Exists(metaPath)) File.Delete(metaPath);
+                return;
+            }
+
+            var backupContent = File.ReadAllText(backupPath);
+            if (string.IsNullOrWhiteSpace(backupContent)) return;
+
+            var originalPath = File.Exists(metaPath) ? File.ReadAllText(metaPath).Trim() : "UNSAVED";
+            var timeAgo = DateTime.Now - backupInfo.LastWriteTime;
+            var timeStr = timeAgo.TotalMinutes < 60
+                ? $"{(int)timeAgo.TotalMinutes} minutes ago"
+                : $"{(int)timeAgo.TotalHours} hours ago";
+
+            var message = originalPath == "UNSAVED"
+                ? $"Recovered unsaved work from {timeStr}.\n\nWould you like to restore it?"
+                : $"Recovered work from:\n{originalPath}\n\nLast saved: {timeStr}\n\nWould you like to restore it?";
+
+            var result = MessageBox.Show(
+                message,
+                "Recover Unsaved Work",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                BasicEditor.Text = backupContent;
+                _isModified = true;
+                ModifiedIndicator.Visibility = Visibility.Visible;
+                UpdateTitle();
+                StatusText.Text = "Recovered from autosave backup";
+            }
+
+            // Delete recovery files after offering
+            File.Delete(backupPath);
+            if (File.Exists(metaPath)) File.Delete(metaPath);
+        }
+        catch
+        {
+            // Silently ignore recovery errors
         }
     }
 
@@ -479,6 +1473,87 @@ END
             UpdateRecentFilesMenu();
         };
         RecentFilesMenu.Items.Add(clearItem);
+    }
+
+    private void ImportIC10_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CheckSaveChanges()) return;
+
+        var dialog = new OpenFileDialog
+        {
+            Filter = "IC10 Files (*.ic10)|*.ic10|Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
+            Title = "Import IC10 File"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                var ic10Code = File.ReadAllText(dialog.FileName);
+                ImportAndDecompileIC10(ic10Code);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error reading file:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void ImportIC10FromClipboard_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CheckSaveChanges()) return;
+
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var ic10Code = Clipboard.GetText();
+                ImportAndDecompileIC10(ic10Code);
+            }
+            else
+            {
+                MessageBox.Show("Clipboard does not contain text.", "Import IC10", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error reading clipboard:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ImportAndDecompileIC10(string ic10Code)
+    {
+        try
+        {
+            var result = _compiler.Decompile(ic10Code);
+
+            if (result.Success && !string.IsNullOrEmpty(result.Output))
+            {
+                BasicEditor.Text = result.Output;
+                _currentFilePath = null;
+                _workingDirectory = null;
+                _isModified = true;
+                UpdateTitle();
+                UpdateWorkingDirectoryDisplay();
+                SetStatus("Imported and decompiled IC10", true);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Decompilation failed:\n{result.ErrorMessage}",
+                    "Import Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Error during decompilation:\n{ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -582,7 +1657,16 @@ END
                 MipsOutput.Text = result.Output;
                 _suppressMipsUpdate = false;
 
+                // Store source map for debugging
+                _sourceMap = result.SourceMap;
+
+                // Update watch manager with source map for BASIC variable resolution
+                _watchManager.SetSourceMap(_sourceMap);
+
                 UpdateLineCount();
+
+                // Display static analysis warnings
+                DisplayAnalysisWarnings(result.Warnings);
 
                 // Show detected language in status
                 var langInfo = result.DetectedLanguage switch
@@ -591,7 +1675,9 @@ END
                     LanguageType.Basic => " (BASIC)",
                     _ => ""
                 };
-                SetStatus($"Compiled successfully ({result.LineCount} lines){langInfo}", true);
+
+                var warningInfo = result.Warnings.Count > 0 ? $", {result.Warnings.Count} warning(s)" : "";
+                SetStatus($"Compiled successfully ({result.LineCount} lines{warningInfo}){langInfo}", true);
                 return true;
             }
             else
@@ -634,14 +1720,14 @@ END
     {
         var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Description = "Select Stationeers installation directory",
+            Description = "Select Stationeers save directory (contains 'scripts' folder)",
             ShowNewFolderButton = false
         };
 
-        // Try to find default Stationeers path
+        // Try to find default Stationeers scripts save path
         var defaultPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low",
-            "Rocketwerkz", "rocketstation");
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "My Games", "Stationeers");
 
         if (Directory.Exists(defaultPath))
         {
@@ -652,8 +1738,8 @@ END
         {
             _settings.StationeersPath = dialog.SelectedPath;
             _settings.Save();
-            StationeersPathText.Text = $"Stationeers: {dialog.SelectedPath}";
-            SetStatus("Stationeers path configured", true);
+            StationeersPathText.Text = $"Scripts: {dialog.SelectedPath}";
+            SetStatus("Stationeers scripts path configured", true);
         }
     }
 
@@ -676,50 +1762,8 @@ END
 
     private void SaveAndDeploy_Click(object sender, RoutedEventArgs e)
     {
-        if (SaveFile() && Compile())
-        {
-            DeployToStationeers();
-        }
-    }
-
-    private void DeployToStationeers()
-    {
-        if (string.IsNullOrEmpty(_settings.StationeersPath))
-        {
-            var result = MessageBox.Show(
-                "Stationeers directory not configured. Would you like to configure it now?",
-                "Configuration Required",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                SetStationeersDir_Click(this, new RoutedEventArgs());
-            }
-            return;
-        }
-
-        try
-        {
-            var scriptsPath = Path.Combine(_settings.StationeersPath, "scripts");
-            if (!Directory.Exists(scriptsPath))
-            {
-                Directory.CreateDirectory(scriptsPath);
-            }
-
-            var fileName = !string.IsNullOrEmpty(_currentFilePath)
-                ? Path.GetFileNameWithoutExtension(_currentFilePath) + ".ic10"
-                : "compiled.ic10";
-
-            var outputPath = Path.Combine(scriptsPath, fileName);
-            File.WriteAllText(outputPath, MipsOutput.Text);
-
-            SetStatus($"Deployed to Stationeers: {fileName}", true);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error deploying to Stationeers:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        // SaveFile handles everything: creates folder, saves .bas, compiles, and generates instruction.xml
+        SaveFile();
     }
 
     #endregion
@@ -784,26 +1828,135 @@ END
         MipsOutput.FontSize = 14;
     }
 
+    // Retro Effects Toggles
+    private void ToggleBlockCursor_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.BlockCursorEnabled = BlockCursorMenu.IsChecked;
+        _settings.Save();
+        // Note: Block cursor requires restart to toggle (complex to remove at runtime)
+        MessageBox.Show("Block cursor change will take effect on next launch.", "Retro Effects", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void ToggleCurrentLineHighlight_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.CurrentLineHighlightEnabled = CurrentLineHighlightMenu.IsChecked;
+        _settings.Save();
+        CurrentLineHighlighterManager.SetEnabled(BasicEditor.TextArea, _settings.CurrentLineHighlightEnabled);
+    }
+
+    private void ToggleScanlineOverlay_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.ScanlineOverlayEnabled = ScanlineOverlayMenu.IsChecked;
+        _settings.Save();
+        ScanlineOverlayManager.SetEnabled(BasicEditor.TextArea, _settings.ScanlineOverlayEnabled);
+    }
+
+    private void ToggleScreenGlow_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.ScreenGlowEnabled = ScreenGlowMenu.IsChecked;
+        _settings.Save();
+        ScreenGlowManager.SetEnabled(BasicEditor, _settings.ScreenGlowEnabled);
+    }
+
+    private void ToggleRetroFont_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.RetroFontEnabled = RetroFontMenu.IsChecked;
+        _settings.Save();
+        RetroFontManager.SetEnabled(BasicEditor, _settings.RetroFontEnabled, _settings.RetroFontChoice);
+        RetroFontManager.SetEnabled(MipsOutput, _settings.RetroFontEnabled, _settings.RetroFontChoice);
+    }
+
+    private void FontStyle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem && menuItem.Tag is string fontChoice)
+        {
+            _settings.RetroFontChoice = fontChoice;
+            _settings.Save();
+            UpdateFontMenuCheckmarks();
+
+            // Apply font change if retro font is enabled
+            if (_settings.RetroFontEnabled)
+            {
+                RetroFontManager.SetEnabled(BasicEditor, true, _settings.RetroFontChoice);
+                RetroFontManager.SetEnabled(MipsOutput, true, _settings.RetroFontChoice);
+            }
+        }
+    }
+
+    private void UpdateFontMenuCheckmarks()
+    {
+        FontDefaultMenu.IsChecked = _settings.RetroFontChoice == "Default";
+        FontAppleMenu.IsChecked = _settings.RetroFontChoice == "Apple";
+        FontTRS80Menu.IsChecked = _settings.RetroFontChoice == "TRS80";
+    }
+
+    private void ToggleStartupBeep_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.StartupBeepEnabled = StartupBeepMenu.IsChecked;
+        _settings.Save();
+        // Play a test beep when enabled
+        if (_settings.StartupBeepEnabled)
+        {
+            StartupBeepManager.PlaySimpleBeep();
+        }
+    }
+
+    private void AutoCompileCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return; // Guard against initialization
+        _settings.AutoCompile = AutoCompileCheckBox.IsChecked == true;
+        _settings.Save();
+        // Keep menu in sync
+        AutoCompileMenu.IsChecked = AutoCompileCheckBox.IsChecked == true;
+    }
+
+    private void AutoCompleteCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return; // Guard against initialization
+        _settings.AutoCompleteEnabled = AutoCompleteCheckBox.IsChecked == true;
+        _settings.Save();
+        // Keep menu in sync
+        AutoCompleteMenu.IsChecked = AutoCompleteCheckBox.IsChecked == true;
+    }
+
+    private void AutoCompileMenu_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.AutoCompile = AutoCompileMenu.IsChecked == true;
+        _settings.Save();
+        // Keep checkbox in sync
+        AutoCompileCheckBox.IsChecked = AutoCompileMenu.IsChecked == true;
+    }
+
+    private void AutoCompleteMenu_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.AutoCompleteEnabled = AutoCompleteMenu.IsChecked == true;
+        _settings.Save();
+        // Keep checkbox in sync
+        AutoCompleteCheckBox.IsChecked = AutoCompleteMenu.IsChecked == true;
+    }
+
     #endregion
 
     #region Help and Documentation
 
     private void ShowDocs_Click(object sender, RoutedEventArgs e)
     {
-        ShowDocsMenu.IsChecked = true;
-        ToggleDocs_Click(sender, e);
+        // Open comprehensive documentation window (all docs combined)
+        var dialog = new DocumentationWindow("Basic-10 Documentation", _docs.PopulateComprehensiveDocs);
+        dialog.Owner = this;
+        dialog.Show();
     }
 
     private void QuickStart_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new DocumentationWindow("Quick Start Guide", _docs.GetQuickStartGuide());
+        var dialog = new DocumentationWindow("Quick Start Guide", _docs.PopulateStartHere);
         dialog.Owner = this;
         dialog.Show();
     }
 
     private void LangRef_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new DocumentationWindow("Language Reference", _docs.GetLanguageReference());
+        var dialog = new DocumentationWindow("Language Reference", _docs.PopulateSyntax);
         dialog.Owner = this;
         dialog.Show();
     }
@@ -820,17 +1973,23 @@ END
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var versionStr = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.6.3";
+
         MessageBox.Show(
-            "BASIC to IC10 Compiler for Stationeers\n\n" +
-            "Version 1.0.0\n\n" +
-            "A professional BASIC compiler that generates optimized\n" +
-            "IC10 MIPS assembly code for Stationeers.\n\n" +
+            "Stationeers Basic-10 Compiler\n\n" +
+            $"Version {versionStr}\n\n" +
+            "A BASIC to IC10 compiler that generates optimized\n" +
+            "MIPS assembly code for Stationeers.\n\n" +
+            "Developed by Dog Tired Studios\n" +
+            "Authors: ThunderDuck & DrGoNzO1489\n\n" +
             "Features:\n" +
             "- Syntax highlighting and auto-complete\n" +
+            "- Real-time error checking\n" +
             "- Automatic code optimization\n" +
             "- Direct deployment to Stationeers\n" +
             "- Comprehensive documentation",
-            "About",
+            "About Stationeers Basic-10",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -864,8 +2023,12 @@ END
 
     private void PopulateDocumentation()
     {
-        _docs.PopulateQuickReference(QuickRefPanel);
+        _docs.PopulateStartHere(StartHerePanel);
+        _docs.PopulateSyntax(SyntaxPanel);
         _docs.PopulateFunctions(FunctionsPanel);
+        _docs.PopulateDevices(DevicesPanel);
+        _docs.PopulateIC10Reference(IC10Panel);
+        _docs.PopulatePatterns(PatternsPanel);
         _docs.PopulateExamples(ExamplesPanel, LoadExampleCode);
     }
 
@@ -910,7 +2073,7 @@ END
 
     private void TextArea_TextEntering(object sender, TextCompositionEventArgs e)
     {
-        if (_completionWindow != null && e.Text.Length > 0)
+        if (_completionWindow != null && !string.IsNullOrEmpty(e.Text))
         {
             if (!char.IsLetterOrDigit(e.Text[0]) && e.Text[0] != '_')
             {
@@ -921,6 +2084,9 @@ END
 
     private void TextArea_TextEntered(object sender, TextCompositionEventArgs e)
     {
+        // Safety check for empty text
+        if (string.IsNullOrEmpty(e.Text)) return;
+
         // Trigger auto-complete on certain characters
         if (char.IsLetter(e.Text[0]) || e.Text[0] == '.')
         {
@@ -934,6 +2100,9 @@ END
 
     private void ShowCompletionWindow()
     {
+        // Check if auto-complete is enabled
+        if (AutoCompleteMenu.IsChecked != true) return;
+
         var completionData = BasicCompletionData.GetCompletionData(BasicEditor, GetWordBeforeCaret());
 
         if (completionData.Count == 0) return;
@@ -978,6 +2147,11 @@ END
         UpdateLineCount();
         ModifiedIndicator.Visibility = Visibility.Visible;
         RestartErrorCheckTimer();
+        RestartFoldingUpdateTimer();
+        RestartSymbolsUpdateTimer();
+
+        // Auto-save unsaved scripts to temp directory
+        AutoSaveToTemp();
 
         // Auto-compile if not being suppressed (prevents infinite loop)
         if (!_suppressBasicUpdate && AutoCompileMenu.IsChecked)
@@ -1069,17 +2243,22 @@ END
         LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= 128 ? Visibility.Visible : Visibility.Collapsed;
         LineErrorBadge.Visibility = mipsLines > 128 ? Visibility.Visible : Visibility.Collapsed;
 
+        // Update line budget indicator in status bar with color coding
+        LineBudgetText.Text = $"{mipsLines}/128";
         if (mipsLines > 128)
         {
             MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
         }
         else if (mipsLines >= 100)
         {
             MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
+            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
         }
         else
         {
             MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
         }
     }
 
@@ -1121,20 +2300,28 @@ END
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        // Set version display
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var versionStr = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.6.3";
+        VersionText.Text = $"Stationeers Basic-10 v{versionStr}";
+
         BasicEditor.Focus();
 
-        // Try to auto-detect Stationeers
+        // Start HTTP API server for MCP integration
+        StartHttpApiServer();
+
+        // Try to auto-detect Stationeers scripts folder
         if (string.IsNullOrEmpty(_settings.StationeersPath))
         {
             var defaultPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low",
-                "Rocketwerkz", "rocketstation");
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "My Games", "Stationeers");
 
             if (Directory.Exists(defaultPath))
             {
                 _settings.StationeersPath = defaultPath;
                 _settings.Save();
-                StationeersPathText.Text = $"Stationeers: {defaultPath}";
+                StationeersPathText.Text = $"Scripts: {defaultPath}";
             }
         }
     }
@@ -1147,7 +2334,1043 @@ END
         }
         else
         {
+            // Stop HTTP API server
+            StopHttpApiServer();
             _settings.Save();
+        }
+    }
+
+    #endregion
+
+    #region Output Mode
+
+    private string _outputMode = "Readable";
+
+    private void OutputMode_Click(object sender, RoutedEventArgs e)
+    {
+        OutputModeReadable.IsChecked = sender == OutputModeReadable;
+        OutputModeCompact.IsChecked = sender == OutputModeCompact;
+        OutputModeDebug.IsChecked = sender == OutputModeDebug;
+
+        _outputMode = sender == OutputModeReadable ? "Readable" :
+                      sender == OutputModeCompact ? "Compact" : "Debug";
+
+        // Re-compile with new output mode
+        if (!string.IsNullOrEmpty(BasicEditor.Text))
+        {
+            Compile();
+        }
+    }
+
+    #endregion
+
+    #region Panels Toggle
+
+    private void ToggleSymbols_Click(object sender, RoutedEventArgs e)
+    {
+        var show = ShowSymbolsMenu.IsChecked;
+        if (show)
+        {
+            SymbolsPanel.Visibility = Visibility.Visible;
+            SymbolsSplitter.Visibility = Visibility.Visible;
+            UpdateSymbolsList();
+        }
+        else
+        {
+            SymbolsPanel.Visibility = Visibility.Collapsed;
+            SymbolsSplitter.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void CloseSymbols_Click(object sender, RoutedEventArgs e)
+    {
+        ShowSymbolsMenu.IsChecked = false;
+        ToggleSymbols_Click(sender, e);
+    }
+
+    private void ToggleSnippets_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowSnippetsMenu.IsChecked)
+        {
+            PopulateSnippetsPanel();
+            SnippetsPopup.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            SnippetsPopup.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void CloseSnippetsPanel_Click(object sender, RoutedEventArgs e)
+    {
+        ShowSnippetsMenu.IsChecked = false;
+        SnippetsPopup.Visibility = Visibility.Collapsed;
+    }
+
+    private void PopulateSnippetsPanel()
+    {
+        SnippetsPanelList.Children.Clear();
+        var snippets = _docs.GetSnippets();
+
+        foreach (var snippet in snippets)
+        {
+            var btn = new Button
+            {
+                Style = (Style)FindResource("ModernButtonStyle"),
+                Content = snippet.Name,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 0, 0, 4),
+                Padding = new Thickness(8, 6, 8, 6),
+                Tag = snippet.Code
+            };
+            btn.Click += (s, ev) =>
+            {
+                var code = (string)((Button)s).Tag;
+                InsertSnippetAtCursor(code);
+            };
+            SnippetsPanelList.Children.Add(btn);
+        }
+    }
+
+    private void InsertSnippetAtCursor(string code)
+    {
+        var offset = BasicEditor.CaretOffset;
+        BasicEditor.Document.Insert(offset, code);
+        BasicEditor.CaretOffset = offset + code.Length;
+        BasicEditor.Focus();
+        SetStatus("Snippet inserted", true);
+    }
+
+    private void ToggleSimulator_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowSimulatorMenu.IsChecked)
+        {
+            ShowSimulatorWindow();
+        }
+        else
+        {
+            _simulatorWindow?.Hide();
+        }
+    }
+
+    private void ShowSimulatorWindow()
+    {
+        if (_simulatorWindow == null)
+        {
+            _simulatorWindow = new SimulatorWindow(MipsOutput.Text);
+            _simulatorWindow.Owner = this;
+            _simulatorWindow.Closed += (s, e) =>
+            {
+                _simulatorWindow = null;
+                ShowSimulatorMenu.IsChecked = false;
+            };
+
+            // Position to the right of the main window
+            _simulatorWindow.Left = Left + Width + 10;
+            _simulatorWindow.Top = Top;
+        }
+        else
+        {
+            // Update code in existing window
+            _simulatorWindow.LoadCode(MipsOutput.Text);
+        }
+
+        _simulatorWindow.Show();
+        _simulatorWindow.Activate();
+    }
+
+    private void CloseSimulatorPanel_Click(object sender, RoutedEventArgs e)
+    {
+        ShowSimulatorMenu.IsChecked = false;
+        _simulatorWindow?.Hide();
+    }
+
+    private BasicToMips.Simulator.IC10Simulator? _simulator;
+
+    // Floating tool windows
+    private SimulatorWindow? _simulatorWindow;
+    private WatchWindow? _watchWindow;
+    private VariableInspectorWindow? _variableInspectorWindow;
+
+    private void InitializeSimulator()
+    {
+        if (_simulator == null)
+        {
+            _simulator = new BasicToMips.Simulator.IC10Simulator();
+            _simulator.StateChanged += (s, e) => Dispatcher.Invoke(() =>
+            {
+                UpdateWatchValues();
+            });
+        }
+
+        // Load current IC10 code
+        var ic10Code = MipsOutput.Text;
+        if (!string.IsNullOrWhiteSpace(ic10Code))
+        {
+            _simulator.LoadProgram(ic10Code);
+        }
+    }
+
+    #endregion
+
+    #region Symbols List
+
+    private DispatcherTimer? _symbolsUpdateTimer;
+
+    private void SetupSymbolsTimer()
+    {
+        _symbolsUpdateTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _symbolsUpdateTimer.Tick += (s, e) =>
+        {
+            _symbolsUpdateTimer.Stop();
+            UpdateSymbolsList();
+        };
+    }
+
+    private void RestartSymbolsUpdateTimer()
+    {
+        _symbolsUpdateTimer?.Stop();
+        _symbolsUpdateTimer?.Start();
+    }
+
+    private void UpdateSymbolsList()
+    {
+        if (SymbolsPanel.Visibility != Visibility.Visible) return;
+
+        var text = BasicEditor.Text;
+        var lines = text.Split('\n');
+
+        var variables = new List<(string Name, int Line)>();
+        var constants = new List<(string Name, int Line)>();
+        var labels = new List<(string Name, int Line)>();
+        var aliases = new List<(string Name, int Line)>();
+        var arrays = new List<(string Name, int Line)>();
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+            var lineNum = i + 1;
+
+            // Skip comments
+            if (line.StartsWith("'") || line.StartsWith("REM", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // VAR or LET declaration
+            if (line.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase) ||
+                line.StartsWith("LET ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"(?:VAR|LET)\s+(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    variables.Add((match.Groups[1].Value, lineNum));
+            }
+            // CONST or DEFINE
+            else if (line.StartsWith("CONST ", StringComparison.OrdinalIgnoreCase) ||
+                     line.StartsWith("DEFINE ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"(?:CONST|DEFINE)\s+(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    constants.Add((match.Groups[1].Value, lineNum));
+            }
+            // ALIAS
+            else if (line.StartsWith("ALIAS ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"ALIAS\s+(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    aliases.Add((match.Groups[1].Value, lineNum));
+            }
+            // DEVICE
+            else if (line.StartsWith("DEVICE ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"DEVICE\s+(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    aliases.Add((match.Groups[1].Value, lineNum));
+            }
+            // DIM (array declaration)
+            else if (line.StartsWith("DIM ", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"DIM\s+(\w+)\s*\(", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    arrays.Add((match.Groups[1].Value, lineNum));
+            }
+            // Label (word followed by colon at start of line)
+            else if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^(\w+):"))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"^(\w+):");
+                if (match.Success)
+                    labels.Add((match.Groups[1].Value, lineNum));
+            }
+        }
+
+        // Update UI
+        PopulateSymbolList(VariablesListPanel, variables, "VAR");
+        PopulateSymbolList(ConstantsListPanel, constants, "CONST");
+        PopulateSymbolList(LabelsListPanel, labels, "LABEL");
+        PopulateSymbolList(AliasesListPanel, aliases, "ALIAS");
+        PopulateSymbolList(ArraysListPanel, arrays, "ARRAY");
+    }
+
+    private void PopulateSymbolList(StackPanel panel, List<(string Name, int Line)> symbols, string type)
+    {
+        panel.Children.Clear();
+
+        if (symbols.Count == 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = "(none)",
+                FontStyle = FontStyles.Italic,
+                Foreground = (Brush)FindResource("SecondaryTextBrush"),
+                FontSize = 10,
+                Margin = new Thickness(8, 2, 0, 2)
+            });
+            return;
+        }
+
+        foreach (var (name, line) in symbols)
+        {
+            var btn = new Button
+            {
+                Content = $"{name} (:{line})",
+                Style = (Style)FindResource("IconButtonStyle"),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 2, 4, 2),
+                FontSize = 11,
+                Tag = line
+            };
+            btn.Click += (s, e) =>
+            {
+                var targetLine = (int)((Button)s).Tag;
+                GoToLine(targetLine);
+            };
+            panel.Children.Add(btn);
+        }
+    }
+
+    private void GoToLine(int lineNumber)
+    {
+        if (lineNumber < 1 || lineNumber > BasicEditor.LineCount)
+            return;
+
+        var line = BasicEditor.Document.GetLineByNumber(lineNumber);
+        BasicEditor.CaretOffset = line.Offset;
+        BasicEditor.ScrollToLine(lineNumber);
+        BasicEditor.Focus();
+    }
+
+    #endregion
+
+    #region Split View
+
+    private void SplitView_Click(object sender, RoutedEventArgs e)
+    {
+        // Update checkmarks
+        SplitHorizontalMenu.IsChecked = sender == SplitHorizontalMenu;
+        SplitVerticalMenu.IsChecked = sender == SplitVerticalMenu;
+        SplitEditorOnlyMenu.IsChecked = sender == SplitEditorOnlyMenu;
+
+        if (sender == SplitHorizontalMenu)
+        {
+            ApplySplitView("Horizontal");
+        }
+        else if (sender == SplitVerticalMenu)
+        {
+            ApplySplitView("Vertical");
+        }
+        else if (sender == SplitEditorOnlyMenu)
+        {
+            ApplySplitView("EditorOnly");
+        }
+    }
+
+    private void ApplySplitView(string mode)
+    {
+        // Get the parent Border elements
+        var basicEditorBorder = BasicEditor.Parent as Grid;
+        var basicPanel = basicEditorBorder?.Parent as Border;
+        var mipsPanel = MipsOutputPanel;
+
+        switch (mode)
+        {
+            case "Horizontal":
+                // Horizontal split = horizontal divider = top/bottom layout (default)
+                // Reset to row-based layout
+                EditorGrid.ColumnDefinitions.Clear();
+                EditorGrid.RowDefinitions.Clear();
+                EditorGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 150 });
+                EditorGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                EditorGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 150 });
+
+                // Set elements to rows
+                if (basicPanel != null)
+                {
+                    Grid.SetRow(basicPanel, 0);
+                    Grid.SetColumn(basicPanel, 0);
+                }
+                Grid.SetRow(EditorSplitter, 1);
+                Grid.SetColumn(EditorSplitter, 0);
+                Grid.SetRow(mipsPanel, 2);
+                Grid.SetColumn(mipsPanel, 0);
+
+                // Configure splitter for horizontal orientation
+                EditorSplitter.Height = 6;
+                EditorSplitter.Width = double.NaN;
+                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
+                EditorSplitter.VerticalAlignment = VerticalAlignment.Center;
+                EditorSplitter.Cursor = System.Windows.Input.Cursors.SizeNS;
+
+                MipsOutputPanel.Visibility = Visibility.Visible;
+                EditorSplitter.Visibility = Visibility.Visible;
+                SetStatus("Split view: Horizontal (Top/Bottom)", true);
+                break;
+
+            case "Vertical":
+                // Vertical split = vertical divider = side-by-side layout
+                // Change to column-based layout
+                EditorGrid.RowDefinitions.Clear();
+                EditorGrid.ColumnDefinitions.Clear();
+                EditorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 200 });
+                EditorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                EditorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 200 });
+
+                // Set elements to columns
+                if (basicPanel != null)
+                {
+                    Grid.SetRow(basicPanel, 0);
+                    Grid.SetColumn(basicPanel, 0);
+                }
+                Grid.SetRow(EditorSplitter, 0);
+                Grid.SetColumn(EditorSplitter, 1);
+                Grid.SetRow(mipsPanel, 0);
+                Grid.SetColumn(mipsPanel, 2);
+
+                // Configure splitter for vertical orientation
+                EditorSplitter.Width = 6;
+                EditorSplitter.Height = double.NaN;
+                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Center;
+                EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
+                EditorSplitter.Cursor = System.Windows.Input.Cursors.SizeWE;
+
+                MipsOutputPanel.Visibility = Visibility.Visible;
+                EditorSplitter.Visibility = Visibility.Visible;
+                SetStatus("Split view: Vertical (Side by Side)", true);
+                break;
+
+            case "EditorOnly":
+                // Hide IC10 output and expand editor to fill space
+                EditorGrid.RowDefinitions.Clear();
+                EditorGrid.ColumnDefinitions.Clear();
+                EditorGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+                // Position editor in full space
+                if (basicPanel != null)
+                {
+                    Grid.SetRow(basicPanel, 0);
+                    Grid.SetColumn(basicPanel, 0);
+                }
+
+                MipsOutputPanel.Visibility = Visibility.Collapsed;
+                EditorSplitter.Visibility = Visibility.Collapsed;
+                SetStatus("Split view: Editor Only", true);
+                break;
+        }
+    }
+
+    #endregion
+
+    #region Settings Handlers
+
+    private void SyntaxColors_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SyntaxColorsWindow(_settings);
+        dialog.Owner = this;
+        if (dialog.ShowDialog() == true && dialog.ColorsChanged)
+        {
+            // Refresh syntax highlighting with new colors
+            ApplySyntaxColors();
+        }
+    }
+
+    private void ApplySyntaxColors()
+    {
+        BasicHighlighting.SetColors(_settings.SyntaxColors);
+        MipsHighlighting.SetColors(_settings.SyntaxColors);
+        BasicEditor.SyntaxHighlighting = BasicHighlighting.Create();
+        MipsOutput.SyntaxHighlighting = MipsHighlighting.Create();
+
+        // Apply editor background color
+        var bgColor = _settings.SyntaxColors.GetEditorBackgroundColor();
+        var bgBrush = new System.Windows.Media.SolidColorBrush(bgColor);
+        BasicEditor.Background = bgBrush;
+        MipsOutput.Background = bgBrush;
+    }
+
+    #endregion
+
+    #region Contextual F1 Help
+
+    private void SetupF1Help()
+    {
+        // Window-level key handler for F1 (works anywhere in the app)
+        this.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.F1)
+            {
+                ShowContextualHelp();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F8)
+            {
+                // Toggle watch panel
+                ShowWatchMenu.IsChecked = !ShowWatchMenu.IsChecked;
+                ToggleWatch_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                // Format document
+                FormatDocument();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F9)
+            {
+                // Toggle Variable Inspector
+                ShowVariableInspectorMenu.IsChecked = !ShowVariableInspectorMenu.IsChecked;
+                ToggleVariableInspector_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Open Simulator for stepping - F10 shows simulator
+                ShowSimulatorMenu.IsChecked = true;
+                ShowSimulatorWindow();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F11 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Open Simulator for stepping - F11 shows simulator
+                ShowSimulatorMenu.IsChecked = true;
+                ShowSimulatorWindow();
+                e.Handled = true;
+            }
+        };
+
+        // Editor-specific keys (F12 for Go to Definition)
+        BasicEditor.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.F12)
+            {
+                GoToDefinition();
+                e.Handled = true;
+            }
+        };
+    }
+
+    private void GoToDefinition()
+    {
+        var word = GetWordAtCaret();
+        if (string.IsNullOrEmpty(word)) return;
+
+        // First check source map symbols (from last compilation)
+        if (_sourceMap != null)
+        {
+            var symbol = _sourceMap.GetSymbol(word);
+            if (symbol != null)
+            {
+                JumpToLine(symbol.Line);
+                SetStatus($"Go to definition: {word} ({symbol.Kind})", true);
+                return;
+            }
+
+            // Try case-insensitive match
+            var matchingSymbol = _sourceMap.Symbols
+                .FirstOrDefault(kvp => kvp.Key.Equals(word, StringComparison.OrdinalIgnoreCase));
+            if (matchingSymbol.Value != null)
+            {
+                JumpToLine(matchingSymbol.Value.Line);
+                SetStatus($"Go to definition: {matchingSymbol.Key} ({matchingSymbol.Value.Kind})", true);
+                return;
+            }
+        }
+
+        // Fallback: search for definition patterns in the source
+        var patterns = new[]
+        {
+            $@"^\s*SUB\s+{word}\s*",           // SUB definition
+            $@"^\s*FUNCTION\s+{word}\s*",      // FUNCTION definition
+            $@"^\s*{word}\s*:",                // Label
+            $@"^\s*ALIAS\s+{word}\s*",         // ALIAS
+            $@"^\s*CONST\s+{word}\s*",         // CONST
+            $@"^\s*DEFINE\s+{word}\s*",        // DEFINE
+            $@"^\s*VAR\s+{word}\s*",           // VAR
+            $@"^\s*DIM\s+{word}\s*"            // DIM array
+        };
+
+        var text = BasicEditor.Text;
+        var lines = text.Split('\n');
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            foreach (var pattern in patterns)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(lines[i], pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    JumpToLine(i + 1);
+                    SetStatus($"Go to definition: {word}", true);
+                    return;
+                }
+            }
+        }
+
+        SetStatus($"Definition not found: {word}", false);
+    }
+
+    private void JumpToLine(int lineNumber)
+    {
+        if (lineNumber > 0 && lineNumber <= BasicEditor.Document.LineCount)
+        {
+            var line = BasicEditor.Document.GetLineByNumber(lineNumber);
+            BasicEditor.ScrollToLine(lineNumber);
+            BasicEditor.TextArea.Caret.Offset = line.Offset;
+            BasicEditor.TextArea.Caret.BringCaretToView();
+            BasicEditor.Focus();
+            HighlightLine(BasicEditor, lineNumber);
+        }
+    }
+
+    private void ShowContextualHelp()
+    {
+        // Get word under cursor
+        var word = GetWordAtCaret().ToUpperInvariant();
+
+        // Show docs panel if hidden
+        if (!ShowDocsMenu.IsChecked)
+        {
+            ShowDocsMenu.IsChecked = true;
+            ToggleDocs_Click(this, new RoutedEventArgs());
+        }
+
+        // Navigate to appropriate tab based on keyword
+        int tabIndex = GetHelpTabForKeyword(word);
+        DocsTabControl.SelectedIndex = tabIndex;
+
+        SetStatus($"Help: {(string.IsNullOrEmpty(word) ? "General" : word)}", true);
+    }
+
+    private string GetWordAtCaret()
+    {
+        var offset = BasicEditor.CaretOffset;
+        var document = BasicEditor.Document;
+
+        if (offset <= 0 || offset > document.TextLength)
+            return "";
+
+        int start = offset;
+        int end = offset;
+
+        // Find start of word
+        while (start > 0)
+        {
+            var c = document.GetCharAt(start - 1);
+            if (!char.IsLetterOrDigit(c) && c != '_')
+                break;
+            start--;
+        }
+
+        // Find end of word
+        while (end < document.TextLength)
+        {
+            var c = document.GetCharAt(end);
+            if (!char.IsLetterOrDigit(c) && c != '_')
+                break;
+            end++;
+        }
+
+        if (end <= start)
+            return "";
+
+        return document.GetText(start, end - start);
+    }
+
+    private int GetHelpTabForKeyword(string keyword)
+    {
+        // Tab indices: 0=Start, 1=Syntax, 2=Funcs, 3=Devices, 4=IC10, 5=Tips, 6=Examples, 7=Wiki
+
+        // Control flow keywords -> Syntax tab
+        var syntaxKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "IF", "THEN", "ELSE", "ELSEIF", "ENDIF", "END",
+            "WHILE", "WEND", "FOR", "TO", "STEP", "NEXT",
+            "DO", "LOOP", "UNTIL", "BREAK", "CONTINUE",
+            "SELECT", "CASE", "DEFAULT", "GOTO", "GOSUB", "RETURN",
+            "SUB", "FUNCTION", "CALL", "EXIT", "VAR", "LET",
+            "CONST", "DEFINE", "ALIAS", "DEVICE", "REM",
+            "AND", "OR", "NOT", "MOD", "YIELD", "SLEEP", "WAIT"
+        };
+
+        // Built-in functions -> Funcs tab
+        var funcKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ABS", "SQRT", "MIN", "MAX", "CEIL", "FLOOR", "ROUND", "TRUNC", "SGN",
+            "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "ATAN2", "LOG", "EXP",
+            "RND", "RAND", "PUSH", "POP", "PEEK", "BATCHREAD", "BATCHWRITE"
+        };
+
+        // Device properties -> Devices tab
+        var deviceKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "TEMPERATURE", "PRESSURE", "RATIO", "ON", "SETTING", "MODE", "OPEN", "LOCK",
+            "POWER", "CHARGE", "PREFABHASH", "REFERENCEID", "OCCUPIED", "OCCUPANTHASH",
+            "QUANTITY", "SLOT", "HORIZONTAL", "VERTICAL", "SOLARANGLE", "D0", "D1", "D2",
+            "D3", "D4", "D5", "DB", "THIS", "RATIOOXYGEN", "RATIOCARBONDIOXIDE"
+        };
+
+        // IC10/MIPS keywords -> IC10 tab
+        var ic10Keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ADD", "SUB", "MUL", "DIV", "MOD", "SLT", "SGT", "SEQ", "SNE", "SLE", "SGE",
+            "J", "JR", "JAL", "BEQ", "BNE", "BLT", "BGT", "BLE", "BGE", "MOVE",
+            "L", "S", "LS", "SS", "LB", "SB", "LBN", "SBN", "R0", "R1", "R2", "R3",
+            "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15", "SP", "RA"
+        };
+
+        if (string.IsNullOrEmpty(keyword))
+            return 0; // Start tab
+
+        if (syntaxKeywords.Contains(keyword))
+            return 1; // Syntax tab
+
+        if (funcKeywords.Contains(keyword))
+            return 2; // Funcs tab
+
+        if (deviceKeywords.Contains(keyword))
+            return 3; // Devices tab
+
+        if (ic10Keywords.Contains(keyword))
+            return 4; // IC10 tab
+
+        return 0; // Default to Start tab
+    }
+
+    #endregion
+
+    #region Watch Variables Panel
+
+    private void ToggleWatch_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowWatchMenu.IsChecked)
+        {
+            ShowWatchWindow();
+        }
+        else
+        {
+            _watchWindow?.Hide();
+        }
+    }
+
+    private void ShowWatchWindow()
+    {
+        if (_watchWindow == null)
+        {
+            _watchWindow = new WatchWindow(_watchManager);
+            _watchWindow.Owner = this;
+            _watchWindow.Closing += (s, e) =>
+            {
+                ShowWatchMenu.IsChecked = false;
+            };
+
+            // Position to the right of main window, below simulator if open
+            _watchWindow.Left = Left + Width + 10;
+            _watchWindow.Top = Top + 300;
+        }
+
+        _watchWindow.SetSimulator(_simulator);
+        _watchWindow.Show();
+        _watchWindow.Activate();
+    }
+
+    private void CloseWatchPanel_Click(object sender, RoutedEventArgs e)
+    {
+        ShowWatchMenu.IsChecked = false;
+        _watchWindow?.Hide();
+    }
+
+    private void UpdateWatchValues()
+    {
+        // Update watch values in floating window
+        _watchWindow?.RefreshValues();
+        _variableInspectorWindow?.RefreshValues();
+    }
+
+    #endregion
+
+    #region Variable Inspector
+
+    private void ToggleVariableInspector_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowVariableInspectorMenu.IsChecked)
+        {
+            ShowVariableInspectorWindow();
+        }
+        else
+        {
+            _variableInspectorWindow?.Hide();
+        }
+    }
+
+    private void ShowVariableInspectorWindow()
+    {
+        if (_variableInspectorWindow == null)
+        {
+            _variableInspectorWindow = new VariableInspectorWindow();
+            _variableInspectorWindow.Owner = this;
+            _variableInspectorWindow.Closing += (s, e) =>
+            {
+                ShowVariableInspectorMenu.IsChecked = false;
+            };
+
+            // Position to the right of main window
+            _variableInspectorWindow.Left = Left + Width + 10;
+            _variableInspectorWindow.Top = Top + 150;
+        }
+
+        // Load variables from current code
+        _variableInspectorWindow.LoadFromBasicCode(BasicEditor.Text, MipsOutput.Text);
+        _variableInspectorWindow.SetSimulator(_simulator);
+        _variableInspectorWindow.Show();
+        _variableInspectorWindow.Activate();
+    }
+
+    #endregion
+
+    #region Wiki Browser
+
+    private const string WikiHomeUrl = "https://stationeers-wiki.com/IC10";
+
+    private void WikiBack_Click(object sender, RoutedEventArgs e)
+    {
+        if (WikiBrowser.CanGoBack)
+        {
+            WikiBrowser.GoBack();
+        }
+    }
+
+    private void WikiForward_Click(object sender, RoutedEventArgs e)
+    {
+        if (WikiBrowser.CanGoForward)
+        {
+            WikiBrowser.GoForward();
+        }
+    }
+
+    private void WikiRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        WikiBrowser.Reload();
+    }
+
+    private void WikiHome_Click(object sender, RoutedEventArgs e)
+    {
+        WikiBrowser.Source = new Uri(WikiHomeUrl);
+        WikiAddressBar.Text = WikiHomeUrl;
+    }
+
+    private void WikiAddressBar_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            NavigateToWikiUrl();
+            e.Handled = true;
+        }
+    }
+
+    private void WikiGo_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToWikiUrl();
+    }
+
+    private void NavigateToWikiUrl()
+    {
+        var url = WikiAddressBar.Text?.Trim();
+        if (string.IsNullOrEmpty(url)) return;
+
+        // Add https:// if no protocol specified
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            url = "https://" + url;
+        }
+
+        try
+        {
+            WikiBrowser.Source = new Uri(url);
+        }
+        catch (UriFormatException)
+        {
+            SetStatus("Invalid URL format", false);
+        }
+    }
+
+    private void WikiBrowser_NavigationCompleted(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
+    {
+        // Update address bar with current URL
+        if (WikiBrowser.Source != null)
+        {
+            WikiAddressBar.Text = WikiBrowser.Source.ToString();
+        }
+    }
+
+    #endregion
+
+    #region API Bridge Methods
+
+    /// <summary>
+    /// Start the HTTP API server for MCP integration.
+    /// </summary>
+    private void StartHttpApiServer()
+    {
+        if (!_settings.ApiServerEnabled)
+        {
+            System.Diagnostics.Debug.WriteLine("HTTP API server disabled in settings");
+            return;
+        }
+
+        try
+        {
+            var bridge = new EditorBridgeService(this);
+            _httpApiServer = new HttpApiServer(bridge, _settings.ApiServerPort);
+            _httpApiServer.Start();
+            System.Diagnostics.Debug.WriteLine($"HTTP API server started on port {_settings.ApiServerPort}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to start HTTP API server: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Stop the HTTP API server.
+    /// </summary>
+    private void StopHttpApiServer()
+    {
+        try
+        {
+            _httpApiServer?.Stop();
+            _httpApiServer = null;
+            System.Diagnostics.Debug.WriteLine("HTTP API server stopped");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error stopping HTTP API server: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Get the current BASIC source code from the editor.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public string GetEditorCode()
+    {
+        return BasicEditor.Text;
+    }
+
+    /// <summary>
+    /// Set the BASIC source code in the editor.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public void SetEditorCode(string code)
+    {
+        BasicEditor.Text = code;
+        _isModified = true;
+        UpdateTitle();
+        ModifiedIndicator.Visibility = Visibility.Visible;
+        if (_settings.AutoCompile)
+        {
+            Compile();
+        }
+    }
+
+    /// <summary>
+    /// Insert code at the current cursor position or at a specific line.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public void InsertCode(string code, int? atLine = null)
+    {
+        if (atLine.HasValue && atLine.Value > 0 && atLine.Value <= BasicEditor.Document.LineCount)
+        {
+            var line = BasicEditor.Document.GetLineByNumber(atLine.Value);
+            BasicEditor.Document.Insert(line.Offset, code + Environment.NewLine);
+        }
+        else
+        {
+            var offset = BasicEditor.CaretOffset;
+            BasicEditor.Document.Insert(offset, code);
+            BasicEditor.CaretOffset = offset + code.Length;
+        }
+        _isModified = true;
+        UpdateTitle();
+        ModifiedIndicator.Visibility = Visibility.Visible;
+        if (_settings.AutoCompile)
+        {
+            Compile();
+        }
+    }
+
+    /// <summary>
+    /// Get the current IC10 output from the output panel.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public string GetIc10Output()
+    {
+        return MipsOutput.Text;
+    }
+
+    /// <summary>
+    /// Set the IC10 output in the output panel.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public void SetIc10Output(string output)
+    {
+        _suppressMipsUpdate = true;
+        MipsOutput.Text = output;
+        _suppressMipsUpdate = false;
+        UpdateLineCount();
+    }
+
+    /// <summary>
+    /// Get the current cursor position in the editor.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public BasicToMips.Services.CursorPosition GetCursorPosition()
+    {
+        var caret = BasicEditor.TextArea.Caret;
+        return new BasicToMips.Services.CursorPosition
+        {
+            Line = caret.Line,
+            Column = caret.Column,
+            Offset = caret.Offset
+        };
+    }
+
+    /// <summary>
+    /// Set the cursor position in the editor.
+    /// Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public void SetCursorPosition(int line, int column)
+    {
+        if (line > 0 && line <= BasicEditor.Document.LineCount)
+        {
+            BasicEditor.ScrollToLine(line);
+            var lineObj = BasicEditor.Document.GetLineByNumber(line);
+            var maxCol = lineObj.Length;
+            var targetCol = Math.Min(Math.Max(1, column), maxCol + 1);
+            BasicEditor.TextArea.Caret.Line = line;
+            BasicEditor.TextArea.Caret.Column = targetCol;
+            BasicEditor.TextArea.Caret.BringCaretToView();
+            BasicEditor.Focus();
         }
     }
 

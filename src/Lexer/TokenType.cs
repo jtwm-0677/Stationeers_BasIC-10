@@ -6,6 +6,8 @@ public enum TokenType
     Number,
     String,
     Identifier,
+    True,
+    False,
 
     // Keywords
     Let,
@@ -56,6 +58,14 @@ public enum TokenType
     EndSelect,
     Const,
     Var,
+    Push,
+    Pop,
+    Peek,
+    Include,
+    On,
+    Data,
+    Read,
+    Restore,
 
     // Bitwise operators (keywords)
     BitAnd,
@@ -105,5 +115,9 @@ public enum TokenType
     Eof,
 
     // Line number
-    LineNumber
+    LineNumber,
+
+    // Comments (when preserved)
+    Comment,
+    MetaComment  // ##Meta: tags for compiler directives
 }

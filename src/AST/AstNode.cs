@@ -95,6 +95,30 @@ public class GosubStatement : StatementNode
     public string? TargetLabel { get; set; }
 }
 
+public class OnGotoStatement : StatementNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+    public List<string> TargetLabels { get; } = new();
+}
+
+public class OnGosubStatement : StatementNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+    public List<string> TargetLabels { get; } = new();
+}
+
+public class DataStatement : StatementNode
+{
+    public List<ExpressionNode> Values { get; } = new();
+}
+
+public class ReadStatement : StatementNode
+{
+    public List<string> VariableNames { get; } = new();
+}
+
+public class RestoreStatement : StatementNode { }
+
 public class LabelStatement : StatementNode
 {
     public string Name { get; set; } = "";
@@ -110,6 +134,34 @@ public class EndStatement : StatementNode { }
 public class BreakStatement : StatementNode { }
 
 public class ContinueStatement : StatementNode { }
+
+public class PushStatement : StatementNode
+{
+    public ExpressionNode Value { get; set; } = null!;
+}
+
+public class PopStatement : StatementNode
+{
+    public string VariableName { get; set; } = "";
+}
+
+public class PeekStatement : StatementNode
+{
+    public string VariableName { get; set; } = "";
+}
+
+public class SelectStatement : StatementNode
+{
+    public ExpressionNode TestExpression { get; set; } = null!;
+    public List<CaseClause> Cases { get; } = new();
+    public List<StatementNode> DefaultBody { get; } = new();
+}
+
+public class CaseClause
+{
+    public List<ExpressionNode> Values { get; } = new();
+    public List<StatementNode> Body { get; } = new();
+}
 
 public class DimStatement : StatementNode
 {
@@ -145,9 +197,19 @@ public class SleepStatement : StatementNode
 
 public class YieldStatement : StatementNode { }
 
+/// <summary>
+/// Represents a comment from the source code that should be preserved in output.
+/// </summary>
+public class CommentStatement : StatementNode
+{
+    public string Text { get; set; } = "";
+    public bool IsMetaComment { get; set; }  // ##Meta: directives
+}
+
 public class AliasStatement : StatementNode
 {
     public string AliasName { get; set; } = "";
+    public ExpressionNode? AliasIndex { get; set; }  // For ALIAS name[index] = ... (array-based alias)
     public string DeviceSpec { get; set; } = "";  // Simple d0-d5, db reference
     public DeviceReference? DeviceReference { get; set; }  // Advanced IC.Device/IC.ID/IC.Port reference
 }
@@ -172,6 +234,9 @@ public class DeviceReference
 
     // For IC.Device[hash].Name["name"] - the device name for named reference
     public string? DeviceName { get; set; }
+
+    // For IC.Device[hash].Name[variable] - dynamic device name expression
+    public ExpressionNode? DeviceNameExpression { get; set; }
 
     // For IC.ID[refId] - the Reference ID from configuration card
     public long? ReferenceId { get; set; }

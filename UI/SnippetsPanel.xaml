@@ -1,0 +1,33 @@
+<UserControl x:Class="BasicToMips.UI.SnippetsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource SidebarBackgroundBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text=" Code Snippets" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Padding="4" ToolTip="Close Snippets Panel" Click="CloseSnippets_Click">
+                    <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Snippets Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="SnippetsContainer" Margin="4"/>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

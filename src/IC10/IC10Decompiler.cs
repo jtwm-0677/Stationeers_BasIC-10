@@ -1,4 +1,5 @@
 using System.Text;
+using BasicToMips.Data;
 
 namespace BasicToMips.IC10;
 
@@ -10,12 +11,125 @@ public class IC10Decompiler
     private readonly IC10Program _program;
     private readonly StringBuilder _output = new();
     private readonly Dictionary<string, string> _registerVars = new();
+    private readonly Dictionary<int, string> _hashToDevice = new();
+    private readonly Dictionary<int, string> _hashToUserName = new();
     private int _varCounter = 0;
 
     public IC10Decompiler(IC10Program program)
     {
         _program = program;
         _program.Analyze();
+        InitializeHashLookups();
+        ExtractNameMappingsFromComments();
+    }
+
+    private void InitializeHashLookups()
+    {
+        // Build reverse lookup from device database
+        foreach (var device in DeviceDatabase.Devices)
+        {
+            if (!_hashToDevice.ContainsKey(device.Hash))
+            {
+                _hashToDevice[device.Hash] = device.PrefabName;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts device type and user-defined name mappings from compiler-generated comments.
+    /// The compiler emits comments like:
+    ///   # Device type: "StructureLogicSwitch"
+    ///   # Device name: "MySwitch"
+    /// followed by define statements with the hash values.
+    /// </summary>
+    private void ExtractNameMappingsFromComments()
+    {
+        string? pendingDeviceType = null;
+        string? pendingDeviceName = null;
+
+        for (int i = 0; i < _program.Instructions.Count; i++)
+        {
+            var inst = _program.Instructions[i];
+
+            if (inst.Type == IC10InstructionType.Comment && inst.Comment != null)
+            {
+                // Check for device type comment: Device type: "SomeName"
+                if (inst.Comment.StartsWith("Device type:"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        inst.Comment, @"Device type:\s*""([^""]+)""");
+                    if (match.Success)
+                    {
+                        pendingDeviceType = match.Groups[1].Value;
+                    }
+                }
+                // Check for device name comment: Device name: "SomeName"
+                else if (inst.Comment.StartsWith("Device name:"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        inst.Comment, @"Device name:\s*""([^""]+)""");
+                    if (match.Success)
+                    {
+                        pendingDeviceName = match.Groups[1].Value;
+                    }
+                }
+            }
+            else if (inst.Type == IC10InstructionType.Define && inst.Operands.Length >= 2)
+            {
+                var defineName = inst.Operands[0];
+                var defineValue = inst.Operands[1];
+
+                // If we have a pending device type and this define ends with _HASH
+                if (pendingDeviceType != null && defineName.EndsWith("_HASH"))
+                {
+                    if (int.TryParse(defineValue, out int hash))
+                    {
+                        // Add to device lookup (may override database entry with more specific name)
+                        _hashToDevice[hash] = pendingDeviceType;
+                    }
+                    pendingDeviceType = null;
+                }
+                // If we have a pending device name and this define ends with _NAME
+                else if (pendingDeviceName != null && defineName.EndsWith("_NAME"))
+                {
+                    if (int.TryParse(defineValue, out int hash))
+                    {
+                        _hashToUserName[hash] = pendingDeviceName;
+                    }
+                    pendingDeviceName = null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tries to find a device type name for a hash, returns the hash as string if not found
+    /// </summary>
+    private string LookupDeviceHash(string hashStr)
+    {
+        if (int.TryParse(hashStr, out int hash))
+        {
+            if (_hashToDevice.TryGetValue(hash, out var deviceName))
+            {
+                return $"HASH(\"{deviceName}\")";
+            }
+        }
+        return hashStr; // Return raw hash if not found
+    }
+
+    /// <summary>
+    /// Tries to find a user-defined device name for a hash, returns the hash as string if not found
+    /// </summary>
+    private string LookupUserNameHash(string hashStr)
+    {
+        if (int.TryParse(hashStr, out int hash))
+        {
+            if (_hashToUserName.TryGetValue(hash, out var userName))
+            {
+                return $"HASH(\"{userName}\")";
+            }
+        }
+        return hashStr; // Return raw hash if not found
     }
 
     public string Decompile()
@@ -384,11 +498,40 @@ public class IC10Decompiler
                 break;
             case "pop":
                 var dest = GetVarName(inst.Operands[0]);
-                _output.AppendLine($"    {dest} = POP()");
+                _output.AppendLine($"    POP {dest}");
                 break;
             case "peek":
                 var destPeek = GetVarName(inst.Operands[0]);
-                _output.AppendLine($"    {destPeek} = PEEK()");
+                _output.AppendLine($"    PEEK {destPeek}");
+                break;
+            case "put":
+                // put device index value - store value at stack index on device
+                if (inst.Operands.Length >= 3)
+                {
+                    var device = TranslateDevice(inst.Operands[0]);
+                    var index = TranslateOperand(inst.Operands[1]);
+                    var value = TranslateOperand(inst.Operands[2]);
+                    _output.AppendLine($"    ' Stack store: {device}[{index}] = {value}");
+                }
+                break;
+            case "get":
+                // get dest device index - load value from stack index on device
+                if (inst.Operands.Length >= 3)
+                {
+                    var getDest = GetVarName(inst.Operands[0]);
+                    var getDevice = TranslateDevice(inst.Operands[1]);
+                    var getIndex = TranslateOperand(inst.Operands[2]);
+                    _output.AppendLine($"    ' Stack load: {getDest} = {getDevice}[{getIndex}]");
+                }
+                break;
+            case "poke":
+                // poke address value - store value at memory address
+                if (inst.Operands.Length >= 2)
+                {
+                    var addr = TranslateOperand(inst.Operands[0]);
+                    var pokeValue = TranslateOperand(inst.Operands[1]);
+                    _output.AppendLine($"    ' Memory store: [{addr}] = {pokeValue}");
+                }
                 break;
         }
     }
@@ -419,7 +562,7 @@ public class IC10Decompiler
             case "lb":
                 if (inst.Operands.Length >= 4)
                 {
-                    var hash = TranslateOperand(inst.Operands[1]);
+                    var hash = LookupDeviceHash(inst.Operands[1]);
                     var batchProp = inst.Operands[2];
                     var mode = inst.Operands[3];
                     var modeStr = mode switch
@@ -430,7 +573,47 @@ public class IC10Decompiler
                         "3" => "Max",
                         _ => mode
                     };
-                    _output.AppendLine($"    {dest} = BATCH({hash}, \"{batchProp}\", {modeStr})");
+                    _output.AppendLine($"    {dest} = BATCHREAD({hash}, \"{batchProp}\", {modeStr})");
+                }
+                break;
+
+            case "lbn":
+                // lbn dest deviceHash nameHash property mode
+                if (inst.Operands.Length >= 5)
+                {
+                    var deviceHash = LookupDeviceHash(inst.Operands[1]);
+                    var nameHash = LookupUserNameHash(inst.Operands[2]);
+                    var lbnProp = inst.Operands[3];
+                    var lbnMode = inst.Operands[4];
+                    var lbnModeStr = lbnMode switch
+                    {
+                        "0" => "Average",
+                        "1" => "Sum",
+                        "2" => "Min",
+                        "3" => "Max",
+                        _ => lbnMode
+                    };
+                    _output.AppendLine($"    {dest} = BATCHREAD_NAMED({deviceHash}, {nameHash}, \"{lbnProp}\", {lbnModeStr})");
+                }
+                break;
+
+            case "lbs":
+                // lbs dest deviceHash slotIndex property mode
+                if (inst.Operands.Length >= 5)
+                {
+                    var lbsHash = LookupDeviceHash(inst.Operands[1]);
+                    var lbsSlot = TranslateOperand(inst.Operands[2]);
+                    var lbsProp = inst.Operands[3];
+                    var lbsMode = inst.Operands[4];
+                    var lbsModeStr = lbsMode switch
+                    {
+                        "0" => "Average",
+                        "1" => "Sum",
+                        "2" => "Min",
+                        "3" => "Max",
+                        _ => lbsMode
+                    };
+                    _output.AppendLine($"    {dest} = BATCHREAD_SLOT({lbsHash}, {lbsSlot}, \"{lbsProp}\", {lbsModeStr})");
                 }
                 break;
 
@@ -467,10 +650,34 @@ public class IC10Decompiler
             case "sb":
                 if (inst.Operands.Length >= 3)
                 {
-                    var hash = TranslateOperand(inst.Operands[0]);
+                    var hash = LookupDeviceHash(inst.Operands[0]);
                     var batchProp = inst.Operands[1];
                     var batchValue = TranslateOperand(inst.Operands[2]);
-                    _output.AppendLine($"    BATCHWRITE {hash}, \"{batchProp}\", {batchValue}");
+                    _output.AppendLine($"    BATCHWRITE({hash}, \"{batchProp}\", {batchValue})");
+                }
+                break;
+
+            case "sbn":
+                // sbn deviceHash nameHash property value
+                if (inst.Operands.Length >= 4)
+                {
+                    var sbnDevHash = LookupDeviceHash(inst.Operands[0]);
+                    var sbnNameHash = LookupUserNameHash(inst.Operands[1]);
+                    var sbnProp = inst.Operands[2];
+                    var sbnValue = TranslateOperand(inst.Operands[3]);
+                    _output.AppendLine($"    BATCHWRITE_NAMED({sbnDevHash}, {sbnNameHash}, \"{sbnProp}\", {sbnValue})");
+                }
+                break;
+
+            case "sbs":
+                // sbs deviceHash slotIndex property value
+                if (inst.Operands.Length >= 4)
+                {
+                    var sbsHash = LookupDeviceHash(inst.Operands[0]);
+                    var sbsSlot = TranslateOperand(inst.Operands[1]);
+                    var sbsProp = inst.Operands[2];
+                    var sbsValue = TranslateOperand(inst.Operands[3]);
+                    _output.AppendLine($"    BATCHWRITE_SLOT({sbsHash}, {sbsSlot}, \"{sbsProp}\", {sbsValue})");
                 }
                 break;
 

@@ -5,20 +5,34 @@ namespace BasicToMips.Editor.Highlighting;
 
 public static class BasicHighlighting
 {
+    private static SyntaxColorSettings _colors = new();
+
+    public static void SetColors(SyntaxColorSettings colors)
+    {
+        _colors = colors;
+    }
+
     public static IHighlightingDefinition Create()
+    {
+        return Create(_colors);
+    }
+
+    public static IHighlightingDefinition Create(SyntaxColorSettings colors)
     {
         var definition = new CustomHighlightingDefinition();
 
-        // Colors matching VS Code dark theme
-        var keywordColor = Color.FromRgb(86, 156, 214);      // Blue
-        var typeColor = Color.FromRgb(78, 201, 176);         // Teal
-        var stringColor = Color.FromRgb(206, 145, 120);      // Orange
-        var commentColor = Color.FromRgb(106, 153, 85);      // Green
-        var numberColor = Color.FromRgb(181, 206, 168);      // Light green
-        var operatorColor = Color.FromRgb(212, 212, 212);    // White
-        var functionColor = Color.FromRgb(220, 220, 170);    // Yellow
-        var propertyColor = Color.FromRgb(156, 220, 254);    // Light blue
-        var labelColor = Color.FromRgb(197, 134, 192);       // Purple
+        var keywordColor = colors.GetKeywordsColor();
+        var typeColor = colors.GetDeclarationsColor();
+        var stringColor = colors.GetStringsColor();
+        var commentColor = colors.GetCommentsColor();
+        var numberColor = colors.GetNumbersColor();
+        var operatorColor = colors.GetOperatorsColor();
+        var functionColor = colors.GetFunctionsColor();
+        var propertyColor = colors.GetPropertiesColor();
+        var labelColor = colors.GetLabelsColor();
+        var deviceRefColor = colors.GetDeviceRefsColor();
+        var booleanColor = colors.GetBooleansColor();
+        var bracketColor = colors.GetBracketsColor();
 
         // Keywords
         definition.AddRule(new HighlightingRule
@@ -31,7 +45,7 @@ public static class BasicHighlighting
         // Declaration keywords
         definition.AddRule(new HighlightingRule
         {
-            Pattern = @"\b(VAR|CONST|DIM|LET|ALIAS|DEFINE|AS|INTEGER|SINGLE|BOOLEAN)\b",
+            Pattern = @"\b(VAR|CONST|DIM|ARRAY|LET|ALIAS|DEFINE|AS|INTEGER|SINGLE|BOOLEAN)\b",
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(typeColor) },
             IgnoreCase = true
         });
@@ -48,7 +62,7 @@ public static class BasicHighlighting
         definition.AddRule(new HighlightingRule
         {
             Pattern = @"\b(TRUE|FALSE)\b",
-            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(keywordColor) },
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(booleanColor) },
             IgnoreCase = true
         });
 
@@ -72,7 +86,7 @@ public static class BasicHighlighting
         definition.AddRule(new HighlightingRule
         {
             Pattern = @"\b(d[0-5]|db)\b",
-            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(propertyColor) },
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(deviceRefColor) },
             IgnoreCase = true
         });
 
@@ -103,6 +117,13 @@ public static class BasicHighlighting
         {
             Pattern = @"\b\d+\.?\d*\b",
             Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(numberColor) }
+        });
+
+        // Brackets [ ] for array/batch access
+        definition.AddRule(new HighlightingRule
+        {
+            Pattern = @"[\[\]]",
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(bracketColor) }
         });
 
         // Comments (BASIC style: ' and REM)
@@ -137,7 +158,7 @@ public static class BasicHighlighting
         definition.AddRule(new HighlightingRule
         {
             Pattern = @"\br([0-9]|1[0-5])\b",
-            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(propertyColor) }
+            Color = new HighlightingColor { Foreground = new SimpleHighlightingBrush(deviceRefColor) }
         });
 
         return definition;
@@ -146,16 +167,28 @@ public static class BasicHighlighting
 
 public static class MipsHighlighting
 {
+    private static SyntaxColorSettings _colors = new();
+
+    public static void SetColors(SyntaxColorSettings colors)
+    {
+        _colors = colors;
+    }
+
     public static IHighlightingDefinition Create()
+    {
+        return Create(_colors);
+    }
+
+    public static IHighlightingDefinition Create(SyntaxColorSettings colors)
     {
         var definition = new CustomHighlightingDefinition();
 
-        var instructionColor = Color.FromRgb(86, 156, 214);   // Blue
-        var registerColor = Color.FromRgb(156, 220, 254);     // Light blue
-        var labelColor = Color.FromRgb(197, 134, 192);        // Purple
-        var numberColor = Color.FromRgb(181, 206, 168);       // Light green
-        var commentColor = Color.FromRgb(106, 153, 85);       // Green
-        var directiveColor = Color.FromRgb(78, 201, 176);     // Teal
+        var instructionColor = colors.GetKeywordsColor();
+        var registerColor = colors.GetDeviceRefsColor();
+        var labelColor = colors.GetLabelsColor();
+        var numberColor = colors.GetNumbersColor();
+        var commentColor = colors.GetCommentsColor();
+        var directiveColor = colors.GetDeclarationsColor();
 
         // Instructions
         definition.AddRule(new HighlightingRule
@@ -256,5 +289,5 @@ public class SimpleHighlightingBrush : HighlightingBrush
         _brush.Freeze();
     }
 
-    public override Brush GetBrush(ITextRunConstructionContext context) => _brush;
+    public override Brush GetBrush(ICSharpCode.AvalonEdit.Rendering.ITextRunConstructionContext context) => _brush;
 }

@@ -1,0 +1,157 @@
+[
+  {
+    "Name": "None",
+    "Value": 0,
+    "Hash": -542986255
+  },
+  {
+    "Name": "Occupied",
+    "Value": 1,
+    "Hash": -285269621
+  },
+  {
+    "Name": "OccupantHash",
+    "Value": 2,
+    "Hash": -1627141312
+  },
+  {
+    "Name": "Quantity",
+    "Value": 3,
+    "Hash": 1720022112
+  },
+  {
+    "Name": "Damage",
+    "Value": 4,
+    "Hash": 375673178
+  },
+  {
+    "Name": "Efficiency",
+    "Value": 5,
+    "Hash": -1892645735
+  },
+  {
+    "Name": "Health",
+    "Value": 6,
+    "Hash": -915003867
+  },
+  {
+    "Name": "Growth",
+    "Value": 7,
+    "Hash": 441246912
+  },
+  {
+    "Name": "Pressure",
+    "Value": 8,
+    "Hash": -1495678415
+  },
+  {
+    "Name": "Temperature",
+    "Value": 9,
+    "Hash": 953329083
+  },
+  {
+    "Name": "Charge",
+    "Value": 10,
+    "Hash": 1388814594
+  },
+  {
+    "Name": "ChargeRatio",
+    "Value": 11,
+    "Hash": -1361377944
+  },
+  {
+    "Name": "Class",
+    "Value": 12,
+    "Hash": 747255451
+  },
+  {
+    "Name": "PressureWaste",
+    "Value": 13,
+    "Hash": -709416473
+  },
+  {
+    "Name": "PressureAir",
+    "Value": 14,
+    "Hash": -1488474458
+  },
+  {
+    "Name": "MaxQuantity",
+    "Value": 15,
+    "Hash": 10633358
+  },
+  {
+    "Name": "Mature",
+    "Value": 16,
+    "Hash": 820049215
+  },
+  {
+    "Name": "PrefabHash",
+    "Value": 17,
+    "Hash": -2077083611
+  },
+  {
+    "Name": "Seeding",
+    "Value": 18,
+    "Hash": 1565550761
+  },
+  {
+    "Name": "LineNumber",
+    "Value": 19,
+    "Hash": -1411525971
+  },
+  {
+    "Name": "Volume",
+    "Value": 20,
+    "Hash": -1103705880
+  },
+  {
+    "Name": "Open",
+    "Value": 21,
+    "Hash": 71445658
+  },
+  {
+    "Name": "On",
+    "Value": 22,
+    "Hash": -1674441366
+  },
+  {
+    "Name": "Lock",
+    "Value": 23,
+    "Hash": 666711088
+  },
+  {
+    "Name": "SortingClass",
+    "Value": 24,
+    "Hash": 1201379677
+  },
+  {
+    "Name": "FilterType",
+    "Value": 25,
+    "Hash": -921803793
+  },
+  {
+    "Name": "ReferenceId",
+    "Value": 26,
+    "Hash": -1026631136
+  },
+  {
+    "Name": "HarvestedHash",
+    "Value": 27,
+    "Hash": 1314767248
+  },
+  {
+    "Name": "Mode",
+    "Value": 28,
+    "Hash": 939059349
+  },
+  {
+    "Name": "MaturityRatio",
+    "Value": 29,
+    "Hash": -960405495
+  },
+  {
+    "Name": "SeedingRatio",
+    "Value": 30,
+    "Hash": -575817511
+  }
+]

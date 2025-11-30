@@ -1,0 +1,57 @@
+[
+  {
+    "Name": "Default",
+    "Value": 0,
+    "Hash": 753088835
+  },
+  {
+    "Name": "Kits",
+    "Value": 1,
+    "Hash": -1475842821
+  },
+  {
+    "Name": "Tools",
+    "Value": 2,
+    "Hash": 725348723
+  },
+  {
+    "Name": "Resources",
+    "Value": 3,
+    "Hash": 1838639373
+  },
+  {
+    "Name": "Food",
+    "Value": 4,
+    "Hash": 1946846921
+  },
+  {
+    "Name": "Clothing",
+    "Value": 5,
+    "Hash": -353740057
+  },
+  {
+    "Name": "Appliances",
+    "Value": 6,
+    "Hash": 1229994622
+  },
+  {
+    "Name": "Atmospherics",
+    "Value": 7,
+    "Hash": 1124429372
+  },
+  {
+    "Name": "Storage",
+    "Value": 8,
+    "Hash": -1681448280
+  },
+  {
+    "Name": "Ores",
+    "Value": 9,
+    "Hash": 1690342445
+  },
+  {
+    "Name": "Ices",
+    "Value": 10,
+    "Hash": 1548681910
+  }
+]

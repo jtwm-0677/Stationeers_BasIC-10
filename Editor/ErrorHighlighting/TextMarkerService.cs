@@ -99,7 +99,7 @@ public class TextMarkerService : DocumentColorizingTransformer, IBackgroundRende
 
             var geometry = BackgroundGeometryBuilder.GetRectsForSegment(
                 textView,
-                new TextSegment { StartOffset = startOffset, Length = endOffset - startOffset });
+                new ICSharpCode.AvalonEdit.Document.TextSegment { StartOffset = startOffset, Length = endOffset - startOffset });
 
             foreach (var rect in geometry)
             {
@@ -165,12 +165,6 @@ public class TextMarker
     }
 }
 
-public class TextSegment
-{
-    public int StartOffset { get; set; }
-    public int Length { get; set; }
-    public int EndOffset => StartOffset + Length;
-}
 
 public enum TextMarkerType
 {

@@ -1,0 +1,1402 @@
+[
+  {
+    "Name": "None",
+    "Value": 0,
+    "Hash": -542986255
+  },
+  {
+    "Name": "Power",
+    "Value": 1,
+    "Hash": 1783312036
+  },
+  {
+    "Name": "Open",
+    "Value": 2,
+    "Hash": 71445658
+  },
+  {
+    "Name": "Mode",
+    "Value": 3,
+    "Hash": 939059349
+  },
+  {
+    "Name": "Error",
+    "Value": 4,
+    "Hash": -1675848843
+  },
+  {
+    "Name": "Pressure",
+    "Value": 5,
+    "Hash": -1495678415
+  },
+  {
+    "Name": "Temperature",
+    "Value": 6,
+    "Hash": 953329083
+  },
+  {
+    "Name": "PressureExternal",
+    "Value": 7,
+    "Hash": 2039953790
+  },
+  {
+    "Name": "PressureInternal",
+    "Value": 8,
+    "Hash": 708216261
+  },
+  {
+    "Name": "Activate",
+    "Value": 9,
+    "Hash": 1326475003
+  },
+  {
+    "Name": "Lock",
+    "Value": 10,
+    "Hash": 666711088
+  },
+  {
+    "Name": "Charge",
+    "Value": 11,
+    "Hash": 1388814594
+  },
+  {
+    "Name": "Setting",
+    "Value": 12,
+    "Hash": 1355383044
+  },
+  {
+    "Name": "Reagents",
+    "Value": 13,
+    "Hash": -1879358883
+  },
+  {
+    "Name": "RatioOxygen",
+    "Value": 14,
+    "Hash": -1259971141
+  },
+  {
+    "Name": "RatioCarbonDioxide",
+    "Value": 15,
+    "Hash": 817770619
+  },
+  {
+    "Name": "RatioNitrogen",
+    "Value": 16,
+    "Hash": -1740412739
+  },
+  {
+    "Name": "RatioPollutant",
+    "Value": 17,
+    "Hash": -1873336231
+  },
+  {
+    "Name": "RatioVolatiles",
+    "Value": 18,
+    "Hash": -1249363004
+  },
+  {
+    "Name": "RatioWater",
+    "Value": 19,
+    "Hash": 641027316
+  },
+  {
+    "Name": "Horizontal",
+    "Value": 20,
+    "Hash": 475924382
+  },
+  {
+    "Name": "Vertical",
+    "Value": 21,
+    "Hash": 1358960330
+  },
+  {
+    "Name": "SolarAngle",
+    "Value": 22,
+    "Hash": -645998537
+  },
+  {
+    "Name": "Maximum",
+    "Value": 23,
+    "Hash": -707736422
+  },
+  {
+    "Name": "Ratio",
+    "Value": 24,
+    "Hash": 1034000251
+  },
+  {
+    "Name": "PowerPotential",
+    "Value": 25,
+    "Hash": -622699784
+  },
+  {
+    "Name": "PowerActual",
+    "Value": 26,
+    "Hash": -789001147
+  },
+  {
+    "Name": "Quantity",
+    "Value": 27,
+    "Hash": 1720022112
+  },
+  {
+    "Name": "On",
+    "Value": 28,
+    "Hash": -1674441366
+  },
+  {
+    "Name": "ImportQuantity",
+    "Value": 29,
+    "Hash": -860273623
+  },
+  {
+    "Name": "ImportSlotOccupant",
+    "Value": 30,
+    "Hash": 458694803
+  },
+  {
+    "Name": "ExportQuantity",
+    "Value": 31,
+    "Hash": 1332003021
+  },
+  {
+    "Name": "ExportSlotOccupant",
+    "Value": 32,
+    "Hash": -464442264
+  },
+  {
+    "Name": "RequiredPower",
+    "Value": 33,
+    "Hash": 27806442
+  },
+  {
+    "Name": "HorizontalRatio",
+    "Value": 34,
+    "Hash": 1310025812
+  },
+  {
+    "Name": "VerticalRatio",
+    "Value": 35,
+    "Hash": 1221985111
+  },
+  {
+    "Name": "PowerRequired",
+    "Value": 36,
+    "Hash": 511048107
+  },
+  {
+    "Name": "Idle",
+    "Value": 37,
+    "Hash": 2081823275
+  },
+  {
+    "Name": "Color",
+    "Value": 38,
+    "Hash": -1483249683
+  },
+  {
+    "Name": "ElevatorSpeed",
+    "Value": 39,
+    "Hash": 143210162
+  },
+  {
+    "Name": "ElevatorLevel",
+    "Value": 40,
+    "Hash": -1656421289
+  },
+  {
+    "Name": "RecipeHash",
+    "Value": 41,
+    "Hash": 49001440
+  },
+  {
+    "Name": "ExportSlotHash",
+    "Value": 42,
+    "Hash": 2118275178
+  },
+  {
+    "Name": "ImportSlotHash",
+    "Value": 43,
+    "Hash": -39857010
+  },
+  {
+    "Name": "PlantHealth1",
+    "Value": 44,
+    "Hash": -897343450
+  },
+  {
+    "Name": "PlantHealth2",
+    "Value": 45,
+    "Hash": 1401614748
+  },
+  {
+    "Name": "PlantHealth3",
+    "Value": 46,
+    "Hash": 613269770
+  },
+  {
+    "Name": "PlantHealth4",
+    "Value": 47,
+    "Hash": -1159113559
+  },
+  {
+    "Name": "PlantGrowth1",
+    "Value": 48,
+    "Hash": 439389203
+  },
+  {
+    "Name": "PlantGrowth2",
+    "Value": 49,
+    "Hash": -2093359703
+  },
+  {
+    "Name": "PlantGrowth3",
+    "Value": 50,
+    "Hash": -197202625
+  },
+  {
+    "Name": "PlantGrowth4",
+    "Value": 51,
+    "Hash": 1784314012
+  },
+  {
+    "Name": "PlantEfficiency1",
+    "Value": 52,
+    "Hash": -2136659917
+  },
+  {
+    "Name": "PlantEfficiency2",
+    "Value": 53,
+    "Hash": 430733705
+  },
+  {
+    "Name": "PlantEfficiency3",
+    "Value": 54,
+    "Hash": 1856719135
+  },
+  {
+    "Name": "PlantEfficiency4",
+    "Value": 55,
+    "Hash": -254812996
+  },
+  {
+    "Name": "PlantHash1",
+    "Value": 56,
+    "Hash": -152637258
+  },
+  {
+    "Name": "PlantHash2",
+    "Value": 57,
+    "Hash": 1877975308
+  },
+  {
+    "Name": "PlantHash3",
+    "Value": 58,
+    "Hash": 417894810
+  },
+  {
+    "Name": "PlantHash4",
+    "Value": 59,
+    "Hash": -2037644231
+  },
+  {
+    "Name": "RequestHash",
+    "Value": 60,
+    "Hash": 2002197223
+  },
+  {
+    "Name": "CompletionRatio",
+    "Value": 61,
+    "Hash": 14795306
+  },
+  {
+    "Name": "ClearMemory",
+    "Value": 62,
+    "Hash": -1028186224
+  },
+  {
+    "Name": "ExportCount",
+    "Value": 63,
+    "Hash": -1190092223
+  },
+  {
+    "Name": "ImportCount",
+    "Value": 64,
+    "Hash": 1921874474
+  },
+  {
+    "Name": "PowerGeneration",
+    "Value": 65,
+    "Hash": 768233825
+  },
+  {
+    "Name": "TotalMoles",
+    "Value": 66,
+    "Hash": -114302554
+  },
+  {
+    "Name": "Volume",
+    "Value": 67,
+    "Hash": -1103705880
+  },
+  {
+    "Name": "Plant",
+    "Value": 68,
+    "Hash": 1791107702
+  },
+  {
+    "Name": "Harvest",
+    "Value": 69,
+    "Hash": -117382485
+  },
+  {
+    "Name": "Output",
+    "Value": 70,
+    "Hash": -881716824
+  },
+  {
+    "Name": "PressureSetting",
+    "Value": 71,
+    "Hash": -300364884
+  },
+  {
+    "Name": "TemperatureSetting",
+    "Value": 72,
+    "Hash": -37689740
+  },
+  {
+    "Name": "TemperatureExternal",
+    "Value": 73,
+    "Hash": -242435147
+  },
+  {
+    "Name": "Filtration",
+    "Value": 74,
+    "Hash": 369190854
+  },
+  {
+    "Name": "AirRelease",
+    "Value": 75,
+    "Hash": 1087455237
+  },
+  {
+    "Name": "PositionX",
+    "Value": 76,
+    "Hash": -120414561
+  },
+  {
+    "Name": "PositionY",
+    "Value": 77,
+    "Hash": -1881821687
+  },
+  {
+    "Name": "PositionZ",
+    "Value": 78,
+    "Hash": 383582131
+  },
+  {
+    "Name": "VelocityMagnitude",
+    "Value": 79,
+    "Hash": -1454589613
+  },
+  {
+    "Name": "VelocityRelativeX",
+    "Value": 80,
+    "Hash": -736574626
+  },
+  {
+    "Name": "VelocityRelativeY",
+    "Value": 81,
+    "Hash": -1558187064
+  },
+  {
+    "Name": "VelocityRelativeZ",
+    "Value": 82,
+    "Hash": 974561906
+  },
+  {
+    "Name": "RatioNitrousOxide",
+    "Value": 83,
+    "Hash": -1582039794
+  },
+  {
+    "Name": "PrefabHash",
+    "Value": 84,
+    "Hash": -2077083611
+  },
+  {
+    "Name": "ForceWrite",
+    "Value": 85,
+    "Hash": -2056344098
+  },
+  {
+    "Name": "SignalStrength",
+    "Value": 86,
+    "Hash": -1824506217
+  },
+  {
+    "Name": "SignalID",
+    "Value": 87,
+    "Hash": 17499987
+  },
+  {
+    "Name": "TargetX",
+    "Value": 88,
+    "Hash": -868032817
+  },
+  {
+    "Name": "TargetY",
+    "Value": 89,
+    "Hash": -1153044903
+  },
+  {
+    "Name": "TargetZ",
+    "Value": 90,
+    "Hash": 575455203
+  },
+  {
+    "Name": "SettingInput",
+    "Value": 91,
+    "Hash": -1656120618
+  },
+  {
+    "Name": "SettingOutput",
+    "Value": 92,
+    "Hash": -1147386464
+  },
+  {
+    "Name": "CurrentResearchPodType",
+    "Value": 93,
+    "Hash": -354044292
+  },
+  {
+    "Name": "ManualResearchRequiredPod",
+    "Value": 94,
+    "Hash": 1857579476
+  },
+  {
+    "Name": "MineablesInVicinity",
+    "Value": 95,
+    "Hash": -2073367782
+  },
+  {
+    "Name": "MineablesInQueue",
+    "Value": 96,
+    "Hash": 1955946140
+  },
+  {
+    "Name": "NextWeatherEventTime",
+    "Value": 97,
+    "Hash": -1706356800
+  },
+  {
+    "Name": "Combustion",
+    "Value": 98,
+    "Hash": 1286834232
+  },
+  {
+    "Name": "Fuel",
+    "Value": 99,
+    "Hash": -1852849961
+  },
+  {
+    "Name": "ReturnFuelCost",
+    "Value": 100,
+    "Hash": 103776398
+  },
+  {
+    "Name": "CollectableGoods",
+    "Value": 101,
+    "Hash": -2033789140
+  },
+  {
+    "Name": "Time",
+    "Value": 102,
+    "Hash": -811190405
+  },
+  {
+    "Name": "Bpm",
+    "Value": 103,
+    "Hash": -1872501585
+  },
+  {
+    "Name": "EnvironmentEfficiency",
+    "Value": 104,
+    "Hash": -1755855979
+  },
+  {
+    "Name": "WorkingGasEfficiency",
+    "Value": 105,
+    "Hash": -1015344465
+  },
+  {
+    "Name": "PressureInput",
+    "Value": 106,
+    "Hash": 602521528
+  },
+  {
+    "Name": "TemperatureInput",
+    "Value": 107,
+    "Hash": -1646686140
+  },
+  {
+    "Name": "RatioOxygenInput",
+    "Value": 108,
+    "Hash": 1784624135
+  },
+  {
+    "Name": "RatioCarbonDioxideInput",
+    "Value": 109,
+    "Hash": 2001129797
+  },
+  {
+    "Name": "RatioNitrogenInput",
+    "Value": 110,
+    "Hash": -999801583
+  },
+  {
+    "Name": "RatioPollutantInput",
+    "Value": 111,
+    "Hash": 1373537687
+  },
+  {
+    "Name": "RatioVolatilesInput",
+    "Value": 112,
+    "Hash": 1422015661
+  },
+  {
+    "Name": "RatioWaterInput",
+    "Value": 113,
+    "Hash": -1797150572
+  },
+  {
+    "Name": "RatioNitrousOxideInput",
+    "Value": 114,
+    "Hash": -1563320279
+  },
+  {
+    "Name": "TotalMolesInput",
+    "Value": 115,
+    "Hash": 2116160145
+  },
+  {
+    "Name": "PressureInput2",
+    "Value": 116,
+    "Hash": -548639732
+  },
+  {
+    "Name": "TemperatureInput2",
+    "Value": 117,
+    "Hash": 1811538452
+  },
+  {
+    "Name": "RatioOxygenInput2",
+    "Value": 118,
+    "Hash": -2065992550
+  },
+  {
+    "Name": "RatioCarbonDioxideInput2",
+    "Value": 119,
+    "Hash": 471092675
+  },
+  {
+    "Name": "RatioNitrogenInput2",
+    "Value": 120,
+    "Hash": 1889662658
+  },
+  {
+    "Name": "RatioPollutantInput2",
+    "Value": 121,
+    "Hash": 1961846383
+  },
+  {
+    "Name": "RatioVolatilesInput2",
+    "Value": 122,
+    "Hash": -1293507740
+  },
+  {
+    "Name": "RatioWaterInput2",
+    "Value": 123,
+    "Hash": -316471048
+  },
+  {
+    "Name": "RatioNitrousOxideInput2",
+    "Value": 124,
+    "Hash": 1489369025
+  },
+  {
+    "Name": "TotalMolesInput2",
+    "Value": 125,
+    "Hash": -1650245675
+  },
+  {
+    "Name": "PressureOutput",
+    "Value": 126,
+    "Hash": 287877594
+  },
+  {
+    "Name": "TemperatureOutput",
+    "Value": 127,
+    "Hash": -1516427326
+  },
+  {
+    "Name": "RatioOxygenOutput",
+    "Value": 128,
+    "Hash": 1254076748
+  },
+  {
+    "Name": "RatioCarbonDioxideOutput",
+    "Value": 129,
+    "Hash": -764377067
+  },
+  {
+    "Name": "RatioNitrogenOutput",
+    "Value": 130,
+    "Hash": -1094372588
+  },
+  {
+    "Name": "RatioPollutantOutput",
+    "Value": 131,
+    "Hash": -1165253703
+  },
+  {
+    "Name": "RatioVolatilesOutput",
+    "Value": 132,
+    "Hash": 2088920754
+  },
+  {
+    "Name": "RatioWaterOutput",
+    "Value": 133,
+    "Hash": 591908142
+  },
+  {
+    "Name": "RatioNitrousOxideOutput",
+    "Value": 134,
+    "Hash": -1767820777
+  },
+  {
+    "Name": "TotalMolesOutput",
+    "Value": 135,
+    "Hash": 1405614595
+  },
+  {
+    "Name": "PressureOutput2",
+    "Value": 136,
+    "Hash": 2093133166
+  },
+  {
+    "Name": "TemperatureOutput2",
+    "Value": 137,
+    "Hash": 1864007862
+  },
+  {
+    "Name": "RatioOxygenOutput2",
+    "Value": 138,
+    "Hash": 1710558215
+  },
+  {
+    "Name": "RatioCarbonDioxideOutput2",
+    "Value": 139,
+    "Hash": 2010786414
+  },
+  {
+    "Name": "RatioNitrogenOutput2",
+    "Value": 140,
+    "Hash": 11644739
+  },
+  {
+    "Name": "RatioPollutantOutput2",
+    "Value": 141,
+    "Hash": -1462616442
+  },
+  {
+    "Name": "RatioVolatilesOutput2",
+    "Value": 142,
+    "Hash": 1070001867
+  },
+  {
+    "Name": "RatioWaterOutput2",
+    "Value": 143,
+    "Hash": -970918897
+  },
+  {
+    "Name": "RatioNitrousOxideOutput2",
+    "Value": 144,
+    "Hash": -1718576392
+  },
+  {
+    "Name": "TotalMolesOutput2",
+    "Value": 145,
+    "Hash": -2087770035
+  },
+  {
+    "Name": "CombustionInput",
+    "Value": 146,
+    "Hash": 998322176
+  },
+  {
+    "Name": "CombustionInput2",
+    "Value": 147,
+    "Hash": 451821373
+  },
+  {
+    "Name": "CombustionOutput",
+    "Value": 148,
+    "Hash": -729089301
+  },
+  {
+    "Name": "CombustionOutput2",
+    "Value": 149,
+    "Hash": 769199879
+  },
+  {
+    "Name": "OperationalTemperatureEfficiency",
+    "Value": 150,
+    "Hash": 653369964
+  },
+  {
+    "Name": "TemperatureDifferentialEfficiency",
+    "Value": 151,
+    "Hash": -1795522111
+  },
+  {
+    "Name": "PressureEfficiency",
+    "Value": 152,
+    "Hash": -1558590158
+  },
+  {
+    "Name": "CombustionLimiter",
+    "Value": 153,
+    "Hash": 201536043
+  },
+  {
+    "Name": "Throttle",
+    "Value": 154,
+    "Hash": 313141946
+  },
+  {
+    "Name": "Rpm",
+    "Value": 155,
+    "Hash": -1941616673
+  },
+  {
+    "Name": "Stress",
+    "Value": 156,
+    "Hash": 1975449242
+  },
+  {
+    "Name": "InterrogationProgress",
+    "Value": 157,
+    "Hash": 1776716941
+  },
+  {
+    "Name": "TargetPadIndex",
+    "Value": 158,
+    "Hash": 2071247204
+  },
+  {
+    "Name": "SizeX",
+    "Value": 160,
+    "Hash": -605859539
+  },
+  {
+    "Name": "SizeY",
+    "Value": 161,
+    "Hash": -1394318917
+  },
+  {
+    "Name": "SizeZ",
+    "Value": 162,
+    "Hash": 904736769
+  },
+  {
+    "Name": "MinimumWattsToContact",
+    "Value": 163,
+    "Hash": -1924296837
+  },
+  {
+    "Name": "WattsReachingContact",
+    "Value": 164,
+    "Hash": -1862130915
+  },
+  {
+    "Name": "Channel0",
+    "Value": 165,
+    "Hash": -440954678
+  },
+  {
+    "Name": "Channel1",
+    "Value": 166,
+    "Hash": -1833918372
+  },
+  {
+    "Name": "Channel2",
+    "Value": 167,
+    "Hash": 196735462
+  },
+  {
+    "Name": "Channel3",
+    "Value": 168,
+    "Hash": 2092876144
+  },
+  {
+    "Name": "Channel4",
+    "Value": 169,
+    "Hash": -489007917
+  },
+  {
+    "Name": "Channel5",
+    "Value": 170,
+    "Hash": -1780652987
+  },
+  {
+    "Name": "Channel6",
+    "Value": 171,
+    "Hash": 215234047
+  },
+  {
+    "Name": "Channel7",
+    "Value": 172,
+    "Hash": 2077427049
+  },
+  {
+    "Name": "LineNumber",
+    "Value": 173,
+    "Hash": -1411525971
+  },
+  {
+    "Name": "Flush",
+    "Value": 174,
+    "Hash": 1965063083
+  },
+  {
+    "Name": "SoundAlert",
+    "Value": 175,
+    "Hash": -1909366640
+  },
+  {
+    "Name": "SolarIrradiance",
+    "Value": 176,
+    "Hash": -648246391
+  },
+  {
+    "Name": "RatioLiquidNitrogen",
+    "Value": 177,
+    "Hash": 1314339864
+  },
+  {
+    "Name": "RatioLiquidNitrogenInput",
+    "Value": 178,
+    "Hash": -192029641
+  },
+  {
+    "Name": "RatioLiquidNitrogenInput2",
+    "Value": 179,
+    "Hash": -1566796066
+  },
+  {
+    "Name": "RatioLiquidNitrogenOutput",
+    "Value": 180,
+    "Hash": 1828213512
+  },
+  {
+    "Name": "RatioLiquidNitrogenOutput2",
+    "Value": 181,
+    "Hash": 342019692
+  },
+  {
+    "Name": "VolumeOfLiquid",
+    "Value": 182,
+    "Hash": 1007357132
+  },
+  {
+    "Name": "RatioLiquidOxygen",
+    "Value": 183,
+    "Hash": -1806411257
+  },
+  {
+    "Name": "RatioLiquidOxygenInput",
+    "Value": 184,
+    "Hash": 1910630263
+  },
+  {
+    "Name": "RatioLiquidOxygenInput2",
+    "Value": 185,
+    "Hash": -725238923
+  },
+  {
+    "Name": "RatioLiquidOxygenOutput",
+    "Value": 186,
+    "Hash": 446791331
+  },
+  {
+    "Name": "RatioLiquidOxygenOutput2",
+    "Value": 187,
+    "Hash": 1427172641
+  },
+  {
+    "Name": "RatioLiquidVolatiles",
+    "Value": 188,
+    "Hash": 333609207
+  },
+  {
+    "Name": "RatioLiquidVolatilesInput",
+    "Value": 189,
+    "Hash": -2030084943
+  },
+  {
+    "Name": "RatioLiquidVolatilesInput2",
+    "Value": 190,
+    "Hash": -1506426293
+  },
+  {
+    "Name": "RatioLiquidVolatilesOutput",
+    "Value": 191,
+    "Hash": 1750140829
+  },
+  {
+    "Name": "RatioLiquidVolatilesOutput2",
+    "Value": 192,
+    "Hash": -1811742477
+  },
+  {
+    "Name": "RatioSteam",
+    "Value": 193,
+    "Hash": 1089621039
+  },
+  {
+    "Name": "RatioSteamInput",
+    "Value": 194,
+    "Hash": -847009224
+  },
+  {
+    "Name": "RatioSteamInput2",
+    "Value": 195,
+    "Hash": 840598841
+  },
+  {
+    "Name": "RatioSteamOutput",
+    "Value": 196,
+    "Hash": -58834705
+  },
+  {
+    "Name": "RatioSteamOutput2",
+    "Value": 197,
+    "Hash": 714882980
+  },
+  {
+    "Name": "ContactTypeId",
+    "Value": 198,
+    "Hash": -2009848128
+  },
+  {
+    "Name": "RatioLiquidCarbonDioxide",
+    "Value": 199,
+    "Hash": 6017373
+  },
+  {
+    "Name": "RatioLiquidCarbonDioxideInput",
+    "Value": 200,
+    "Hash": 661326084
+  },
+  {
+    "Name": "RatioLiquidCarbonDioxideInput2",
+    "Value": 201,
+    "Hash": 496963869
+  },
+  {
+    "Name": "RatioLiquidCarbonDioxideOutput",
+    "Value": 202,
+    "Hash": -738470709
+  },
+  {
+    "Name": "RatioLiquidCarbonDioxideOutput2",
+    "Value": 203,
+    "Hash": 380657377
+  },
+  {
+    "Name": "RatioLiquidPollutant",
+    "Value": 204,
+    "Hash": 909994858
+  },
+  {
+    "Name": "RatioLiquidPollutantInput",
+    "Value": 205,
+    "Hash": -2082216565
+  },
+  {
+    "Name": "RatioLiquidPollutantInput2",
+    "Value": 206,
+    "Hash": 1614546752
+  },
+  {
+    "Name": "RatioLiquidPollutantOutput",
+    "Value": 207,
+    "Hash": -1369914730
+  },
+  {
+    "Name": "RatioLiquidPollutantOutput2",
+    "Value": 208,
+    "Hash": 51892414
+  },
+  {
+    "Name": "RatioLiquidNitrousOxide",
+    "Value": 209,
+    "Hash": -240307487
+  },
+  {
+    "Name": "RatioLiquidNitrousOxideInput",
+    "Value": 210,
+    "Hash": -1971790503
+  },
+  {
+    "Name": "RatioLiquidNitrousOxideInput2",
+    "Value": 211,
+    "Hash": 149434240
+  },
+  {
+    "Name": "RatioLiquidNitrousOxideOutput",
+    "Value": 212,
+    "Hash": -963843498
+  },
+  {
+    "Name": "RatioLiquidNitrousOxideOutput2",
+    "Value": 213,
+    "Hash": -1743010266
+  },
+  {
+    "Name": "Progress",
+    "Value": 214,
+    "Hash": -612921328
+  },
+  {
+    "Name": "DestinationCode",
+    "Value": 215,
+    "Hash": 251723168
+  },
+  {
+    "Name": "Acceleration",
+    "Value": 216,
+    "Hash": 1648848515
+  },
+  {
+    "Name": "ReferenceId",
+    "Value": 217,
+    "Hash": -1026631136
+  },
+  {
+    "Name": "AutoShutOff",
+    "Value": 218,
+    "Hash": 132185353
+  },
+  {
+    "Name": "Mass",
+    "Value": 219,
+    "Hash": -869141416
+  },
+  {
+    "Name": "DryMass",
+    "Value": 220,
+    "Hash": 1920305956
+  },
+  {
+    "Name": "Thrust",
+    "Value": 221,
+    "Hash": 1340705394
+  },
+  {
+    "Name": "Weight",
+    "Value": 222,
+    "Hash": 6377591
+  },
+  {
+    "Name": "ThrustToWeight",
+    "Value": 223,
+    "Hash": 1374177550
+  },
+  {
+    "Name": "TimeToDestination",
+    "Value": 224,
+    "Hash": -491990778
+  },
+  {
+    "Name": "BurnTimeRemaining",
+    "Value": 225,
+    "Hash": 291710436
+  },
+  {
+    "Name": "AutoLand",
+    "Value": 226,
+    "Hash": -1662851033
+  },
+  {
+    "Name": "ForwardX",
+    "Value": 227,
+    "Hash": 1257825063
+  },
+  {
+    "Name": "ForwardY",
+    "Value": 228,
+    "Hash": 1040176049
+  },
+  {
+    "Name": "ForwardZ",
+    "Value": 229,
+    "Hash": -1527348725
+  },
+  {
+    "Name": "Orientation",
+    "Value": 230,
+    "Hash": -1340323199
+  },
+  {
+    "Name": "VelocityX",
+    "Value": 231,
+    "Hash": -1695058062
+  },
+  {
+    "Name": "VelocityY",
+    "Value": 232,
+    "Hash": -303020060
+  },
+  {
+    "Name": "VelocityZ",
+    "Value": 233,
+    "Hash": 1962481246
+  },
+  {
+    "Name": "PassedMoles",
+    "Value": 234,
+    "Hash": -546590106
+  },
+  {
+    "Name": "ExhaustVelocity",
+    "Value": 235,
+    "Hash": 223771475
+  },
+  {
+    "Name": "FlightControlRule",
+    "Value": 236,
+    "Hash": -908433741
+  },
+  {
+    "Name": "ReEntryAltitude",
+    "Value": 237,
+    "Hash": 1604989945
+  },
+  {
+    "Name": "Apex",
+    "Value": 238,
+    "Hash": 273280760
+  },
+  {
+    "Name": "EntityState",
+    "Value": 239,
+    "Hash": -249054440
+  },
+  {
+    "Name": "DrillCondition",
+    "Value": 240,
+    "Hash": -1362730956
+  },
+  {
+    "Name": "Index",
+    "Value": 241,
+    "Hash": 1102202885
+  },
+  {
+    "Name": "CelestialHash",
+    "Value": 242,
+    "Hash": -495167919
+  },
+  {
+    "Name": "AlignmentError",
+    "Value": 243,
+    "Hash": -1101186769
+  },
+  {
+    "Name": "DistanceAu",
+    "Value": 244,
+    "Hash": -171236070
+  },
+  {
+    "Name": "OrbitPeriod",
+    "Value": 245,
+    "Hash": 172709297
+  },
+  {
+    "Name": "Inclination",
+    "Value": 246,
+    "Hash": -2001703070
+  },
+  {
+    "Name": "Eccentricity",
+    "Value": 247,
+    "Hash": 899067713
+  },
+  {
+    "Name": "SemiMajorAxis",
+    "Value": 248,
+    "Hash": -538681978
+  },
+  {
+    "Name": "DistanceKm",
+    "Value": 249,
+    "Hash": 474502598
+  },
+  {
+    "Name": "CelestialParentHash",
+    "Value": 250,
+    "Hash": -1112882803
+  },
+  {
+    "Name": "TrueAnomaly",
+    "Value": 251,
+    "Hash": -666111701
+  },
+  {
+    "Name": "RatioHydrogen",
+    "Value": 252,
+    "Hash": 975503215
+  },
+  {
+    "Name": "RatioLiquidHydrogen",
+    "Value": 253,
+    "Hash": -332354614
+  },
+  {
+    "Name": "RatioPollutedWater",
+    "Value": 254,
+    "Hash": 29121794
+  },
+  {
+    "Name": "Discover",
+    "Value": 255,
+    "Hash": 273093887
+  },
+  {
+    "Name": "Chart",
+    "Value": 256,
+    "Hash": 613877038
+  },
+  {
+    "Name": "Survey",
+    "Value": 257,
+    "Hash": -1426874678
+  },
+  {
+    "Name": "NavPoints",
+    "Value": 258,
+    "Hash": -227236941
+  },
+  {
+    "Name": "ChartedNavPoints",
+    "Value": 259,
+    "Hash": 1736356943
+  },
+  {
+    "Name": "Sites",
+    "Value": 260,
+    "Hash": 2109834599
+  },
+  {
+    "Name": "CurrentCode",
+    "Value": 261,
+    "Hash": 355268285
+  },
+  {
+    "Name": "Density",
+    "Value": 262,
+    "Hash": 253055846
+  },
+  {
+    "Name": "Richness",
+    "Value": 263,
+    "Hash": 332849364
+  },
+  {
+    "Name": "Size",
+    "Value": 264,
+    "Hash": 1475513172
+  },
+  {
+    "Name": "TotalQuantity",
+    "Value": 265,
+    "Hash": 1437564826
+  },
+  {
+    "Name": "MinedQuantity",
+    "Value": 266,
+    "Hash": 2003495013
+  },
+  {
+    "Name": "BestContactFilter",
+    "Value": 267,
+    "Hash": -2078313637
+  },
+  {
+    "Name": "NameHash",
+    "Value": 268,
+    "Hash": -1048396092
+  },
+  {
+    "Name": "Altitude",
+    "Value": 269,
+    "Hash": 1119668068
+  },
+  {
+    "Name": "TargetSlotIndex",
+    "Value": 270,
+    "Hash": 1021426621
+  },
+  {
+    "Name": "TargetPrefabHash",
+    "Value": 271,
+    "Hash": -366636951
+  },
+  {
+    "Name": "Extended",
+    "Value": 272,
+    "Hash": -590617815
+  },
+  {
+    "Name": "NetworkFault",
+    "Value": 273,
+    "Hash": 1616419123
+  },
+  {
+    "Name": "ProportionalGain",
+    "Value": 274,
+    "Hash": 94649151
+  },
+  {
+    "Name": "IntegralGain",
+    "Value": 275,
+    "Hash": 1388012552
+  },
+  {
+    "Name": "DerivativeGain",
+    "Value": 276,
+    "Hash": 581657105
+  },
+  {
+    "Name": "Minimum",
+    "Value": 277,
+    "Hash": -702337835
+  },
+  {
+    "Name": "Setpoint",
+    "Value": 278,
+    "Hash": -2043608096
+  },
+  {
+    "Name": "Reset",
+    "Value": 279,
+    "Hash": -1856204727
+  },
+  {
+    "Name": "StackSize",
+    "Value": 280,
+    "Hash": -1103503674
+  }
+]

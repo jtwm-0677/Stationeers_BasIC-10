@@ -69,23 +69,37 @@ public class Parser
     private StatementNode? ParseStatement()
     {
         if (Check(TokenType.Let)) return ParseLetStatement();
+        if (Check(TokenType.Var)) return ParseVarStatement();
+        if (Check(TokenType.Const)) return ParseConstStatement();
         if (Check(TokenType.Print)) return ParsePrintStatement();
         if (Check(TokenType.Input)) return ParseInputStatement();
         if (Check(TokenType.If)) return ParseIfStatement();
         if (Check(TokenType.For)) return ParseForStatement();
         if (Check(TokenType.While)) return ParseWhileStatement();
         if (Check(TokenType.Do)) return ParseDoLoopStatement();
+        if (Check(TokenType.Select)) return ParseSelectStatement();
+        if (Check(TokenType.On)) return ParseOnStatement();
         if (Check(TokenType.Goto)) return ParseGotoStatement();
         if (Check(TokenType.Gosub)) return ParseGosubStatement();
         if (Check(TokenType.Return)) return ParseReturnStatement();
+        if (Check(TokenType.Break)) return ParseBreakStatement();
+        if (Check(TokenType.Continue)) return ParseContinueStatement();
         if (Check(TokenType.End)) return ParseEndStatement();
         if (Check(TokenType.Dim)) return ParseDimStatement();
         if (Check(TokenType.Sub)) return ParseSubDefinition();
+        if (Check(TokenType.Function)) return ParseFunctionDefinition();
         if (Check(TokenType.Call)) return ParseCallStatement();
         if (Check(TokenType.Sleep)) return ParseSleepStatement();
         if (Check(TokenType.Yield)) return ParseYieldStatement();
         if (Check(TokenType.Alias)) return ParseAliasStatement();
         if (Check(TokenType.Define)) return ParseDefineStatement();
+        if (Check(TokenType.Push)) return ParsePushStatement();
+        if (Check(TokenType.Pop)) return ParsePopStatement();
+        if (Check(TokenType.Peek)) return ParsePeekStatement();
+        if (Check(TokenType.Data)) return ParseDataStatement();
+        if (Check(TokenType.Read)) return ParseReadStatement();
+        if (Check(TokenType.Restore)) return ParseRestoreStatement();
+        if (Check(TokenType.Comment) || Check(TokenType.MetaComment)) return ParseCommentStatement();
         if (Check(TokenType.Identifier)) return ParseAssignmentOrCall();
 
         // Skip unknown tokens
@@ -94,6 +108,18 @@ public class Parser
             Advance();
         }
         return null;
+    }
+
+    private CommentStatement ParseCommentStatement()
+    {
+        var token = Advance(); // Consume Comment or MetaComment
+        return new CommentStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            Text = token.Value,
+            IsMetaComment = token.Type == TokenType.MetaComment
+        };
     }
 
     private LetStatement ParseLetStatement()
@@ -120,14 +146,80 @@ public class Parser
         var token = Current();
         var name = Advance().Value; // Consume identifier
 
-        // Check for device property write: device.Property = value
-        if (Check(TokenType.Identifier) && Previous().Value.Equals("device", StringComparison.OrdinalIgnoreCase))
+        // Check for label definition: identifier followed by colon
+        if (Check(TokenType.Colon))
         {
-            // Actually this needs different handling - let's check for dot notation pattern
+            Advance(); // Consume ':'
+            return new LabelStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Name = name
+            };
         }
 
-        // Check for array assignment
-        if (Check(TokenType.LeftParen) || Check(TokenType.LeftBracket))
+        // Check for device property write: device.Property = value
+        // or device slot access: device[slot].Property = value
+        if (Check(TokenType.Dot))
+        {
+            Advance(); // Consume '.'
+            var propertyToken = ExpectPropertyName("Expected property name after '.'");
+            var propertyName = propertyToken.Value;
+
+            Expect(TokenType.Equal, "Expected '=' after property name");
+            var value = ParseExpression();
+
+            return new DeviceWriteStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                DeviceName = name,
+                PropertyName = propertyName,
+                Value = value
+            };
+        }
+
+        // Check for device slot access: device[slot].Property = value
+        if (Check(TokenType.LeftBracket))
+        {
+            Advance(); // Consume '['
+            var slotIndex = ParseExpression();
+            Expect(TokenType.RightBracket, "Expected ']'");
+
+            if (Check(TokenType.Dot))
+            {
+                Advance(); // Consume '.'
+                var propertyToken = ExpectPropertyName("Expected property name");
+                var propertyName = propertyToken.Value;
+
+                Expect(TokenType.Equal, "Expected '='");
+                var value = ParseExpression();
+
+                return new DeviceSlotWriteStatement
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    DeviceName = name,
+                    SlotIndex = slotIndex,
+                    PropertyName = propertyName,
+                    Value = value
+                };
+            }
+
+            // Array assignment: arr[index] = value
+            Expect(TokenType.Equal, "Expected '='");
+            return new LetStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                VariableName = name,
+                ArrayIndices = new List<ExpressionNode> { slotIndex },
+                Value = ParseExpression()
+            };
+        }
+
+        // Check for array assignment with parentheses
+        if (Check(TokenType.LeftParen))
         {
             var indices = ParseArrayIndices();
             Expect(TokenType.Equal, "Expected '='");
@@ -141,7 +233,7 @@ public class Parser
             };
         }
 
-        // Check for assignment
+        // Check for simple assignment
         if (Check(TokenType.Equal))
         {
             Advance();
@@ -229,61 +321,227 @@ public class Parser
     private IfStatement ParseIfStatement()
     {
         var token = Advance(); // Consume IF
-        var stmt = new IfStatement { Line = token.Line, Column = token.Column };
+        var rootStmt = new IfStatement { Line = token.Line, Column = token.Column };
 
-        stmt.Condition = ParseExpression();
+        // Handle IF on its own line - skip newlines before condition
+        SkipNewlines();
+
+        rootStmt.Condition = ParseExpression();
+
+        // Handle THEN on its own line - skip newlines before THEN
+        SkipNewlines();
+
         Expect(TokenType.Then, "Expected THEN");
 
         // Check if multi-line or single-line IF
+        // Multi-line: THEN followed by newline, body on subsequent lines, ends with ENDIF
+        // Single-line: THEN followed by statement on same line, optional ELSE on same line
+        // Hybrid: THEN followed by statement on same line, but ELSEIF/ELSE/ENDIF on subsequent lines
         if (Check(TokenType.Newline) || Check(TokenType.Eof))
         {
-            stmt.IsMultiLine = true;
+            // Pure multi-line: THEN followed by newline
+            rootStmt.IsMultiLine = true;
             SkipNewlines();
 
-            // Parse THEN block
+            // Parse THEN block - multiple statements until ELSE/ELSEIF/ENDIF
+            int lastPosition = -1;
             while (!Check(TokenType.Else) && !Check(TokenType.ElseIf) &&
                    !Check(TokenType.EndIf) && !Check(TokenType.Eof))
             {
-                // Skip line numbers in multi-line if
+                // Safeguard: detect if we're stuck in an infinite loop
+                if (_position == lastPosition)
+                {
+                    var currentToken = Current();
+                    throw new ParserException(
+                        $"Incomplete IF statement - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
+                        currentToken.Line, currentToken.Column);
+                }
+                lastPosition = _position;
+
                 if (Check(TokenType.LineNumber)) Advance();
 
                 var bodyStmt = ParseStatement();
                 if (bodyStmt != null)
                 {
-                    stmt.ThenBranch.Add(bodyStmt);
+                    rootStmt.ThenBranch.Add(bodyStmt);
                 }
 
                 while (Check(TokenType.Colon))
                 {
                     Advance();
                     var nextStmt = ParseStatement();
-                    if (nextStmt != null) stmt.ThenBranch.Add(nextStmt);
+                    if (nextStmt != null) rootStmt.ThenBranch.Add(nextStmt);
                 }
 
                 SkipNewlines();
             }
+        }
+        else
+        {
+            // THEN followed by statement on same line - could be single-line or hybrid
+            var thenStmt = ParseStatement();
+            if (thenStmt != null)
+            {
+                rootStmt.ThenBranch.Add(thenStmt);
+            }
 
-            // Parse ELSE block
+            // Check if this is truly single-line (ELSE on same line) or hybrid (newline then ELSEIF/ELSE/ENDIF)
+            if (Check(TokenType.Else))
+            {
+                // Single-line with ELSE on same line
+                Advance();
+                var elseStmt = ParseStatement();
+                if (elseStmt != null)
+                {
+                    rootStmt.ElseBranch.Add(elseStmt);
+                }
+                return rootStmt;
+            }
+
+            // Check for newline - could be hybrid format
+            if (Check(TokenType.Newline))
+            {
+                SkipNewlines();
+
+                // If we see ELSEIF, ELSE, or ENDIF, this is a hybrid multi-line format
+                if (Check(TokenType.ElseIf) || Check(TokenType.Else) || Check(TokenType.EndIf))
+                {
+                    rootStmt.IsMultiLine = true;
+                    // Fall through to ELSEIF/ELSE/ENDIF handling below
+                }
+                else
+                {
+                    // Truly single-line IF, we're done
+                    return rootStmt;
+                }
+            }
+            else
+            {
+                // No newline, no ELSE - single-line IF complete
+                return rootStmt;
+            }
+        }
+
+        // At this point we're in multi-line mode (pure or hybrid) - handle ELSEIF/ELSE/ENDIF
+        {
+
+            // Parse ELSEIF chains - currentStmt tracks where to add the next else branch
+            var currentStmt = rootStmt;
+            while (Check(TokenType.ElseIf))
+            {
+                Advance(); // Consume ELSEIF
+
+                // Handle ELSEIF condition on its own line
+                SkipNewlines();
+
+                var elseIfCondition = ParseExpression();
+
+                // Handle THEN on its own line
+                SkipNewlines();
+
+                Expect(TokenType.Then, "Expected THEN after ELSEIF condition");
+
+                var elseIfBody = new List<StatementNode>();
+
+                // Check if THEN is followed by statement on same line (hybrid) or newline (pure multi-line)
+                if (!Check(TokenType.Newline) && !Check(TokenType.Eof))
+                {
+                    // Hybrid: statement on same line after THEN
+                    var bodyStmt = ParseStatement();
+                    if (bodyStmt != null)
+                    {
+                        elseIfBody.Add(bodyStmt);
+                    }
+                    SkipNewlines();
+                }
+                else
+                {
+                    // Pure multi-line: parse multiple statements
+                    SkipNewlines();
+
+                    int elseIfLastPosition = -1;
+                    while (!Check(TokenType.Else) && !Check(TokenType.ElseIf) &&
+                           !Check(TokenType.EndIf) && !Check(TokenType.Eof))
+                    {
+                        // Safeguard: detect if we're stuck in an infinite loop
+                        if (_position == elseIfLastPosition)
+                        {
+                            var currentToken = Current();
+                            throw new ParserException(
+                                $"Incomplete ELSEIF statement - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
+                                currentToken.Line, currentToken.Column);
+                        }
+                        elseIfLastPosition = _position;
+
+                        if (Check(TokenType.LineNumber)) Advance();
+
+                        var bodyStmt = ParseStatement();
+                        if (bodyStmt != null)
+                        {
+                            elseIfBody.Add(bodyStmt);
+                        }
+
+                        while (Check(TokenType.Colon))
+                        {
+                            Advance();
+                            var nextStmt = ParseStatement();
+                            if (nextStmt != null) elseIfBody.Add(nextStmt);
+                        }
+
+                        SkipNewlines();
+                    }
+                }
+
+                // Convert ELSEIF to nested IF in the else branch
+                var nestedIf = new IfStatement
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    Condition = elseIfCondition,
+                    IsMultiLine = true
+                };
+                foreach (var item in elseIfBody)
+                {
+                    nestedIf.ThenBranch.Add(item);
+                }
+
+                // Add nested IF to current statement's else branch, then continue chain
+                currentStmt.ElseBranch.Add(nestedIf);
+                currentStmt = nestedIf;
+            }
+
+            // Parse ELSE block - add to the last statement in the chain
             if (Check(TokenType.Else))
             {
                 Advance();
                 SkipNewlines();
 
+                int elseLastPosition = -1;
                 while (!Check(TokenType.EndIf) && !Check(TokenType.Eof))
                 {
+                    // Safeguard: detect if we're stuck in an infinite loop
+                    if (_position == elseLastPosition)
+                    {
+                        var currentToken = Current();
+                        throw new ParserException(
+                            $"Incomplete ELSE statement - expected ENDIF but found {currentToken.Type}",
+                            currentToken.Line, currentToken.Column);
+                    }
+                    elseLastPosition = _position;
+
                     if (Check(TokenType.LineNumber)) Advance();
 
                     var bodyStmt = ParseStatement();
                     if (bodyStmt != null)
                     {
-                        stmt.ElseBranch.Add(bodyStmt);
+                        currentStmt.ElseBranch.Add(bodyStmt);
                     }
 
                     while (Check(TokenType.Colon))
                     {
                         Advance();
                         var nextStmt = ParseStatement();
-                        if (nextStmt != null) stmt.ElseBranch.Add(nextStmt);
+                        if (nextStmt != null) currentStmt.ElseBranch.Add(nextStmt);
                     }
 
                     SkipNewlines();
@@ -294,28 +552,17 @@ public class Parser
             {
                 Advance();
             }
-        }
-        else
-        {
-            // Single-line IF
-            var thenStmt = ParseStatement();
-            if (thenStmt != null)
+            else if (rootStmt.IsMultiLine)
             {
-                stmt.ThenBranch.Add(thenStmt);
-            }
-
-            if (Check(TokenType.Else))
-            {
-                Advance();
-                var elseStmt = ParseStatement();
-                if (elseStmt != null)
-                {
-                    stmt.ElseBranch.Add(elseStmt);
-                }
+                // Multi-line IF must have ENDIF
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Expected ENDIF to close multi-line IF statement, got {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
             }
         }
 
-        return stmt;
+        return rootStmt;
     }
 
     private ForStatement ParseForStatement()
@@ -476,25 +723,127 @@ public class Parser
     private GotoStatement ParseGotoStatement()
     {
         var token = Advance(); // Consume GOTO
-        var lineToken = Expect(TokenType.Number, "Expected line number");
-        return new GotoStatement
+        var stmt = new GotoStatement { Line = token.Line, Column = token.Column };
+
+        // Accept either a line number or a label (identifier)
+        if (Check(TokenType.Number))
         {
-            Line = token.Line,
-            Column = token.Column,
-            TargetLine = (int)double.Parse(lineToken.Value)
-        };
+            var lineToken = Advance();
+            stmt.TargetLine = (int)double.Parse(lineToken.Value);
+        }
+        else if (Check(TokenType.Identifier))
+        {
+            var labelToken = Advance();
+            stmt.TargetLabel = labelToken.Value;
+        }
+        else
+        {
+            throw new ParserException("Expected line number or label", Current().Line, Current().Column);
+        }
+
+        return stmt;
     }
 
     private GosubStatement ParseGosubStatement()
     {
         var token = Advance(); // Consume GOSUB
-        var lineToken = Expect(TokenType.Number, "Expected line number");
-        return new GosubStatement
+        var stmt = new GosubStatement { Line = token.Line, Column = token.Column };
+
+        // Accept either a line number or a label (identifier)
+        if (Check(TokenType.Number))
         {
-            Line = token.Line,
-            Column = token.Column,
-            TargetLine = (int)double.Parse(lineToken.Value)
-        };
+            var lineToken = Advance();
+            stmt.TargetLine = (int)double.Parse(lineToken.Value);
+        }
+        else if (Check(TokenType.Identifier))
+        {
+            var labelToken = Advance();
+            stmt.TargetLabel = labelToken.Value;
+        }
+        else
+        {
+            throw new ParserException("Expected line number or label", Current().Line, Current().Column);
+        }
+
+        return stmt;
+    }
+
+    private StatementNode ParseOnStatement()
+    {
+        var token = Advance(); // Consume ON
+
+        // Parse the index expression
+        var indexExpr = ParseExpression();
+
+        // Expect either GOTO or GOSUB
+        if (Check(TokenType.Goto))
+        {
+            Advance(); // Consume GOTO
+            var stmt = new OnGotoStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                IndexExpression = indexExpr
+            };
+
+            // Parse comma-separated list of labels
+            do
+            {
+                if (Check(TokenType.Comma)) Advance(); // Consume comma
+
+                if (Check(TokenType.Identifier))
+                {
+                    stmt.TargetLabels.Add(Advance().Value);
+                }
+                else if (Check(TokenType.Number))
+                {
+                    // Accept line numbers as labels
+                    stmt.TargetLabels.Add("_line" + Advance().Value);
+                }
+                else
+                {
+                    throw new ParserException("Expected label name", Current().Line, Current().Column);
+                }
+            } while (Check(TokenType.Comma));
+
+            return stmt;
+        }
+        else if (Check(TokenType.Gosub))
+        {
+            Advance(); // Consume GOSUB
+            var stmt = new OnGosubStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                IndexExpression = indexExpr
+            };
+
+            // Parse comma-separated list of labels
+            do
+            {
+                if (Check(TokenType.Comma)) Advance(); // Consume comma
+
+                if (Check(TokenType.Identifier))
+                {
+                    stmt.TargetLabels.Add(Advance().Value);
+                }
+                else if (Check(TokenType.Number))
+                {
+                    // Accept line numbers as labels
+                    stmt.TargetLabels.Add("_line" + Advance().Value);
+                }
+                else
+                {
+                    throw new ParserException("Expected label name", Current().Line, Current().Column);
+                }
+            } while (Check(TokenType.Comma));
+
+            return stmt;
+        }
+        else
+        {
+            throw new ParserException("Expected GOTO or GOSUB after ON expression", Current().Line, Current().Column);
+        }
     }
 
     private ReturnStatement ParseReturnStatement()
@@ -527,8 +876,9 @@ public class Parser
             do
             {
                 if (Check(TokenType.Comma)) Advance();
+                if (Check(TokenType.Eof)) break; // Safeguard against incomplete code
                 var dimToken = Expect(TokenType.Number, "Expected dimension size");
-                stmt.Dimensions.Add((int)double.Parse(dimToken.Value));
+                stmt.Dimensions.Add(new NumberLiteral { Value = double.Parse(dimToken.Value), Line = dimToken.Line, Column = dimToken.Column });
             } while (Check(TokenType.Comma));
 
             Expect(closeType, "Expected closing bracket");
@@ -614,18 +964,41 @@ public class Parser
 
     private SleepStatement ParseSleepStatement()
     {
-        var token = Advance(); // Consume SLEEP
+        var token = Advance(); // Consume SLEEP/WAIT
+
+        // Support both SLEEP 1 and WAIT(1) syntax
+        bool hasParens = Check(TokenType.LeftParen);
+        if (hasParens)
+        {
+            Advance(); // Consume '('
+        }
+
+        var duration = ParseExpression();
+
+        if (hasParens)
+        {
+            Expect(TokenType.RightParen, "Expected ')' after WAIT/SLEEP duration");
+        }
+
         return new SleepStatement
         {
             Line = token.Line,
             Column = token.Column,
-            Duration = ParseExpression()
+            Duration = duration
         };
     }
 
     private YieldStatement ParseYieldStatement()
     {
         var token = Advance(); // Consume YIELD
+
+        // Support optional parentheses: YIELD or YIELD()
+        if (Check(TokenType.LeftParen))
+        {
+            Advance(); // Consume '('
+            Expect(TokenType.RightParen, "Expected ')' after YIELD(");
+        }
+
         return new YieldStatement { Line = token.Line, Column = token.Column };
     }
 
@@ -636,6 +1009,14 @@ public class Parser
 
         var nameToken = Expect(TokenType.Identifier, "Expected alias name");
         stmt.AliasName = nameToken.Value;
+
+        // Check for array subscript: ALIAS name[index] = ...
+        if (Check(TokenType.LeftBracket))
+        {
+            Advance(); // Consume '['
+            stmt.AliasIndex = ParseExpression();
+            Expect(TokenType.RightBracket, "Expected ']' after alias index");
+        }
 
         // Optional '=' sign
         if (Check(TokenType.Equal))
@@ -650,9 +1031,17 @@ public class Parser
         }
         else
         {
-            // Simple device specification (e.g., d0, db, Pin0)
+            // Simple device specification (e.g., d0, db, Pin0, THIS)
             var deviceToken = Expect(TokenType.Identifier, "Expected device specifier");
-            stmt.DeviceSpec = deviceToken.Value;
+            // THIS is a special keyword meaning the IC chip housing (db)
+            if (deviceToken.Value.Equals("THIS", StringComparison.OrdinalIgnoreCase))
+            {
+                stmt.DeviceSpec = "db";
+            }
+            else
+            {
+                stmt.DeviceSpec = deviceToken.Value;
+            }
         }
 
         return stmt;
@@ -665,7 +1054,16 @@ public class Parser
         Advance(); // Consume 'IC'
         Expect(TokenType.Dot, "Expected '.' after IC");
 
-        var typeToken = Expect(TokenType.Identifier, "Expected Pin, Device, ID, or Port");
+        // Accept either Identifier or Device keyword (since DEVICE is a reserved keyword)
+        Token typeToken;
+        if (Check(TokenType.Device))
+        {
+            typeToken = Advance();
+        }
+        else
+        {
+            typeToken = Expect(TokenType.Identifier, "Expected Pin, Device, ID, or Port");
+        }
         var refType = typeToken.Value.ToUpperInvariant();
 
         switch (refType)
@@ -709,7 +1107,7 @@ public class Parser
                 Expect(TokenType.RightBracket, "Expected ']'");
                 reference.Type = DeviceReferenceType.Device;
 
-                // Check for .Name["deviceName"] suffix
+                // Check for .Name["deviceName"] or .Name[variable] suffix
                 if (Check(TokenType.Dot))
                 {
                     Advance();
@@ -717,8 +1115,19 @@ public class Parser
                     {
                         Advance();
                         Expect(TokenType.LeftBracket, "Expected '[' after Name");
-                        var deviceNameToken = Expect(TokenType.String, "Expected device name string");
-                        reference.DeviceName = deviceNameToken.Value;
+
+                        // Support both static string and dynamic expression
+                        if (Check(TokenType.String))
+                        {
+                            var deviceNameToken = Advance();
+                            reference.DeviceName = deviceNameToken.Value;
+                        }
+                        else
+                        {
+                            // Dynamic device name (variable or expression)
+                            reference.DeviceNameExpression = ParseExpression();
+                        }
+
                         Expect(TokenType.RightBracket, "Expected ']'");
                         reference.Type = DeviceReferenceType.DeviceNamed;
                     }
@@ -766,7 +1175,249 @@ public class Parser
         stmt.ConstantName = nameToken.Value;
 
         var valueToken = Expect(TokenType.Number, "Expected numeric value");
-        stmt.Value = double.Parse(valueToken.Value);
+        stmt.Value = new NumberLiteral { Value = double.Parse(valueToken.Value), Line = valueToken.Line, Column = valueToken.Column };
+
+        return stmt;
+    }
+
+    private VarStatement ParseVarStatement()
+    {
+        var token = Advance(); // Consume VAR
+        var stmt = new VarStatement { Line = token.Line, Column = token.Column };
+
+        var nameToken = Expect(TokenType.Identifier, "Expected variable name");
+        stmt.VariableName = nameToken.Value;
+
+        if (Check(TokenType.Equal))
+        {
+            Advance();
+            stmt.InitialValue = ParseExpression();
+        }
+
+        return stmt;
+    }
+
+    private ConstStatement ParseConstStatement()
+    {
+        var token = Advance(); // Consume CONST
+        var stmt = new ConstStatement { Line = token.Line, Column = token.Column };
+
+        var nameToken = Expect(TokenType.Identifier, "Expected constant name");
+        stmt.ConstantName = nameToken.Value;
+
+        Expect(TokenType.Equal, "Expected '='");
+        stmt.Value = ParseExpression();
+
+        return stmt;
+    }
+
+    private BreakStatement ParseBreakStatement()
+    {
+        var token = Advance(); // Consume BREAK
+        return new BreakStatement { Line = token.Line, Column = token.Column };
+    }
+
+    private ContinueStatement ParseContinueStatement()
+    {
+        var token = Advance(); // Consume CONTINUE
+        return new ContinueStatement { Line = token.Line, Column = token.Column };
+    }
+
+    private PushStatement ParsePushStatement()
+    {
+        var token = Advance(); // Consume PUSH
+        var stmt = new PushStatement { Line = token.Line, Column = token.Column };
+        stmt.Value = ParseExpression();
+        return stmt;
+    }
+
+    private PopStatement ParsePopStatement()
+    {
+        var token = Advance(); // Consume POP
+        var stmt = new PopStatement { Line = token.Line, Column = token.Column };
+        var nameToken = Expect(TokenType.Identifier, "Expected variable name");
+        stmt.VariableName = nameToken.Value;
+        return stmt;
+    }
+
+    private PeekStatement ParsePeekStatement()
+    {
+        var token = Advance(); // Consume PEEK
+        var stmt = new PeekStatement { Line = token.Line, Column = token.Column };
+        var nameToken = Expect(TokenType.Identifier, "Expected variable name");
+        stmt.VariableName = nameToken.Value;
+        return stmt;
+    }
+
+    private DataStatement ParseDataStatement()
+    {
+        var token = Advance(); // Consume DATA
+        var stmt = new DataStatement { Line = token.Line, Column = token.Column };
+
+        // Parse comma-separated list of values
+        do
+        {
+            if (Check(TokenType.Comma)) Advance(); // Skip comma
+
+            var value = ParseExpression();
+            stmt.Values.Add(value);
+        } while (Check(TokenType.Comma));
+
+        return stmt;
+    }
+
+    private ReadStatement ParseReadStatement()
+    {
+        var token = Advance(); // Consume READ
+        var stmt = new ReadStatement { Line = token.Line, Column = token.Column };
+
+        // Parse comma-separated list of variable names
+        do
+        {
+            if (Check(TokenType.Comma)) Advance(); // Skip comma
+
+            var nameToken = Expect(TokenType.Identifier, "Expected variable name");
+            stmt.VariableNames.Add(nameToken.Value);
+        } while (Check(TokenType.Comma));
+
+        return stmt;
+    }
+
+    private RestoreStatement ParseRestoreStatement()
+    {
+        var token = Advance(); // Consume RESTORE
+        return new RestoreStatement { Line = token.Line, Column = token.Column };
+    }
+
+    private SelectStatement ParseSelectStatement()
+    {
+        var token = Advance(); // Consume SELECT
+        var stmt = new SelectStatement { Line = token.Line, Column = token.Column };
+
+        // Optional CASE keyword after SELECT
+        if (Check(TokenType.Case))
+        {
+            Advance();
+        }
+
+        stmt.TestExpression = ParseExpression();
+        SkipNewlines();
+
+        // Parse CASE clauses
+        while (Check(TokenType.Case))
+        {
+            var caseClause = new CaseClause();
+            Advance(); // Consume CASE
+
+            // Parse case values (comma-separated)
+            caseClause.Values.Add(ParseExpression());
+            while (Check(TokenType.Comma))
+            {
+                Advance();
+                caseClause.Values.Add(ParseExpression());
+            }
+
+            // Optional colon after case values
+            if (Check(TokenType.Colon))
+            {
+                Advance();
+            }
+
+            SkipNewlines();
+
+            // Parse case body until next CASE, DEFAULT, or END SELECT
+            while (!Check(TokenType.Case) && !Check(TokenType.Default) &&
+                   !Check(TokenType.EndSelect) && !Check(TokenType.Eof))
+            {
+                var bodyStmt = ParseStatement();
+                if (bodyStmt != null)
+                {
+                    caseClause.Body.Add(bodyStmt);
+                }
+                SkipNewlines();
+            }
+
+            stmt.Cases.Add(caseClause);
+        }
+
+        // Parse DEFAULT clause if present
+        if (Check(TokenType.Default))
+        {
+            Advance();
+            if (Check(TokenType.Colon))
+            {
+                Advance();
+            }
+            SkipNewlines();
+
+            while (!Check(TokenType.EndSelect) && !Check(TokenType.Eof))
+            {
+                var bodyStmt = ParseStatement();
+                if (bodyStmt != null)
+                {
+                    stmt.DefaultBody.Add(bodyStmt);
+                }
+                SkipNewlines();
+            }
+        }
+
+        // Consume END SELECT
+        if (Check(TokenType.EndSelect))
+        {
+            Advance();
+        }
+
+        return stmt;
+    }
+
+    private FunctionDefinition ParseFunctionDefinition()
+    {
+        var token = Advance(); // Consume FUNCTION
+        var stmt = new FunctionDefinition { Line = token.Line, Column = token.Column };
+
+        var nameToken = Expect(TokenType.Identifier, "Expected function name");
+        stmt.Name = nameToken.Value;
+
+        // Parse parameters
+        if (Check(TokenType.LeftParen))
+        {
+            Advance();
+            while (!Check(TokenType.RightParen) && !Check(TokenType.Eof))
+            {
+                var paramToken = Expect(TokenType.Identifier, "Expected parameter name");
+                stmt.Parameters.Add(paramToken.Value);
+                if (Check(TokenType.Comma)) Advance();
+            }
+            Expect(TokenType.RightParen, "Expected ')'");
+        }
+
+        SkipNewlines();
+
+        // Parse body until END FUNCTION
+        while (!Check(TokenType.EndFunction) && !Check(TokenType.Eof))
+        {
+            if (Check(TokenType.LineNumber)) Advance();
+
+            var bodyStmt = ParseStatement();
+            if (bodyStmt != null)
+            {
+                stmt.Body.Add(bodyStmt);
+            }
+
+            while (Check(TokenType.Colon))
+            {
+                Advance();
+                var nextStmt = ParseStatement();
+                if (nextStmt != null) stmt.Body.Add(nextStmt);
+            }
+
+            SkipNewlines();
+        }
+
+        if (Check(TokenType.EndFunction))
+        {
+            Advance();
+        }
 
         return stmt;
     }
@@ -780,6 +1431,7 @@ public class Parser
         do
         {
             if (Check(TokenType.Comma)) Advance();
+            if (Check(TokenType.Eof)) break; // Safeguard against incomplete code
             indices.Add(ParseExpression());
         } while (Check(TokenType.Comma));
 
@@ -1011,6 +1663,29 @@ public class Parser
             };
         }
 
+        // Boolean literals
+        if (Check(TokenType.True))
+        {
+            Advance();
+            return new BooleanLiteral
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Value = true
+            };
+        }
+
+        if (Check(TokenType.False))
+        {
+            Advance();
+            return new BooleanLiteral
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Value = false
+            };
+        }
+
         if (Check(TokenType.Identifier))
         {
             Advance();
@@ -1059,13 +1734,64 @@ public class Parser
             // Check for array access with brackets
             if (Check(TokenType.LeftBracket))
             {
-                var indices = ParseArrayIndices();
+                Advance(); // Consume '['
+                var slotIndex = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+
+                // Check for slot property read: device[slot].Property
+                if (Check(TokenType.Dot))
+                {
+                    Advance(); // Consume '.'
+                    var propToken = ExpectPropertyName("Expected property name");
+                    return new DeviceSlotReadExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        DeviceName = name,
+                        SlotIndex = slotIndex,
+                        PropertyName = propToken.Value
+                    };
+                }
+
+                // Otherwise it's an array access
                 return new VariableExpression
                 {
                     Line = token.Line,
                     Column = token.Column,
                     Name = name,
-                    ArrayIndices = indices
+                    ArrayIndices = new List<ExpressionNode> { slotIndex }
+                };
+            }
+
+            // Check for device property read: device.Property or device.Property.BatchMode
+            if (Check(TokenType.Dot))
+            {
+                Advance(); // Consume '.'
+                var propToken = ExpectPropertyName("Expected property name");
+                var propertyName = propToken.Value;
+
+                // Check for batch mode suffix (.Average, .Sum, .Min, .Max, .Minimum, .Maximum)
+                if (Check(TokenType.Dot))
+                {
+                    Advance(); // Consume '.'
+                    var batchModeToken = Expect(TokenType.Identifier, "Expected batch mode");
+                    var batchMode = batchModeToken.Value.ToUpperInvariant();
+                    if (batchMode is "AVERAGE" or "SUM" or "MIN" or "MAX" or "MINIMUM" or "MAXIMUM")
+                    {
+                        propertyName = $"{propertyName}.{batchModeToken.Value}";
+                    }
+                    else
+                    {
+                        throw new ParserException($"Unknown batch mode: {batchModeToken.Value}", batchModeToken.Line, batchModeToken.Column);
+                    }
+                }
+
+                return new DeviceReadExpression
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    DeviceName = name,
+                    PropertyName = propertyName
                 };
             }
 
@@ -1094,7 +1820,19 @@ public class Parser
         return upper is "ABS" or "SIN" or "COS" or "TAN" or "ASIN" or "ACOS" or "ATAN" or "ATAN2"
             or "SQRT" or "EXP" or "LOG" or "LOG10" or "CEIL" or "FLOOR" or "ROUND" or "TRUNC"
             or "MIN" or "MAX" or "RND" or "SGN" or "INT" or "FIX" or "SQR" or "ATN"
-            or "RAND" or "POW";
+            or "RAND" or "POW"
+            // Device existence checks
+            or "SDSE" or "SDNS"
+            // Comparison functions
+            or "SELECT" or "IIF" or "APPROX" or "SAP" or "SAPZ" or "ISNAN" or "SNAN" or "ISNANORZERO" or "SNAZ"
+            // Comparison to zero
+            or "SEQZ" or "SNEZ" or "SGTZ" or "SLTZ" or "SGEZ" or "SLEZ"
+            // Bitwise functions
+            or "BAND" or "BOR" or "BXOR" or "BNOT" or "BNOR" or "BITAND" or "BITOR" or "BITXOR" or "BITNOT" or "BITNOR"
+            // Shift functions
+            or "SHL" or "SHR" or "SHRA" or "SHIFTL" or "SHIFTR" or "SHIFTRA" or "LSHIFT" or "RSHIFT" or "RSHIFTA"
+            // Utility functions
+            or "INRANGE" or "LERP" or "CLAMP" or "HASH";
     }
 
     // Helper methods
@@ -1116,6 +1854,41 @@ public class Parser
     {
         if (Check(type)) return Advance();
         var token = Current();
+        throw new ParserException($"{message}, got {token.Type}", token.Line, token.Column);
+    }
+
+    /// <summary>
+    /// Expect an identifier or a keyword that can be used as a property name.
+    /// Keywords like ON, DATA, READ can also be valid device property names.
+    /// </summary>
+    private Token ExpectPropertyName(string message)
+    {
+        var token = Current();
+
+        // Accept identifiers
+        if (Check(TokenType.Identifier))
+            return Advance();
+
+        // Accept keywords that could be property names (On, Data, Read, etc.)
+        // These are valid IC10 device properties that conflict with BASIC keywords
+        if (token.Type == TokenType.On ||
+            token.Type == TokenType.Data ||
+            token.Type == TokenType.Read ||
+            token.Type == TokenType.Step ||
+            token.Type == TokenType.Input ||
+            token.Type == TokenType.Print ||
+            token.Type == TokenType.Return ||
+            token.Type == TokenType.End ||
+            token.Type == TokenType.To ||
+            token.Type == TokenType.As ||
+            token.Type == TokenType.Or ||
+            token.Type == TokenType.And ||
+            token.Type == TokenType.Not ||
+            token.Type == TokenType.Mod)
+        {
+            return Advance();
+        }
+
         throw new ParserException($"{message}, got {token.Type}", token.Line, token.Column);
     }
 

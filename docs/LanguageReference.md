@@ -471,6 +471,70 @@ exitLoop:
 ' Continue after loop
 ```
 
+### Infinite Loops (Main Program Loop)
+
+IC10 programs in Stationeers typically run continuously, checking sensors and controlling devices each tick. There are several ways to create the main program loop:
+
+#### Option 1: WHILE TRUE (Recommended)
+```basic
+' Clean, structured infinite loop
+ALIAS sensor d0
+VAR temp = 0
+
+WHILE TRUE
+    temp = sensor.Temperature
+    IF temp > 300 THEN
+        PRINT "Hot!"
+    ENDIF
+    YIELD
+WEND
+```
+**When to use:** Best for simple programs with a single continuous loop. Clear and readable.
+
+#### Option 2: DO LOOP
+```basic
+' Alternative infinite loop syntax
+ALIAS sensor d0
+VAR temp = 0
+
+DO
+    temp = sensor.Temperature
+    IF temp > 300 THEN
+        PRINT "Hot!"
+    ENDIF
+    YIELD
+LOOP
+```
+**When to use:** Equivalent to WHILE TRUE. Use whichever you find more readable.
+
+#### Option 3: GOTO Label (Traditional BASIC)
+```basic
+' Classic BASIC main loop pattern
+ALIAS sensor d0
+VAR temp = 0
+
+main:
+    temp = sensor.Temperature
+    IF temp > 300 THEN
+        PRINT "Hot!"
+    ENDIF
+    YIELD
+    GOTO main
+```
+**When to use:** Useful when you have multiple entry points or state machines where you jump between different sections of code. Also familiar to IC10 programmers.
+
+#### Choosing the Right Pattern
+
+| Pattern | Best For |
+|---------|----------|
+| `WHILE TRUE` | Simple continuous loops, clean readable code |
+| `DO LOOP` | Same as WHILE TRUE, personal preference |
+| `GOTO label` | State machines, multiple entry points, complex flow |
+
+All three patterns compile to identical IC10 code, so choose based on readability and your program's structure.
+
+> **Important:** Always include `YIELD` in your main loop! Without YIELD, the IC10 will crash due to infinite loop detection. YIELD pauses execution for one game tick.
+
 ---
 
 ## Subroutines and Functions

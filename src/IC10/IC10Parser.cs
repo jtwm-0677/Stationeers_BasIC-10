@@ -100,7 +100,7 @@ public class IC10Parser
             "bnan" or "bnaz" or "bap" or "bapz" => IC10InstructionType.Branch,
             "and" or "or" or "xor" or "nor" or "not" or
             "sll" or "srl" or "sra" => IC10InstructionType.Bitwise,
-            "push" or "pop" or "peek" => IC10InstructionType.Stack,
+            "push" or "pop" or "peek" or "put" or "get" or "poke" or "getd" or "putd" => IC10InstructionType.Stack,
             "l" or "ls" or "lr" or "lb" or "lbn" or "lbs" or "lbns" => IC10InstructionType.DeviceRead,
             "s" or "ss" or "sb" or "sbn" or "sbs" or "sbns" => IC10InstructionType.DeviceWrite,
             "yield" => IC10InstructionType.Yield,
