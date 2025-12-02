@@ -5,7 +5,7 @@
         Height="500" Width="600"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Style="{StaticResource MainWindowStyle}">
+        Style="{DynamicResource MainWindowStyle}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -15,9 +15,9 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="16,12">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                 <TextBlock Text=" Settings" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
         </Border>
@@ -26,7 +26,7 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
             <StackPanel>
                 <!-- Appearance -->
-                <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,12"/>
+                <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,12"/>
 
                 <Grid Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
@@ -41,14 +41,14 @@
                 </Grid>
 
                 <!-- General Settings -->
-                <TextBlock Text="General" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,12"/>
+                <TextBlock Text="General" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,12"/>
 
-                <CheckBox x:Name="AutoCompileCheck" Content="Auto-compile on save" Margin="0,0,0,8" Foreground="{StaticResource PrimaryTextBrush}"/>
-                <CheckBox x:Name="ShowDocsCheck" Content="Show documentation panel by default" Margin="0,0,0,8" Foreground="{StaticResource PrimaryTextBrush}"/>
-                <CheckBox x:Name="WordWrapCheck" Content="Enable word wrap in editors" Margin="0,0,0,16" Foreground="{StaticResource PrimaryTextBrush}"/>
+                <CheckBox x:Name="AutoCompileCheck" Content="Auto-compile on save" Margin="0,0,0,8" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox x:Name="ShowDocsCheck" Content="Show documentation panel by default" Margin="0,0,0,8" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <CheckBox x:Name="WordWrapCheck" Content="Enable word wrap in editors" Margin="0,0,0,16" Foreground="{DynamicResource PrimaryTextBrush}"/>
 
                 <!-- Editor Settings -->
-                <TextBlock Text="Editor" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,8,0,12"/>
+                <TextBlock Text="Editor" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,12"/>
 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -76,7 +76,7 @@
                 </Grid>
 
                 <!-- Stationeers Settings -->
-                <TextBlock Text="Stationeers Integration" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,8,0,12"/>
+                <TextBlock Text="Stationeers Integration" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,12"/>
 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -87,24 +87,24 @@
                     <TextBlock Text="Game Directory:" VerticalAlignment="Center"/>
                     <TextBox x:Name="StationeersPathText"
                              Grid.Column="1"
-                             Style="{StaticResource ModernTextBoxStyle}"
+                             Style="{DynamicResource ModernTextBoxStyle}"
                              IsReadOnly="True"
                              Margin="0,0,8,0"/>
                     <Button Grid.Column="2"
                             Content="Browse..."
-                            Style="{StaticResource ModernButtonStyle}"
+                            Style="{DynamicResource ModernButtonStyle}"
                             Padding="12,6"
                             Click="BrowseStationeers_Click"/>
                 </Grid>
 
                 <TextBlock Text="IC10 scripts will be saved to the 'scripts' subfolder in this directory."
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            FontSize="11"
                            Margin="150,0,0,0"
                            TextWrapping="Wrap"/>
 
                 <!-- Script Metadata -->
-                <TextBlock Text="Script Metadata" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,24,0,12"/>
+                <TextBlock Text="Script Metadata" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,24,0,12"/>
 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -114,11 +114,11 @@
                     <TextBlock Text="Author:" VerticalAlignment="Center"/>
                     <TextBox x:Name="ScriptAuthorText"
                              Grid.Column="1"
-                             Style="{StaticResource ModernTextBoxStyle}"/>
+                             Style="{DynamicResource ModernTextBoxStyle}"/>
                 </Grid>
 
                 <TextBlock Text="Your name or alias - used in instruction.xml for saved scripts."
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            FontSize="11"
                            Margin="150,0,0,8"
                            TextWrapping="Wrap"/>
@@ -131,7 +131,7 @@
                     <TextBlock Text="Description:" VerticalAlignment="Top" Margin="0,4,0,0"/>
                     <TextBox x:Name="ScriptDescriptionText"
                              Grid.Column="1"
-                             Style="{StaticResource ModernTextBoxStyle}"
+                             Style="{DynamicResource ModernTextBoxStyle}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              Height="60"
@@ -139,15 +139,15 @@
                 </Grid>
 
                 <TextBlock Text="Default description for your scripts. 'Built in Basic-10' will be appended automatically."
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            FontSize="11"
                            Margin="150,0,0,0"
                            TextWrapping="Wrap"/>
 
                 <!-- About -->
-                <TextBlock Text="About" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource AccentBrush}" Margin="0,24,0,12"/>
+                <TextBlock Text="About" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,24,0,12"/>
 
-                <TextBlock Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap">
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap">
                     <Run Text="BASIC to IC10 Compiler v1.0"/><LineBreak/>
                     <Run Text="A professional BASIC compiler for Stationeers"/><LineBreak/><LineBreak/>
                     <Run Text="Converts high-level BASIC code into optimized IC10 MIPS assembly for use in Stationeers IC chips."/>
@@ -156,15 +156,15 @@
         </ScrollViewer>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource SecondaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="16,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel"
-                        Style="{StaticResource ModernButtonStyle}"
+                        Style="{DynamicResource ModernButtonStyle}"
                         Width="100"
                         Margin="0,0,8,0"
                         Click="Cancel_Click"/>
                 <Button Content="Save"
-                        Style="{StaticResource PrimaryButtonStyle}"
+                        Style="{DynamicResource PrimaryButtonStyle}"
                         Width="100"
                         Click="Save_Click"/>
             </StackPanel>

@@ -5,7 +5,7 @@
         Height="700" Width="900"
         MinHeight="400" MinWidth="500"
         WindowStartupLocation="CenterOwner"
-        Style="{StaticResource MainWindowStyle}"
+        Style="{DynamicResource MainWindowStyle}"
         ShowInTaskbar="True">
 
     <Grid>
@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="16,12">
             <TextBlock x:Name="TitleText" Text="Documentation" FontSize="18" FontWeight="SemiBold"/>
         </Border>
 
@@ -28,9 +28,9 @@
         </ScrollViewer>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource SecondaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="16,12">
             <Button Content="Close"
-                    Style="{StaticResource ModernButtonStyle}"
+                    Style="{DynamicResource ModernButtonStyle}"
                     HorizontalAlignment="Right"
                     Click="Close_Click"
                     Width="100"/>

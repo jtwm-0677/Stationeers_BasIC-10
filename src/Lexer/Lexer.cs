@@ -83,6 +83,7 @@ public class Lexer
         ["BAND"] = TokenType.BitAnd,
         ["BOR"] = TokenType.BitOr,
         ["BXOR"] = TokenType.BitXor,
+        ["XOR"] = TokenType.BitXor,  // XOR is an alias for BXOR
         ["BNOT"] = TokenType.BitNot,
         // Boolean literals
         ["TRUE"] = TokenType.True,
@@ -136,10 +137,11 @@ public class Lexer
         {
             '\n' => HandleNewline(startLine, startColumn),
             '\r' => HandleCarriageReturn(startLine, startColumn),
-            '+' => new Token(TokenType.Plus, "+", startLine, startColumn),
-            '-' => new Token(TokenType.Minus, "-", startLine, startColumn),
-            '*' => new Token(TokenType.Multiply, "*", startLine, startColumn),
-            '/' => new Token(TokenType.Divide, "/", startLine, startColumn),
+            '+' => ScanPlus(startLine, startColumn),
+            '-' => ScanMinus(startLine, startColumn),
+            '*' => ScanMultiply(startLine, startColumn),
+            '/' => ScanDivide(startLine, startColumn),
+            '%' => new Token(TokenType.Mod, "%", startLine, startColumn),
             '^' => new Token(TokenType.Power, "^", startLine, startColumn),
             '(' => new Token(TokenType.LeftParen, "(", startLine, startColumn),
             ')' => new Token(TokenType.RightParen, ")", startLine, startColumn),
@@ -195,6 +197,32 @@ public class Lexer
         if (Match('=')) return new Token(TokenType.NotEqual, "!=", line, column);
         // Single ! is logical NOT (same as NOT keyword)
         return new Token(TokenType.Not, "!", line, column);
+    }
+
+    private Token ScanPlus(int line, int column)
+    {
+        if (Match('+')) return new Token(TokenType.Increment, "++", line, column);
+        if (Match('=')) return new Token(TokenType.PlusEqual, "+=", line, column);
+        return new Token(TokenType.Plus, "+", line, column);
+    }
+
+    private Token ScanMinus(int line, int column)
+    {
+        if (Match('-')) return new Token(TokenType.Decrement, "--", line, column);
+        if (Match('=')) return new Token(TokenType.MinusEqual, "-=", line, column);
+        return new Token(TokenType.Minus, "-", line, column);
+    }
+
+    private Token ScanMultiply(int line, int column)
+    {
+        if (Match('=')) return new Token(TokenType.MultiplyEqual, "*=", line, column);
+        return new Token(TokenType.Multiply, "*", line, column);
+    }
+
+    private Token ScanDivide(int line, int column)
+    {
+        if (Match('=')) return new Token(TokenType.DivideEqual, "/=", line, column);
+        return new Token(TokenType.Divide, "/", line, column);
     }
 
     private Token ScanLessThan(int line, int column)

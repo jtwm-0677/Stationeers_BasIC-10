@@ -72,9 +72,15 @@ public partial class MainWindow : Window
     // HTTP API Server for MCP integration
     private HttpApiServer? _httpApiServer;
 
+    // Headless simulator for MCP integration
+    private readonly BasicToMips.Simulator.IC10Simulator _mcpSimulator = new();
+
     // Autosave timer - saves every 30 seconds
     private DispatcherTimer? _autoSaveTimer;
     private DateTime _lastAutoSave = DateTime.MinValue;
+
+    // Last compilation result for Problems Panel
+    private CompilationResult? _lastCompilationResult;
 
     public MainWindow()
     {
@@ -602,6 +608,12 @@ public partial class MainWindow : Window
         }
 
         BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+
+        // Update Problems Panel if visible
+        if (ProblemsPanel.Visibility == Visibility.Visible)
+        {
+            UpdateProblemsList();
+        }
     }
 
     private void RestartErrorCheckTimer()
@@ -751,34 +763,88 @@ public partial class MainWindow : Window
 
     private string GetWelcomeCode()
     {
-        return @"# Welcome to BASIC-IC10 Compiler for Stationeers!
-# This compiler transforms BASIC code into IC10 MIPS assembly.
-#
-# Quick Start:
-# 1. Write your BASIC code in this editor
-# 2. Press F5 or click Compile to generate IC10 code
-# 3. Use Save & Deploy to automatically save to Stationeers
-#
-# Press Ctrl+Space for auto-complete suggestions
-# Press F1 for documentation
-# Check the Start tab for built-in constants (colors, slots)
+        return @"# ══════════════════════════════════════════════════════════════
+# BASIC-10 Compiler for Stationeers
+# Press F5 to compile | F1 for docs | Ctrl+Space for autocomplete
+# ══════════════════════════════════════════════════════════════
 
-# Example: Simple temperature controller
-ALIAS sensor d0
-ALIAS heater d1
-DEFINE TARGET 20
+# ── Device Aliases (Pin-based: d0-d5) ──────────────────────────
+ALIAS sensor d0          # Gas sensor for atmosphere readings
+ALIAS display d1         # LED display for status output
+ALIAS alarm d2           # Warning light for alerts
 
+# ── Named Device Reference (bypasses 6-pin limit) ──────────────
+# DEVICE roomSensor ""StructureGasSensor""
+# DEVICE allLights ""StructureWallLight""
+
+# ── Constants ──────────────────────────────────────────────────
+CONST MIN_PRESSURE = 80      # kPa - low pressure warning
+CONST MAX_PRESSURE = 120     # kPa - high pressure warning
+CONST MIN_OXYGEN = 0.18      # 18% - minimum safe O2
+CONST TARGET_TEMP = 293.15   # 20°C in Kelvin
+
+# ── Variables ──────────────────────────────────────────────────
+VAR pressure = 0
+VAR oxygen = 0
+VAR temp = 0
+VAR status = 0    # 0=danger, 1=warning, 2=safe
+
+# ══════════════════════════════════════════════════════════════
+# MAIN LOOP - Runs continuously
+# ══════════════════════════════════════════════════════════════
 main:
-    VAR temp = sensor.Temperature
+    GOSUB ReadSensors
+    GOSUB CheckStatus
+    GOSUB UpdateDisplay
 
-    IF temp < TARGET THEN
-        heater.On = 1
-    ELSE
-        heater.On = 0
+    YIELD    # Required - lets game process
+    GOTO main
+
+# ── Subroutine: Read all sensor values ─────────────────────────
+ReadSensors:
+    pressure = sensor.Pressure
+    oxygen = sensor.RatioOxygen
+    temp = sensor.Temperature
+    RETURN
+
+# ── Subroutine: Determine atmosphere status ────────────────────
+CheckStatus:
+    status = 2    # Assume safe
+
+    # Check pressure
+    IF pressure < MIN_PRESSURE OR pressure > MAX_PRESSURE THEN
+        status = 0
     ENDIF
 
-    YIELD
-    GOTO main
+    # Check oxygen
+    IF oxygen < MIN_OXYGEN THEN
+        status = 0
+    ENDIF
+
+    # Check temperature (warning if outside comfort range)
+    IF temp < TARGET_TEMP - 10 OR temp > TARGET_TEMP + 10 THEN
+        IF status > 0 THEN status = 1
+    ENDIF
+
+    RETURN
+
+# ── Subroutine: Update display and alarm ───────────────────────
+UpdateDisplay:
+    display.Setting = pressure
+
+    IF status = 0 THEN
+        alarm.On = 1
+        alarm.Color = Red
+    ELSEIF status = 1 THEN
+        alarm.On = 1
+        alarm.Color = Yellow
+    ELSE
+        alarm.On = 1
+        alarm.Color = Green
+    ENDIF
+
+    RETURN
+
 END
 ";
     }
@@ -1650,6 +1716,7 @@ END
             SetStatus("Compiling...", false);
 
             var result = _compiler.Compile(BasicEditor.Text, _optimizationLevel);
+            _lastCompilationResult = result;
 
             if (result.Success)
             {
@@ -1668,6 +1735,9 @@ END
                 // Display static analysis warnings
                 DisplayAnalysisWarnings(result.Warnings);
 
+                // Update problems panel with all errors and warnings
+                UpdateProblemsList();
+
                 // Show detected language in status
                 var langInfo = result.DetectedLanguage switch
                 {
@@ -1682,6 +1752,9 @@ END
             }
             else
             {
+                // Update problems panel with compilation error
+                UpdateProblemsList();
+
                 ShowError(result.ErrorMessage ?? "Unknown error", result.ErrorLine);
                 SetStatus("Compilation failed", false);
                 return false;
@@ -2086,6 +2159,33 @@ END
     {
         // Safety check for empty text
         if (string.IsNullOrEmpty(e.Text)) return;
+
+        // Auto-complete brackets for .Name[""]
+        // When user types [" after .Name, auto-insert "] and position cursor inside
+        if (e.Text == "\"")
+        {
+            var offset = BasicEditor.CaretOffset;
+            var document = BasicEditor.Document;
+
+            // Check if we just typed [" (offset is after the ")
+            if (offset >= 2)
+            {
+                var prevChar = document.GetCharAt(offset - 2);
+                if (prevChar == '[')
+                {
+                    // Check if .Name precedes the ["
+                    var lineStart = document.GetLineByOffset(offset).Offset;
+                    var textBefore = document.GetText(lineStart, offset - lineStart - 2);
+                    if (textBefore.TrimEnd().EndsWith(".Name", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Insert "] after cursor
+                        document.Insert(offset, "\"]");
+                        // Cursor stays between the quotes (user can type device name)
+                        return;
+                    }
+                }
+            }
+        }
 
         // Trigger auto-complete on certain characters
         if (char.IsLetter(e.Text[0]) || e.Text[0] == '.')
@@ -2509,6 +2609,122 @@ END
         if (!string.IsNullOrWhiteSpace(ic10Code))
         {
             _simulator.LoadProgram(ic10Code);
+        }
+    }
+
+    // Problems Panel
+    private void ToggleProblems_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowProblemsMenu.IsChecked)
+        {
+            ProblemsPanel.Visibility = Visibility.Visible;
+            UpdateProblemsList();
+        }
+        else
+        {
+            ProblemsPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void CloseProblemsPanel_Click(object sender, RoutedEventArgs e)
+    {
+        ShowProblemsMenu.IsChecked = false;
+        ProblemsPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void ProblemsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ProblemsList.SelectedItem is ProblemItem problem && problem.Line > 0)
+        {
+            // Navigate to the line in the editor
+            var line = Math.Min(problem.Line, BasicEditor.Document.LineCount);
+            var docLine = BasicEditor.Document.GetLineByNumber(line);
+            BasicEditor.CaretOffset = docLine.Offset;
+            BasicEditor.ScrollToLine(line);
+            BasicEditor.Focus();
+        }
+    }
+
+    private void UpdateProblemsList()
+    {
+        var problems = new List<ProblemItem>();
+        var errors = _errorChecker.Check(BasicEditor.Text);
+
+        int errorCount = 0;
+        int warningCount = 0;
+
+        // Add syntax errors from error checker
+        foreach (var error in errors)
+        {
+            var isError = error.Severity == Editor.ErrorHighlighting.ErrorChecker.ErrorSeverity.Error;
+            var isWarning = error.Severity == Editor.ErrorHighlighting.ErrorChecker.ErrorSeverity.Warning;
+
+            if (isError) errorCount++;
+            if (isWarning) warningCount++;
+
+            problems.Add(new ProblemItem
+            {
+                Line = error.Line,
+                Column = error.Column,
+                Message = error.Message,
+                Severity = error.Severity,
+                Icon = isError ? "\uEA39" : (isWarning ? "\uE7BA" : "\uE946"),
+                Color = isError ? (Brush)FindResource("ErrorBrush") :
+                        (isWarning ? (Brush)FindResource("WarningBrush") : (Brush)FindResource("InfoBrush")),
+                Location = $"Ln {error.Line}"
+            });
+        }
+
+        // Add compilation errors and warnings
+        if (_lastCompilationResult != null)
+        {
+            // Add compilation error if present
+            if (!_lastCompilationResult.Success && !string.IsNullOrEmpty(_lastCompilationResult.ErrorMessage))
+            {
+                errorCount++;
+                problems.Add(new ProblemItem
+                {
+                    Line = _lastCompilationResult.ErrorLine ?? 0,
+                    Column = 1,
+                    Message = _lastCompilationResult.ErrorMessage,
+                    Severity = Editor.ErrorHighlighting.ErrorChecker.ErrorSeverity.Error,
+                    Icon = "\uEA39",
+                    Color = (Brush)FindResource("ErrorBrush"),
+                    Location = _lastCompilationResult.ErrorLine.HasValue ? $"Ln {_lastCompilationResult.ErrorLine}" : "—"
+                });
+            }
+
+            // Add analysis/compilation warnings
+            foreach (var warning in _lastCompilationResult.Warnings)
+            {
+                warningCount++;
+                problems.Add(new ProblemItem
+                {
+                    Line = warning.Line,
+                    Column = 1,
+                    Message = warning.Message,
+                    Severity = Editor.ErrorHighlighting.ErrorChecker.ErrorSeverity.Warning,
+                    Icon = "\uE7BA",
+                    Color = (Brush)FindResource("WarningBrush"),
+                    Location = warning.Line > 0 ? $"Ln {warning.Line}" : "—"
+                });
+            }
+        }
+
+        ProblemsList.ItemsSource = problems;
+
+        // Update badges
+        ErrorCountText.Text = errorCount.ToString();
+        ErrorCountBadge.Visibility = errorCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        WarningCountText.Text = warningCount.ToString();
+        WarningCountBadge.Visibility = warningCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Auto-show panel if there are errors
+        if (errorCount > 0 && ProblemsPanel.Visibility == Visibility.Collapsed)
+        {
+            ShowProblemsMenu.IsChecked = true;
+            ProblemsPanel.Visibility = Visibility.Visible;
         }
     }
 
@@ -3374,5 +3590,943 @@ END
         }
     }
 
+    // ==================== TAB MANAGEMENT API ====================
+
+    /// <summary>
+    /// Create a new tab. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public int ApiCreateNewTab(string? name = null)
+    {
+        CreateNewTab();
+        var tabIndex = _tabs.Count - 1;
+
+        // If a name was provided, we could use it for display (future enhancement)
+        return tabIndex;
+    }
+
+    /// <summary>
+    /// Get list of all open tabs. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public List<TabInfo> ApiGetTabs()
+    {
+        var result = new List<TabInfo>();
+        for (int i = 0; i < _tabs.Count; i++)
+        {
+            var tab = _tabs[i];
+            result.Add(new TabInfo
+            {
+                Index = i,
+                Name = tab.FileName,
+                FilePath = tab.FilePath,
+                IsModified = tab.IsModified,
+                IsActive = tab == _currentTab
+            });
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Switch to a specific tab by index. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public bool ApiSwitchTab(int tabIndex)
+    {
+        if (tabIndex < 0 || tabIndex >= _tabs.Count) return false;
+
+        SwitchToTab(_tabs[tabIndex]);
+        return true;
+    }
+
+    /// <summary>
+    /// Switch to a specific tab by name. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public bool ApiSwitchTabByName(string name)
+    {
+        var tab = _tabs.FirstOrDefault(t =>
+            t.FileName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+            (t.FilePath != null && Path.GetFileNameWithoutExtension(t.FilePath).Equals(name, StringComparison.OrdinalIgnoreCase)));
+
+        if (tab == null) return false;
+
+        SwitchToTab(tab);
+        return true;
+    }
+
+    /// <summary>
+    /// Close a specific tab by index. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    /// <param name="tabIndex">Index of the tab to close</param>
+    /// <param name="force">If true, close without prompting to save unsaved changes</param>
+    public bool ApiCloseTab(int tabIndex, bool force = false)
+    {
+        if (tabIndex < 0 || tabIndex >= _tabs.Count) return false;
+
+        CloseTab(_tabs[tabIndex], promptToSave: !force);
+        return true;
+    }
+
+    /// <summary>
+    /// Save current script to a folder by name. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public SaveScriptResult ApiSaveScript(string scriptName)
+    {
+        var scriptsFolder = GetScriptsFolder();
+        if (string.IsNullOrEmpty(scriptsFolder))
+        {
+            return new SaveScriptResult { Success = false, Error = "Scripts folder not configured" };
+        }
+
+        try
+        {
+            // Sync current editor to tab before saving
+            SyncEditorToTab();
+
+            var success = SaveScriptToFolder(scriptsFolder, scriptName);
+            if (success)
+            {
+                return new SaveScriptResult
+                {
+                    Success = true,
+                    ScriptName = scriptName,
+                    FolderPath = Path.Combine(scriptsFolder, scriptName)
+                };
+            }
+            return new SaveScriptResult { Success = false, Error = "Failed to save script" };
+        }
+        catch (Exception ex)
+        {
+            return new SaveScriptResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Load a script from a folder by name. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public LoadScriptResult ApiLoadScript(string scriptName, bool newTab = false)
+    {
+        var scriptsFolder = GetScriptsFolder();
+        if (string.IsNullOrEmpty(scriptsFolder))
+        {
+            return new LoadScriptResult { Success = false, Error = "Scripts folder not configured" };
+        }
+
+        var scriptFolder = Path.Combine(scriptsFolder, scriptName);
+        if (!Directory.Exists(scriptFolder))
+        {
+            return new LoadScriptResult { Success = false, Error = $"Script folder not found: {scriptName}" };
+        }
+
+        // Find the .bas file
+        var basFile = Path.Combine(scriptFolder, $"{scriptName}.bas");
+        if (!File.Exists(basFile))
+        {
+            // Try to find any .bas file in the folder
+            var basFiles = Directory.GetFiles(scriptFolder, "*.bas");
+            if (basFiles.Length == 0)
+            {
+                return new LoadScriptResult { Success = false, Error = $"No .bas file found in script folder: {scriptName}" };
+            }
+            basFile = basFiles[0];
+        }
+
+        try
+        {
+            if (newTab)
+            {
+                OpenFileInNewTab(basFile);
+            }
+            else
+            {
+                // Load into current tab
+                var content = File.ReadAllText(basFile);
+                BasicEditor.Text = content;
+                _currentFilePath = basFile;
+                _workingDirectory = scriptFolder;
+                _isModified = false;
+                if (_currentTab != null)
+                {
+                    _currentTab.FilePath = basFile;
+                    _currentTab.Content = content;
+                    _currentTab.IsModified = false;
+                }
+                UpdateTitle();
+                UpdateWorkingDirectoryDisplay();
+                _settings.AddRecentFile(basFile);
+                UpdateRecentFilesMenu();
+            }
+
+            return new LoadScriptResult
+            {
+                Success = true,
+                ScriptName = scriptName,
+                FilePath = basFile,
+                CodePreview = File.ReadAllText(basFile).Substring(0, Math.Min(500, File.ReadAllText(basFile).Length))
+            };
+        }
+        catch (Exception ex)
+        {
+            return new LoadScriptResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// List all available scripts in the scripts folder. Called by EditorBridgeService from the HTTP API.
+    /// </summary>
+    public List<ScriptInfo> ApiListScripts()
+    {
+        var result = new List<ScriptInfo>();
+        var scriptsFolder = GetScriptsFolder();
+
+        if (string.IsNullOrEmpty(scriptsFolder) || !Directory.Exists(scriptsFolder))
+        {
+            return result;
+        }
+
+        foreach (var dir in Directory.GetDirectories(scriptsFolder))
+        {
+            var scriptName = Path.GetFileName(dir);
+            var basFile = Path.Combine(dir, $"{scriptName}.bas");
+            var instructionFile = Path.Combine(dir, "instruction.xml");
+
+            if (File.Exists(basFile) || File.Exists(instructionFile))
+            {
+                result.Add(new ScriptInfo
+                {
+                    Name = scriptName,
+                    FolderPath = dir,
+                    HasBasFile = File.Exists(basFile),
+                    HasInstructionXml = File.Exists(instructionFile)
+                });
+            }
+        }
+
+        return result;
+    }
+
+    #region Simulator API Methods
+
+    /// <summary>
+    /// Initialize and load code into the headless simulator.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorStart(string? ic10Code = null)
+    {
+        // If no code provided, use the current compiled output
+        var code = ic10Code ?? MipsOutput.Text;
+        if (string.IsNullOrEmpty(code))
+        {
+            return new SimulatorStateResult { Success = false, Error = "No IC10 code to simulate" };
+        }
+
+        _mcpSimulator.LoadProgram(code);
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Stop and reset the simulator.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorStop()
+    {
+        _mcpSimulator.Stop();
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Reset the simulator to initial state.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorReset()
+    {
+        _mcpSimulator.Reset();
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Execute a single instruction.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorStep()
+    {
+        _mcpSimulator.Step();
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Run until breakpoint, halt, or yield.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorRun(int maxInstructions = 10000)
+    {
+        int count = 0;
+        while (!_mcpSimulator.IsHalted && !_mcpSimulator.IsPaused && !_mcpSimulator.IsYielding && count < maxInstructions)
+        {
+            if (_mcpSimulator.Breakpoints.Contains(_mcpSimulator.ProgramCounter))
+            {
+                break;
+            }
+            if (!_mcpSimulator.Step()) break;
+            count++;
+        }
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Get current simulator state.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorGetState()
+    {
+        return GetSimulatorState();
+    }
+
+    private SimulatorStateResult GetSimulatorState()
+    {
+        var registers = new Dictionary<string, double>();
+        for (int i = 0; i < 16; i++)
+        {
+            registers[$"r{i}"] = _mcpSimulator.Registers[i];
+        }
+        registers["sp"] = _mcpSimulator.StackPointer;
+        registers["ra"] = _mcpSimulator.Registers[17];
+
+        var devices = new List<SimulatorDeviceInfo>();
+        for (int i = 0; i < BasicToMips.Simulator.IC10Simulator.DeviceCount; i++)
+        {
+            var dev = _mcpSimulator.Devices[i];
+            devices.Add(new SimulatorDeviceInfo
+            {
+                Index = i,
+                Name = dev.Name,
+                Alias = dev.Alias,
+                Properties = new Dictionary<string, double>(dev.Properties)
+            });
+        }
+
+        return new SimulatorStateResult
+        {
+            Success = true,
+            ProgramCounter = _mcpSimulator.ProgramCounter,
+            InstructionCount = _mcpSimulator.InstructionCount,
+            IsRunning = _mcpSimulator.IsRunning,
+            IsPaused = _mcpSimulator.IsPaused,
+            IsHalted = _mcpSimulator.IsHalted,
+            IsYielding = _mcpSimulator.IsYielding,
+            ErrorMessage = _mcpSimulator.ErrorMessage,
+            Registers = registers,
+            Stack = _mcpSimulator.Stack.Take(_mcpSimulator.StackPointer).ToArray(),
+            Devices = devices,
+            Breakpoints = _mcpSimulator.Breakpoints.ToList()
+        };
+    }
+
+    /// <summary>
+    /// Set a register value.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorSetRegister(string register, double value)
+    {
+        var reg = register.ToLowerInvariant();
+        if (reg.StartsWith("r") && int.TryParse(reg.Substring(1), out int regNum) && regNum >= 0 && regNum < 16)
+        {
+            _mcpSimulator.Registers[regNum] = value;
+        }
+        else if (reg == "ra")
+        {
+            _mcpSimulator.Registers[17] = value;
+        }
+        else
+        {
+            return new SimulatorStateResult { Success = false, Error = $"Invalid register: {register}" };
+        }
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Add a breakpoint at a line number.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorAddBreakpoint(int line)
+    {
+        _mcpSimulator.Breakpoints.Add(line);
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Remove a breakpoint.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorRemoveBreakpoint(int line)
+    {
+        _mcpSimulator.Breakpoints.Remove(line);
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Clear all breakpoints.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorClearBreakpoints()
+    {
+        _mcpSimulator.Breakpoints.Clear();
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Set a simulated device property.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorSetDeviceProperty(int deviceIndex, string property, double value)
+    {
+        if (deviceIndex < 0 || deviceIndex >= BasicToMips.Simulator.IC10Simulator.DeviceCount)
+        {
+            return new SimulatorStateResult { Success = false, Error = $"Invalid device index: {deviceIndex}" };
+        }
+        _mcpSimulator.Devices[deviceIndex].SetProperty(property, value);
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Get a simulated device property.
+    /// </summary>
+    public double ApiSimulatorGetDeviceProperty(int deviceIndex, string property)
+    {
+        if (deviceIndex < 0 || deviceIndex >= BasicToMips.Simulator.IC10Simulator.DeviceCount)
+        {
+            return 0;
+        }
+        return _mcpSimulator.Devices[deviceIndex].GetProperty(property);
+    }
+
+    /// <summary>
+    /// Set a simulated device slot property.
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorSetDeviceSlotProperty(int deviceIndex, int slot, string property, double value)
+    {
+        if (deviceIndex < 0 || deviceIndex >= BasicToMips.Simulator.IC10Simulator.DeviceCount)
+        {
+            return new SimulatorStateResult { Success = false, Error = $"Invalid device index: {deviceIndex}" };
+        }
+        _mcpSimulator.Devices[deviceIndex].SetSlotProperty(slot, property, value);
+        return GetSimulatorState();
+    }
+
     #endregion
+
+    #region Debugging API Methods
+
+    /// <summary>
+    /// Add a watch expression.
+    /// </summary>
+    public WatchInfo ApiAddWatch(string expression)
+    {
+        var item = _watchManager.AddWatch(expression);
+        // Update values from current simulator state
+        _watchManager.UpdateValues(_mcpSimulator);
+        return new WatchInfo
+        {
+            Name = item.Name,
+            Value = item.Value,
+            Type = item.Type.ToString()
+        };
+    }
+
+    /// <summary>
+    /// Remove a watch by name.
+    /// </summary>
+    public bool ApiRemoveWatch(string name)
+    {
+        var item = _watchManager.WatchItems.FirstOrDefault(w => w.Name == name);
+        if (item != null)
+        {
+            _watchManager.RemoveWatch(item);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Get all watch values.
+    /// </summary>
+    public List<WatchInfo> ApiGetWatches()
+    {
+        // Update values first
+        _watchManager.SetSourceMap(_sourceMap);
+        _watchManager.UpdateValues(_mcpSimulator);
+
+        return _watchManager.WatchItems.Select(w => new WatchInfo
+        {
+            Name = w.Name,
+            Value = w.Value,
+            Type = w.Type.ToString(),
+            HasChanged = w.HasChanged
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Clear all watches.
+    /// </summary>
+    public void ApiClearWatches()
+    {
+        _watchManager.ClearAll();
+    }
+
+    /// <summary>
+    /// Add a BASIC editor breakpoint.
+    /// </summary>
+    public List<int> ApiAddBreakpoint(int line)
+    {
+        _breakpointManager.SetBreakpoint(line);
+        return _breakpointManager.Breakpoints.ToList();
+    }
+
+    /// <summary>
+    /// Remove a BASIC editor breakpoint.
+    /// </summary>
+    public List<int> ApiRemoveBreakpoint(int line)
+    {
+        _breakpointManager.RemoveBreakpoint(line);
+        return _breakpointManager.Breakpoints.ToList();
+    }
+
+    /// <summary>
+    /// Toggle a BASIC editor breakpoint.
+    /// </summary>
+    public BreakpointToggleResult ApiToggleBreakpoint(int line)
+    {
+        var isSet = _breakpointManager.ToggleBreakpoint(line);
+        return new BreakpointToggleResult
+        {
+            Line = line,
+            IsSet = isSet,
+            AllBreakpoints = _breakpointManager.Breakpoints.ToList()
+        };
+    }
+
+    /// <summary>
+    /// Get all BASIC editor breakpoints.
+    /// </summary>
+    public List<int> ApiGetBreakpoints()
+    {
+        return _breakpointManager.Breakpoints.ToList();
+    }
+
+    /// <summary>
+    /// Clear all BASIC editor breakpoints.
+    /// </summary>
+    public void ApiClearBreakpoints()
+    {
+        _breakpointManager.ClearAll();
+    }
+
+    /// <summary>
+    /// Get the source map (BASIC to IC10 line mapping).
+    /// </summary>
+    public SourceMapInfo ApiGetSourceMap()
+    {
+        if (_sourceMap == null)
+        {
+            return new SourceMapInfo { HasMap = false };
+        }
+
+        return new SourceMapInfo
+        {
+            HasMap = true,
+            BasicToIc10 = _sourceMap.BasicToIC10.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToList()),
+            Ic10ToBasic = new Dictionary<int, int>(_sourceMap.IC10ToBasic),
+            VariableRegisters = new Dictionary<string, string>(_sourceMap.VariableRegisters),
+            AliasDevices = new Dictionary<string, string>(_sourceMap.AliasDevices)
+        };
+    }
+
+    /// <summary>
+    /// Get the current compilation errors and warnings.
+    /// </summary>
+    public List<ErrorInfo> ApiGetErrors()
+    {
+        var errors = new List<ErrorInfo>();
+
+        // Get errors from the error checker
+        var basicCode = BasicEditor.Text;
+        var result = _compiler.Compile(basicCode);
+
+        if (!result.Success && result.ErrorMessage != null)
+        {
+            errors.Add(new ErrorInfo
+            {
+                Line = result.ErrorLine ?? 0,
+                Message = result.ErrorMessage,
+                Severity = "error"
+            });
+        }
+
+        foreach (var warning in result.Warnings)
+        {
+            errors.Add(new ErrorInfo
+            {
+                Line = warning.Line,
+                Message = warning.Message,
+                Severity = "warning"
+            });
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Navigate to a specific line in the editor.
+    /// </summary>
+    public void ApiGoToLine(int line)
+    {
+        var doc = BasicEditor.Document;
+        if (line < 1) line = 1;
+        if (line > doc.LineCount) line = doc.LineCount;
+
+        var docLine = doc.GetLineByNumber(line);
+        BasicEditor.CaretOffset = docLine.Offset;
+        BasicEditor.ScrollToLine(line);
+        BasicEditor.Focus();
+    }
+
+    #endregion
+
+    #region Settings API
+
+    /// <summary>
+    /// Get all current settings.
+    /// </summary>
+    public SettingsSnapshot ApiGetSettings()
+    {
+        return new SettingsSnapshot
+        {
+            Theme = _settings.Theme,
+            FontSize = _settings.FontSize,
+            AutoCompile = _settings.AutoCompile,
+            AutoCompleteEnabled = _settings.AutoCompleteEnabled,
+            WordWrap = _settings.WordWrap,
+            OptimizationLevel = _settings.OptimizationLevel,
+            AutoSaveEnabled = _settings.AutoSaveEnabled,
+            AutoSaveIntervalSeconds = _settings.AutoSaveIntervalSeconds,
+            SplitViewMode = _settings.SplitViewMode,
+            ApiServerEnabled = _settings.ApiServerEnabled,
+            ApiServerPort = _settings.ApiServerPort,
+            ScriptAuthor = _settings.ScriptAuthor
+        };
+    }
+
+    /// <summary>
+    /// Update a setting value.
+    /// </summary>
+    public SettingsUpdateResult ApiUpdateSetting(string name, object value)
+    {
+        try
+        {
+            bool requiresRestart = false;
+
+            switch (name.ToLowerInvariant())
+            {
+                case "theme":
+                    var theme = value.ToString()!;
+                    if (theme != "Dark" && theme != "Light")
+                        return new SettingsUpdateResult { Success = false, Error = "Theme must be 'Dark' or 'Light'" };
+                    _settings.Theme = theme;
+                    Services.ThemeManager.ApplyTheme(theme);
+                    break;
+                case "fontsize":
+                    var fontSize = Convert.ToDouble(value);
+                    _settings.FontSize = fontSize;
+                    BasicEditor.FontSize = fontSize;
+                    MipsOutput.FontSize = fontSize;
+                    break;
+                case "autocompile":
+                    _settings.AutoCompile = Convert.ToBoolean(value);
+                    break;
+                case "autocompleteenabled":
+                    _settings.AutoCompleteEnabled = Convert.ToBoolean(value);
+                    break;
+                case "wordwrap":
+                    _settings.WordWrap = Convert.ToBoolean(value);
+                    BasicEditor.WordWrap = _settings.WordWrap;
+                    break;
+                case "optimizationlevel":
+                    _settings.OptimizationLevel = Convert.ToInt32(value);
+                    break;
+                case "autosaveenabled":
+                    _settings.AutoSaveEnabled = Convert.ToBoolean(value);
+                    break;
+                case "autosaveintervalseconds":
+                    _settings.AutoSaveIntervalSeconds = Convert.ToInt32(value);
+                    break;
+                case "splitviewmode":
+                    var mode = value.ToString()!;
+                    if (mode != "Vertical" && mode != "Horizontal" && mode != "EditorOnly")
+                        return new SettingsUpdateResult { Success = false, Error = "SplitViewMode must be 'Vertical', 'Horizontal', or 'EditorOnly'" };
+                    _settings.SplitViewMode = mode;
+                    requiresRestart = true; // Split view mode requires restart to apply
+                    break;
+                case "scriptauthor":
+                    _settings.ScriptAuthor = value.ToString()!;
+                    break;
+                default:
+                    return new SettingsUpdateResult { Success = false, Error = $"Unknown setting: {name}" };
+            }
+
+            _settings.Save();
+
+            if (requiresRestart)
+                return new SettingsUpdateResult { Success = true, Name = name, Error = "Setting saved. Restart required to apply." };
+
+            return new SettingsUpdateResult { Success = true, Name = name };
+        }
+        catch (Exception ex)
+        {
+            return new SettingsUpdateResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region Code Analysis API
+
+    /// <summary>
+    /// Find all references to a symbol in the code.
+    /// </summary>
+    public List<SymbolReference> ApiFindReferences(string symbolName)
+    {
+        var occurrences = _refactoringService.FindSymbolOccurrences(BasicEditor.Text, symbolName);
+        return occurrences.Select(o => new SymbolReference
+        {
+            Line = o.Line,
+            Column = o.Column,
+            Length = o.Length,
+            Kind = o.SymbolKind.ToString()
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Get code metrics for the current code.
+    /// </summary>
+    public CodeMetrics ApiGetCodeMetrics()
+    {
+        var code = BasicEditor.Text;
+        var lines = code.Split('\n');
+        var result = _compiler.Compile(code);
+
+        var metrics = new CodeMetrics
+        {
+            TotalLines = lines.Length,
+            CodeLines = lines.Count(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("'")),
+            CommentLines = lines.Count(l => l.TrimStart().StartsWith("'")),
+            BlankLines = lines.Count(string.IsNullOrWhiteSpace),
+            Ic10Lines = result.LineCount,
+            CompilationSuccess = result.Success,
+            WarningCount = result.Warnings.Count,
+            ErrorCount = result.Success ? 0 : 1
+        };
+
+        if (result.Metadata != null)
+        {
+            metrics.VariableCount = result.Metadata.Variables.Count;
+            metrics.ConstantCount = result.Metadata.Constants.Count;
+            metrics.LabelCount = result.Metadata.Labels.Count;
+            metrics.FunctionCount = result.Metadata.Functions.Count;
+            metrics.AliasCount = result.Metadata.DeviceTypes.Count;
+        }
+
+        return metrics;
+    }
+
+    #endregion
+
+    #endregion
+}
+
+/// <summary>
+/// Watch variable info for MCP integration.
+/// </summary>
+public class WatchInfo
+{
+    public string Name { get; set; } = "";
+    public string Value { get; set; } = "";
+    public string Type { get; set; } = "";
+    public bool HasChanged { get; set; }
+}
+
+/// <summary>
+/// Breakpoint toggle result.
+/// </summary>
+public class BreakpointToggleResult
+{
+    public int Line { get; set; }
+    public bool IsSet { get; set; }
+    public List<int> AllBreakpoints { get; set; } = new();
+}
+
+/// <summary>
+/// Source map information.
+/// </summary>
+public class SourceMapInfo
+{
+    public bool HasMap { get; set; }
+    /// <summary>
+    /// Maps BASIC line number to list of IC10 line numbers (one BASIC line can generate multiple IC10 lines).
+    /// </summary>
+    public Dictionary<int, List<int>> BasicToIc10 { get; set; } = new();
+    /// <summary>
+    /// Maps IC10 line number to BASIC line number.
+    /// </summary>
+    public Dictionary<int, int> Ic10ToBasic { get; set; } = new();
+    public Dictionary<string, string> VariableRegisters { get; set; } = new();
+    public Dictionary<string, string> AliasDevices { get; set; } = new();
+}
+
+/// <summary>
+/// Error/warning information.
+/// </summary>
+public class ErrorInfo
+{
+    public int Line { get; set; }
+    public string Message { get; set; } = "";
+    public string Severity { get; set; } = "error";
+}
+
+/// <summary>
+/// Simulator state result for MCP integration.
+/// </summary>
+public class SimulatorStateResult
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public int ProgramCounter { get; set; }
+    public int InstructionCount { get; set; }
+    public bool IsRunning { get; set; }
+    public bool IsPaused { get; set; }
+    public bool IsHalted { get; set; }
+    public bool IsYielding { get; set; }
+    public string? ErrorMessage { get; set; }
+    public Dictionary<string, double> Registers { get; set; } = new();
+    public double[] Stack { get; set; } = Array.Empty<double>();
+    public List<SimulatorDeviceInfo> Devices { get; set; } = new();
+    public List<int> Breakpoints { get; set; } = new();
+}
+
+/// <summary>
+/// Simulated device information.
+/// </summary>
+public class SimulatorDeviceInfo
+{
+    public int Index { get; set; }
+    public string Name { get; set; } = "";
+    public string? Alias { get; set; }
+    public Dictionary<string, double> Properties { get; set; } = new();
+}
+
+/// <summary>
+/// Information about an open tab.
+/// </summary>
+public class TabInfo
+{
+    public int Index { get; set; }
+    public string Name { get; set; } = "";
+    public string? FilePath { get; set; }
+    public bool IsModified { get; set; }
+    public bool IsActive { get; set; }
+}
+
+/// <summary>
+/// Result of saving a script.
+/// </summary>
+public class SaveScriptResult
+{
+    public bool Success { get; set; }
+    public string? ScriptName { get; set; }
+    public string? FolderPath { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Result of loading a script.
+/// </summary>
+public class LoadScriptResult
+{
+    public bool Success { get; set; }
+    public string? ScriptName { get; set; }
+    public string? FilePath { get; set; }
+    public string? CodePreview { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Information about a script in the scripts folder.
+/// </summary>
+public class ScriptInfo
+{
+    public string Name { get; set; } = "";
+    public string FolderPath { get; set; } = "";
+    public bool HasBasFile { get; set; }
+    public bool HasInstructionXml { get; set; }
+}
+
+/// <summary>
+/// Snapshot of all user-accessible settings.
+/// </summary>
+public class SettingsSnapshot
+{
+    public string Theme { get; set; } = "Dark";
+    public double FontSize { get; set; }
+    public bool AutoCompile { get; set; }
+    public bool AutoCompleteEnabled { get; set; }
+    public bool WordWrap { get; set; }
+    public int OptimizationLevel { get; set; }
+    public bool AutoSaveEnabled { get; set; }
+    public int AutoSaveIntervalSeconds { get; set; }
+    public string SplitViewMode { get; set; } = "Vertical";
+    public bool ApiServerEnabled { get; set; }
+    public int ApiServerPort { get; set; }
+    public string ScriptAuthor { get; set; } = "";
+}
+
+/// <summary>
+/// Result of updating a setting.
+/// </summary>
+public class SettingsUpdateResult
+{
+    public bool Success { get; set; }
+    public string? Name { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// A reference to a symbol in the code.
+/// </summary>
+public class SymbolReference
+{
+    public int Line { get; set; }
+    public int Column { get; set; }
+    public int Length { get; set; }
+    public string Kind { get; set; } = "";
+}
+
+/// <summary>
+/// Code metrics for analysis.
+/// </summary>
+public class CodeMetrics
+{
+    public int TotalLines { get; set; }
+    public int CodeLines { get; set; }
+    public int CommentLines { get; set; }
+    public int BlankLines { get; set; }
+    public int Ic10Lines { get; set; }
+    public bool CompilationSuccess { get; set; }
+    public int WarningCount { get; set; }
+    public int ErrorCount { get; set; }
+    public int VariableCount { get; set; }
+    public int ConstantCount { get; set; }
+    public int LabelCount { get; set; }
+    public int FunctionCount { get; set; }
+    public int AliasCount { get; set; }
+}
+
+/// <summary>
+/// A problem (error/warning) item for the Problems Panel.
+/// </summary>
+public class ProblemItem
+{
+    public int Line { get; set; }
+    public int Column { get; set; }
+    public string Message { get; set; } = "";
+    public BasicToMips.Editor.ErrorHighlighting.ErrorChecker.ErrorSeverity Severity { get; set; }
+    public string Icon { get; set; } = "";
+    public System.Windows.Media.Brush? Color { get; set; }
+    public string Location { get; set; } = "";
 }

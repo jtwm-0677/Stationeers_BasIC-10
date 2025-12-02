@@ -243,11 +243,47 @@ Fuel     # 3");
         {
             ("a & b or BAND(a,b)", "Bitwise AND"),
             ("a | b or BOR(a,b)", "Bitwise OR"),
-            ("BXOR(a, b)", "Bitwise XOR"),
+            ("a ^ b or BXOR(a,b)", "Bitwise XOR"),
             ("~a or BNOT(a)", "Bitwise NOT"),
-            ("a << n or SHL(a,n)", "Shift left"),
-            ("a >> n or SHR(a,n)", "Shift right")
+            ("a << n or SHL(a,n)", "Shift left n bits"),
+            ("a >> n or SHR(a,n)", "Shift right n bits")
         });
+        AddCodeBlock(panel, @"VAR a = 1
+VAR b = a << 4    # b = 16 (shift left 4 bits)
+VAR c = 16 >> 2   # c = 4 (shift right 2 bits)
+VAR d = 5 ^ 3     # d = 6 (XOR: 101 ^ 011 = 110)");
+
+        AddSubHeader(panel, "Compound Assignment Operators");
+        AddCompactList(panel, new[]
+        {
+            ("x += n", "Add n to x (x = x + n)"),
+            ("x -= n", "Subtract n from x (x = x - n)"),
+            ("x *= n", "Multiply x by n (x = x * n)"),
+            ("x /= n", "Divide x by n (x = x / n)")
+        });
+        AddCodeBlock(panel, @"VAR x = 10
+x += 5    # x is now 15
+x -= 3    # x is now 12
+x *= 2    # x is now 24
+x /= 4    # x is now 6");
+
+        AddSubHeader(panel, "Increment/Decrement Operators");
+        AddCompactList(panel, new[]
+        {
+            ("++x", "Prefix increment (increment first, return new value)"),
+            ("x++", "Postfix increment (return old value, then increment)"),
+            ("--x", "Prefix decrement (decrement first, return new value)"),
+            ("x--", "Postfix decrement (return old value, then decrement)")
+        });
+        AddCodeBlock(panel, @"VAR x = 10
+VAR y = ++x    # x=11, y=11 (prefix: increment first)
+VAR z = x++    # x=12, z=11 (postfix: return old value)
+
+# Standalone usage in loops
+VAR i = 0
+WHILE i < 5
+    ++i    # Works as statement
+WEND");
 
         // Comments
         AddHeader(panel, "Comments");
@@ -517,6 +553,9 @@ VAR totalPower = BATCHREAD(BATTERY_HASH, PowerGeneration, 1)");
         AddIC10Entry(panel, "xor r0 r1 r2", "r0 = r1 XOR r2", "Bitwise XOR");
         AddIC10Entry(panel, "nor r0 r1 r2", "r0 = NOT(r1 OR r2)", "NOR");
         AddIC10Entry(panel, "not r0 r1", "r0 = NOT r1", "Bitwise NOT");
+        AddIC10Entry(panel, "sll r0 r1 r2", "r0 = r1 << r2", "Shift left logical");
+        AddIC10Entry(panel, "srl r0 r1 r2", "r0 = r1 >> r2", "Shift right logical");
+        AddIC10Entry(panel, "sra r0 r1 r2", "r0 = r1 >>> r2", "Shift right arithmetic");
         AddIC10Entry(panel, "slt r0 r1 r2", "r0 = (r1 < r2)", "Set if less than");
         AddIC10Entry(panel, "sgt r0 r1 r2", "r0 = (r1 > r2)", "Set if greater");
         AddIC10Entry(panel, "sle r0 r1 r2", "r0 = (r1 <= r2)", "Set if less/equal");
@@ -696,6 +735,42 @@ light3.On = 1
 ' Use batch operations:
 DEFINE LIGHT_HASH -1234567890
 BATCHWRITE(LIGHT_HASH, On, 1)   #All lights!");
+
+        AddSubHeader(panel, "Using Compound Assignment");
+        AddParagraph(panel, "Use += and -= for accumulators and counters:");
+        AddCodeBlock(panel, @"VAR total = 0
+VAR count = 0
+
+main:
+    total += sensor.Reading    # Accumulate readings
+    count += 1                 # Count iterations
+
+    VAR average = total / count
+    YIELD
+    GOTO main");
+
+        AddSubHeader(panel, "Prefix vs Postfix Increment");
+        AddParagraph(panel, "Use prefix (++x) when you only need to increment. Use postfix (x++) when you need the old value first:");
+        AddCodeBlock(panel, @"# Prefix - increment first, then use
+VAR i = 0
+WHILE i < 5
+    ++i    # Just incrementing
+WEND
+
+# Postfix - use old value, then increment
+VAR index = 0
+display.Setting = index++    # Shows 0, then index becomes 1");
+
+        AddSubHeader(panel, "Bit Shifting for Efficiency");
+        AddParagraph(panel, "Use bit shifts for power-of-2 math and flag manipulation:");
+        AddCodeBlock(panel, @"# Fast multiply/divide by powers of 2
+x = x << 1    # Same as x * 2
+x = x >> 2    # Same as x / 4
+
+# Flag manipulation
+flags = flags | (1 << bitNum)     # Set bit
+flags = flags & ~(1 << bitNum)    # Clear bit
+isSet = (flags >> bitNum) & 1     # Check bit");
 
         // Common Mistakes
         AddHeader(panel, "Common Mistakes to Avoid");
@@ -1113,16 +1188,20 @@ VAR percent = ratio * 100");
         return new List<CodeSnippet>
         {
             new() { Name = "Device Alias", Code = "ALIAS sensor d0\n" },
-            new() { Name = "If-Then-Else", Code = "IF condition THEN\n     #code\nELSE\n     #code\nENDIF\n" },
-            new() { Name = "While Loop", Code = "WHILE condition\n     #code\n    YIELD\nWEND\n" },
-            new() { Name = "For Loop", Code = "FOR i = 1 TO 10\n     #code\nNEXT i\n" },
-            new() { Name = "Main Loop", Code = "main:\n     #code\n    YIELD\n    GOTO main\n" },
+            new() { Name = "Named Device", Code = "DEVICE sensor \"StructureGasSensor\"\n" },
+            new() { Name = "If-Then-Else", Code = "IF condition THEN\n    # code\nELSE\n    # code\nENDIF\n" },
+            new() { Name = "While Loop", Code = "WHILE condition\n    # code\n    YIELD\nWEND\n" },
+            new() { Name = "For Loop", Code = "FOR i = 1 TO 10\n    # code\nNEXT i\n" },
+            new() { Name = "Main Loop", Code = "main:\n    # code\n    YIELD\n    GOTO main\n" },
+            new() { Name = "Counter (++/--)", Code = "VAR count = 0\nVAR lastBtn = 0\n\n# In main loop:\nVAR btn = button.Setting\nIF btn = 1 AND lastBtn = 0 THEN\n    ++count    # or --count to decrement\nENDIF\nlastBtn = btn\ndisplay.Setting = count\n" },
+            new() { Name = "Accumulator (+=)", Code = "VAR total = 0\nVAR count = 0\n\n# In main loop:\ntotal += sensor.Reading\ncount += 1\nVAR average = total / count\n" },
             new() { Name = "Temperature Check", Code = "VAR temp = sensor.Temperature\nIF temp > 100 THEN\n    cooler.On = 1\nELSE\n    cooler.On = 0\nENDIF\n" },
             new() { Name = "Pressure Control", Code = "VAR pressure = sensor.Pressure\nIF pressure < 50 THEN\n    pump.On = 1\nELSEIF pressure > 100 THEN\n    pump.On = 0\nENDIF\n" },
             new() { Name = "Hysteresis Pattern", Code = "CONST TARGET = 100\nCONST TOLERANCE = 5\n\nIF value < TARGET - TOLERANCE THEN\n    device.On = 1\nELSEIF value > TARGET + TOLERANCE THEN\n    device.On = 0\nENDIF\n" },
-            new() { Name = "Edge Detection", Code = "VAR lastState = 0\nVAR current = button.Setting\nIF current = 1 AND lastState = 0 THEN\n     #Button pressed!\nENDIF\nlastState = current\n" },
+            new() { Name = "Edge Detection", Code = "VAR lastState = 0\nVAR current = button.Setting\nIF current = 1 AND lastState = 0 THEN\n    # Button pressed!\nENDIF\nlastState = current\n" },
             new() { Name = "Batch Read", Code = "DEFINE SENSOR_HASH -1234567\nVAR avgTemp = BATCHREAD(SENSOR_HASH, Temperature, 0)\n" },
-            new() { Name = "State Machine", Code = "VAR state = 0\n\nmain:\n    IF state = 0 THEN GOSUB Idle\n    IF state = 1 THEN GOSUB Working\n    YIELD\n    GOTO main\n\nIdle:\n    IF trigger THEN state = 1\n    RETURN\n\nWorking:\n     #do work\n    IF done THEN state = 0\n    RETURN\n" }
+            new() { Name = "State Machine", Code = "VAR state = 0\n\nmain:\n    IF state = 0 THEN GOSUB Idle\n    IF state = 1 THEN GOSUB Working\n    YIELD\n    GOTO main\n\nIdle:\n    IF trigger THEN state = 1\n    RETURN\n\nWorking:\n    # do work\n    IF done THEN state = 0\n    RETURN\n" },
+            new() { Name = "Bit Flags", Code = "VAR flags = 0\nCONST BIT_POWER = 0\nCONST BIT_TEMP = 1\n\n# Set bit:\nflags = flags | (1 << BIT_POWER)\n# Clear bit:\nflags = flags & ~(1 << BIT_TEMP)\n# Check bit:\nVAR isSet = (flags >> BIT_POWER) & 1\n" }
         };
     }
 
@@ -1664,6 +1743,149 @@ main:
 
      #Grow light always on during operation
     light.On = 1
+
+    YIELD
+    GOTO main
+END
+"
+            },
+            new()
+            {
+                Name = "16: Counter with Increment/Decrement",
+                Description = "Demonstrates ++/-- operators for counting.\nDevices: d0 = LED Display, d1 = Up Button, d2 = Down Button",
+                Code = @"# Counter Demo - Increment/Decrement Operators
+ALIAS display d0
+ALIAS upBtn d1
+ALIAS downBtn d2
+
+VAR count = 0
+VAR lastUp = 0
+VAR lastDown = 0
+
+main:
+    VAR currentUp = upBtn.Setting
+    VAR currentDown = downBtn.Setting
+
+    # Edge detection with increment
+    IF currentUp = 1 AND lastUp = 0 THEN
+        ++count
+    ENDIF
+
+    IF currentDown = 1 AND lastDown = 0 THEN
+        --count
+    ENDIF
+
+    lastUp = currentUp
+    lastDown = currentDown
+    display.Setting = count
+
+    YIELD
+    GOTO main
+END
+"
+            },
+            new()
+            {
+                Name = "17: Smooth Value Adjustment",
+                Description = "Uses compound assignment for gradual changes.\nDevices: d0 = Dial, d1 = Pump, d2 = LED Display",
+                Code = @"# Smooth Adjustment with Compound Assignment
+ALIAS dial d0
+ALIAS pump d1
+ALIAS display d2
+
+VAR targetPressure = 50
+VAR currentSetting = 0
+CONST STEP = 2
+
+main:
+    targetPressure = dial.Setting
+
+    # Gradually adjust toward target
+    IF currentSetting < targetPressure THEN
+        currentSetting += STEP
+    ELSEIF currentSetting > targetPressure THEN
+        currentSetting -= STEP
+    ENDIF
+
+    pump.Setting = currentSetting
+    display.Setting = currentSetting
+
+    YIELD
+    GOTO main
+END
+"
+            },
+            new()
+            {
+                Name = "18: Bit Flag Status System",
+                Description = "Uses bit shifts for compact status tracking.\nDevices: d0 = Gas Sensor, d1 = LED Display",
+                Code = @"# Status Flag System using Bit Shifts
+ALIAS sensor d0
+ALIAS display d1
+
+# Status bits: bit0=power, bit1=temp, bit2=pressure, bit3=oxygen
+VAR status = 0
+CONST POWER_BIT = 0
+CONST TEMP_BIT = 1
+CONST PRESSURE_BIT = 2
+CONST OXYGEN_BIT = 3
+
+main:
+    status = 0
+
+    IF sensor.Power > 0 THEN
+        status = status | (1 << POWER_BIT)
+    ENDIF
+
+    IF sensor.Temperature > 250 AND sensor.Temperature < 320 THEN
+        status = status | (1 << TEMP_BIT)
+    ENDIF
+
+    IF sensor.Pressure > 80 AND sensor.Pressure < 120 THEN
+        status = status | (1 << PRESSURE_BIT)
+    ENDIF
+
+    IF sensor.RatioOxygen > 0.18 AND sensor.RatioOxygen < 0.25 THEN
+        status = status | (1 << OXYGEN_BIT)
+    ENDIF
+
+    # Display status (15 = all OK)
+    display.Setting = status
+
+    YIELD
+    GOTO main
+END
+"
+            },
+            new()
+            {
+                Name = "19: Loop with BREAK/CONTINUE",
+                Description = "Demonstrates loop control statements.\nDevices: d0 = Sorter, d1 = LED Display",
+                Code = @"# Search with Loop Control
+ALIAS sorter d0
+ALIAS display d1
+
+DEFINE TARGET_HASH -707307845
+
+VAR found = 0
+
+main:
+    found = 0
+
+    FOR slot = 0 TO 5
+        VAR hash = sorter.Slot(slot).OccupantHash
+
+        # Skip empty slots
+        IF hash = 0 THEN CONTINUE
+
+        # Found target - exit early
+        IF hash = TARGET_HASH THEN
+            found = 1
+            BREAK
+        ENDIF
+    NEXT slot
+
+    display.Setting = found
 
     YIELD
     GOTO main

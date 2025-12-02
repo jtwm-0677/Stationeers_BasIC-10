@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>BasicToMips</RootNamespace>
     <AssemblyName>Basic_10</AssemblyName>
-    <Version>1.7.3</Version>
+    <Version>2.0.0</Version>
     <Authors>Dog Tired Studios</Authors>
     <Description>Stationeers Basic-10 - A BASIC to IC10 compiler</Description>
     <ApplicationIcon>icon.ico</ApplicationIcon>

@@ -20,11 +20,14 @@ Basic-10 is a BASIC to IC10 (MIPS) compiler for the game Stationeers. It convert
 - `docs/` - Documentation files (copied to output)
 - `Data/` - Device databases and JSON files
 
+## Context & Task Management
+- Your context window will be automatically compacted as it approaches its limit, allowing you to continue working indefinitely from where you left off. Therefore, do not stop tasks early due to token budget concerns. As you approach your token budget limit, save your current progress and state to memory before the context window refreshes. Always be as persistent and autonomous as possible and complete tasks fully, even if the end of your budget is approaching. Never artificially stop any task early regardless of the context remaining.
+
 ## Critical Rules
 
 ### Version Management
 - **ALWAYS increment the version number in BasicToMips.csproj when making changes or adding features**
-- Version is in `<Version>` tag (currently 1.7.3)
+- Version is in `<Version>` tag (currently 1.7.9)
 - Package naming follows format: `BasicToMips_v{version}.zip`
 
 ### Running Compiler
@@ -42,7 +45,7 @@ dotnet build -c Release
 dotnet publish -c Release -o publish
 
 # Package (update version in filename)
-Compress-Archive -Path './publish/*' -DestinationPath './BasicToMips_v1.7.3.zip' -Force
+Compress-Archive -Path './publish/*' -DestinationPath './BasicToMips_v1.7.9.zip' -Force
 ```
 
 ### Testing Changes
@@ -77,6 +80,8 @@ Tracks and displays:
 - Auto-save functionality
 - Dynamic device aliases
 - Named device references
+- Fixed theme switching (StaticResource → DynamicResource)
+- Comprehensive MCP tools for simulator, debugging, editor state, settings, and code analysis
 
 ## Settings Location
 Settings stored in: `%LOCALAPPDATA%\BasicToMips\settings.json`

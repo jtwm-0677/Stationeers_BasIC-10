@@ -159,6 +159,316 @@ public class EditorBridgeService
     {
         _dispatcher.Invoke(() => _mainWindow.SetCursorPosition(line, column));
     }
+
+    // ==================== TAB MANAGEMENT API ====================
+
+    /// <summary>
+    /// Create a new tab.
+    /// </summary>
+    public int CreateNewTab(string? name = null)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiCreateNewTab(name));
+    }
+
+    /// <summary>
+    /// Get list of all open tabs.
+    /// </summary>
+    public List<BasicToMips.UI.TabInfo> GetTabs()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetTabs());
+    }
+
+    /// <summary>
+    /// Switch to a specific tab by index.
+    /// </summary>
+    public bool SwitchTab(int tabIndex)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSwitchTab(tabIndex));
+    }
+
+    /// <summary>
+    /// Switch to a specific tab by name.
+    /// </summary>
+    public bool SwitchTabByName(string name)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSwitchTabByName(name));
+    }
+
+    /// <summary>
+    /// Close a specific tab by index.
+    /// </summary>
+    /// <param name="tabIndex">Index of the tab to close</param>
+    /// <param name="force">If true, close without prompting to save unsaved changes</param>
+    public bool CloseTab(int tabIndex, bool force = false)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiCloseTab(tabIndex, force));
+    }
+
+    // ==================== SCRIPT SAVE/LOAD API ====================
+
+    /// <summary>
+    /// Save the current script to a folder by name.
+    /// </summary>
+    public BasicToMips.UI.SaveScriptResult SaveScript(string scriptName)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSaveScript(scriptName));
+    }
+
+    /// <summary>
+    /// Load a script from a folder by name.
+    /// </summary>
+    public BasicToMips.UI.LoadScriptResult LoadScript(string scriptName, bool newTab = false)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiLoadScript(scriptName, newTab));
+    }
+
+    /// <summary>
+    /// List all available scripts in the scripts folder.
+    /// </summary>
+    public List<BasicToMips.UI.ScriptInfo> ListScripts()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiListScripts());
+    }
+
+    // ==================== SIMULATOR API ====================
+
+    /// <summary>
+    /// Start/initialize the simulator with IC10 code.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorStart(string? ic10Code = null)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorStart(ic10Code));
+    }
+
+    /// <summary>
+    /// Stop the simulator.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorStop()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorStop());
+    }
+
+    /// <summary>
+    /// Reset the simulator.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorReset()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorReset());
+    }
+
+    /// <summary>
+    /// Step one instruction.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorStep()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorStep());
+    }
+
+    /// <summary>
+    /// Run until breakpoint or halt.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorRun(int maxInstructions = 10000)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorRun(maxInstructions));
+    }
+
+    /// <summary>
+    /// Get current simulator state.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorGetState()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorGetState());
+    }
+
+    /// <summary>
+    /// Set a register value.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorSetRegister(string register, double value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorSetRegister(register, value));
+    }
+
+    /// <summary>
+    /// Add a breakpoint.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorAddBreakpoint(int line)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorAddBreakpoint(line));
+    }
+
+    /// <summary>
+    /// Remove a breakpoint.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorRemoveBreakpoint(int line)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorRemoveBreakpoint(line));
+    }
+
+    /// <summary>
+    /// Clear all breakpoints.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorClearBreakpoints()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorClearBreakpoints());
+    }
+
+    /// <summary>
+    /// Set a device property.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorSetDeviceProperty(int deviceIndex, string property, double value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorSetDeviceProperty(deviceIndex, property, value));
+    }
+
+    /// <summary>
+    /// Get a device property.
+    /// </summary>
+    public double SimulatorGetDeviceProperty(int deviceIndex, string property)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorGetDeviceProperty(deviceIndex, property));
+    }
+
+    /// <summary>
+    /// Set a device slot property.
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorSetDeviceSlotProperty(int deviceIndex, int slot, string property, double value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorSetDeviceSlotProperty(deviceIndex, slot, property, value));
+    }
+
+    // ==================== DEBUGGING API ====================
+
+    /// <summary>
+    /// Add a watch expression.
+    /// </summary>
+    public BasicToMips.UI.WatchInfo AddWatch(string expression)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiAddWatch(expression));
+    }
+
+    /// <summary>
+    /// Remove a watch by name.
+    /// </summary>
+    public bool RemoveWatch(string name)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiRemoveWatch(name));
+    }
+
+    /// <summary>
+    /// Get all watch values.
+    /// </summary>
+    public List<BasicToMips.UI.WatchInfo> GetWatches()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetWatches());
+    }
+
+    /// <summary>
+    /// Clear all watches.
+    /// </summary>
+    public void ClearWatches()
+    {
+        _dispatcher.Invoke(() => _mainWindow.ApiClearWatches());
+    }
+
+    /// <summary>
+    /// Add a BASIC editor breakpoint.
+    /// </summary>
+    public List<int> AddEditorBreakpoint(int line)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiAddBreakpoint(line));
+    }
+
+    /// <summary>
+    /// Remove a BASIC editor breakpoint.
+    /// </summary>
+    public List<int> RemoveEditorBreakpoint(int line)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiRemoveBreakpoint(line));
+    }
+
+    /// <summary>
+    /// Toggle a BASIC editor breakpoint.
+    /// </summary>
+    public BasicToMips.UI.BreakpointToggleResult ToggleEditorBreakpoint(int line)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiToggleBreakpoint(line));
+    }
+
+    /// <summary>
+    /// Get all BASIC editor breakpoints.
+    /// </summary>
+    public List<int> GetEditorBreakpoints()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetBreakpoints());
+    }
+
+    /// <summary>
+    /// Clear all BASIC editor breakpoints.
+    /// </summary>
+    public void ClearEditorBreakpoints()
+    {
+        _dispatcher.Invoke(() => _mainWindow.ApiClearBreakpoints());
+    }
+
+    /// <summary>
+    /// Get the source map.
+    /// </summary>
+    public BasicToMips.UI.SourceMapInfo GetSourceMap()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetSourceMap());
+    }
+
+    /// <summary>
+    /// Get compilation errors and warnings.
+    /// </summary>
+    public List<BasicToMips.UI.ErrorInfo> GetCompilationErrors()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetErrors());
+    }
+
+    /// <summary>
+    /// Navigate to a specific line.
+    /// </summary>
+    public void GoToLine(int line)
+    {
+        _dispatcher.Invoke(() => _mainWindow.ApiGoToLine(line));
+    }
+
+    // ==================== SETTINGS API ====================
+
+    /// <summary>
+    /// Get all current settings.
+    /// </summary>
+    public BasicToMips.UI.SettingsSnapshot GetSettings()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetSettings());
+    }
+
+    /// <summary>
+    /// Update a specific setting.
+    /// </summary>
+    public BasicToMips.UI.SettingsUpdateResult UpdateSetting(string name, object value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiUpdateSetting(name, value));
+    }
+
+    // ==================== CODE ANALYSIS API ====================
+
+    /// <summary>
+    /// Find all references to a symbol.
+    /// </summary>
+    public List<BasicToMips.UI.SymbolReference> FindReferences(string symbolName)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiFindReferences(symbolName));
+    }
+
+    /// <summary>
+    /// Get code metrics.
+    /// </summary>
+    public BasicToMips.UI.CodeMetrics GetCodeMetrics()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetCodeMetrics());
+    }
 }
 
 /// <summary>

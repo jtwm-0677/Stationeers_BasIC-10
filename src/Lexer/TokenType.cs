@@ -99,6 +99,12 @@ public enum TokenType
     Tilde,          // ~ for bitwise NOT
     ShiftLeft,      // <<
     ShiftRight,     // >>
+    Increment,      // ++
+    Decrement,      // --
+    PlusEqual,      // +=
+    MinusEqual,     // -=
+    MultiplyEqual,  // *=
+    DivideEqual,    // /=
 
     // Delimiters
     LeftParen,

@@ -5,7 +5,7 @@
         Height="650" Width="750"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Style="{StaticResource MainWindowStyle}">
+        Style="{DynamicResource MainWindowStyle}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -15,10 +15,10 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="16,12">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE790;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                           VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                           VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                 <TextBlock Text=" Syntax Highlighting Colors" FontSize="18" FontWeight="SemiBold"
                            VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
@@ -36,26 +36,26 @@
                 <StackPanel>
                     <!-- Preset Selection -->
                     <TextBlock Text="Color Preset" FontWeight="SemiBold" FontSize="14"
-                               Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8"/>
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
                     <ComboBox x:Name="PresetCombo" Width="250" HorizontalAlignment="Left" Margin="0,0,0,16"
                               SelectionChanged="PresetCombo_SelectionChanged"/>
 
                     <TextBlock Text="Presets include colorblind-friendly options:"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,4"/>
                     <TextBlock Text="• Protanopia - Red-blind friendly"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                     <TextBlock Text="• Deuteranopia - Green-blind friendly"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                     <TextBlock Text="• Tritanopia - Blue-blind friendly"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                     <TextBlock Text="• High Contrast - Maximum distinction"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                     <TextBlock Text="• Monochrome - Grayscale"
-                               Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,16"/>
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,16"/>
 
                     <!-- Individual Color Pickers -->
                     <TextBlock Text="Individual Colors" FontWeight="SemiBold" FontSize="14"
-                               Foreground="{StaticResource AccentBrush}" Margin="0,8,0,12"/>
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,12"/>
 
                     <!-- Keywords -->
                     <Grid Margin="0,0,0,8">
@@ -68,7 +68,7 @@
                         <Border x:Name="KeywordColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Keywords"/>
-                        <TextBlock Grid.Column="2" Text="IF, THEN, WHILE, FOR" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="IF, THEN, WHILE, FOR" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -83,7 +83,7 @@
                         <Border x:Name="DeclarationColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Declarations"/>
-                        <TextBlock Grid.Column="2" Text="VAR, LET, ALIAS, DEFINE" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="VAR, LET, ALIAS, DEFINE" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -98,7 +98,7 @@
                         <Border x:Name="DeviceRefColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="DeviceRefs"/>
-                        <TextBlock Grid.Column="2" Text="d0, d1, d2, db" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="d0, d1, d2, db" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -113,7 +113,7 @@
                         <Border x:Name="PropertyColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Properties"/>
-                        <TextBlock Grid.Column="2" Text=".Temperature, .On, .Setting" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text=".Temperature, .On, .Setting" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -128,7 +128,7 @@
                         <Border x:Name="FunctionColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Functions"/>
-                        <TextBlock Grid.Column="2" Text="ABS, SIN, MAX, SQRT" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="ABS, SIN, MAX, SQRT" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -143,7 +143,7 @@
                         <Border x:Name="LabelColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Labels"/>
-                        <TextBlock Grid.Column="2" Text="main:, loop:, subroutine:" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="main:, loop:, subroutine:" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -158,7 +158,7 @@
                         <Border x:Name="StringColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Strings"/>
-                        <TextBlock Grid.Column="2" Text="&quot;Hello World&quot;" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="&quot;Hello World&quot;" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -173,7 +173,7 @@
                         <Border x:Name="NumberColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Numbers"/>
-                        <TextBlock Grid.Column="2" Text="123, 3.14159, -273.15" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="123, 3.14159, -273.15" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -188,7 +188,7 @@
                         <Border x:Name="CommentColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Comments"/>
-                        <TextBlock Grid.Column="2" Text="' This is a comment" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="' This is a comment" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -203,7 +203,7 @@
                         <Border x:Name="BooleanColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Booleans"/>
-                        <TextBlock Grid.Column="2" Text="TRUE, FALSE" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="TRUE, FALSE" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -218,7 +218,7 @@
                         <Border x:Name="OperatorColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Operators"/>
-                        <TextBlock Grid.Column="2" Text="+ - * / = &lt; &gt;" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="+ - * / = &lt; &gt;" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
@@ -233,15 +233,15 @@
                         <Border x:Name="BracketColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="Brackets"/>
-                        <TextBlock Grid.Column="2" Text="[ ] array/batch access" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="[ ] array/batch access" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
 
                     <!-- Separator -->
-                    <Border Height="1" Background="{StaticResource TertiaryBackgroundBrush}" Margin="0,8,0,16"/>
+                    <Border Height="1" Background="{DynamicResource TertiaryBackgroundBrush}" Margin="0,8,0,16"/>
 
                     <TextBlock Text="Editor Appearance" FontWeight="SemiBold" FontSize="14"
-                               Foreground="{StaticResource AccentBrush}" Margin="0,0,0,12"/>
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,12"/>
 
                     <!-- Editor Background -->
                     <Grid Margin="0,0,0,8">
@@ -254,7 +254,7 @@
                         <Border x:Name="EditorBackgroundColorBox" Grid.Column="1" Width="40" Height="24"
                                 BorderBrush="#555" BorderThickness="1" CornerRadius="3" Cursor="Hand"
                                 MouseLeftButtonUp="ColorBox_Click" Tag="EditorBackground"/>
-                        <TextBlock Grid.Column="2" Text="Editor background color" Foreground="{StaticResource SecondaryTextBrush}"
+                        <TextBlock Grid.Column="2" Text="Editor background color" Foreground="{DynamicResource SecondaryTextBrush}"
                                    FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </Grid>
                 </StackPanel>
@@ -277,14 +277,14 @@
         </Grid>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource SecondaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="16,12">
             <Grid>
-                <Button Content="Reset to Default" Style="{StaticResource ModernButtonStyle}"
+                <Button Content="Reset to Default" Style="{DynamicResource ModernButtonStyle}"
                         HorizontalAlignment="Left" Padding="12,6" Click="Reset_Click"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Cancel" Style="{StaticResource ModernButtonStyle}"
+                    <Button Content="Cancel" Style="{DynamicResource ModernButtonStyle}"
                             Width="100" Margin="0,0,8,0" Click="Cancel_Click"/>
-                    <Button Content="Apply" Style="{StaticResource PrimaryButtonStyle}"
+                    <Button Content="Apply" Style="{DynamicResource PrimaryButtonStyle}"
                             Width="100" Click="Apply_Click"/>
                 </StackPanel>
             </Grid>

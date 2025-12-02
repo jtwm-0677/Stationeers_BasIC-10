@@ -88,6 +88,12 @@ public class CompilerService
                 output = genResult.Code;
                 sourceMap = genResult.SourceMap;
 
+                // Add generator warnings (like line limit exceeded)
+                foreach (var w in genResult.Warnings)
+                {
+                    warnings.Add(new AnalysisWarning(WarningType.PossibleError, w, 0));
+                }
+
                 // Apply optimization
                 if (metadata.Options.OptimizationLevel > 0)
                 {

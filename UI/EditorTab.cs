@@ -11,6 +11,7 @@ public class EditorTab : INotifyPropertyChanged
     private string? _filePath;
     private bool _isModified;
     private string _content = "";
+    private bool _isSelected;
 
     /// <summary>
     /// Full path to the file, or null for untitled tabs
@@ -58,6 +59,22 @@ public class EditorTab : INotifyPropertyChanged
             if (_content != value)
             {
                 _content = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether this tab is currently selected/active
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
                 OnPropertyChanged();
             }
         }

@@ -102,6 +102,12 @@ public class Parser
         if (Check(TokenType.Comment) || Check(TokenType.MetaComment)) return ParseCommentStatement();
         if (Check(TokenType.Identifier)) return ParseAssignmentOrCall();
 
+        // Handle standalone increment/decrement statements (++i, --i, i++, i--)
+        if (Check(TokenType.Increment) || Check(TokenType.Decrement))
+        {
+            return ParseExpressionStatement();
+        }
+
         // Skip unknown tokens
         if (!Check(TokenType.Newline) && !Check(TokenType.Eof))
         {
@@ -119,6 +125,21 @@ public class Parser
             Column = token.Column,
             Text = token.Value,
             IsMetaComment = token.Type == TokenType.MetaComment
+        };
+    }
+
+    /// <summary>
+    /// Parses a standalone expression statement (e.g., ++i, --i, i++, i--).
+    /// </summary>
+    private ExpressionStatement ParseExpressionStatement()
+    {
+        var token = Current();
+        var expr = ParseExpression();
+        return new ExpressionStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            Expression = expr
         };
     }
 
@@ -159,12 +180,34 @@ public class Parser
         }
 
         // Check for device property write: device.Property = value
-        // or device slot access: device[slot].Property = value
+        // or device.Slot[n].Property = value syntax
         if (Check(TokenType.Dot))
         {
             Advance(); // Consume '.'
             var propertyToken = ExpectPropertyName("Expected property name after '.'");
             var propertyName = propertyToken.Value;
+
+            // Check for .Slot[n].Property = value syntax
+            if (propertyName.Equals("Slot", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+            {
+                Advance(); // Consume '['
+                var slotIndex = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+                Expect(TokenType.Dot, "Expected '.' after slot index");
+                var slotPropToken = ExpectPropertyName("Expected property name after slot index");
+                Expect(TokenType.Equal, "Expected '='");
+                var slotValue = ParseExpression();
+
+                return new DeviceSlotWriteStatement
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    DeviceName = name,
+                    SlotIndex = slotIndex,
+                    PropertyName = slotPropToken.Value,
+                    Value = slotValue
+                };
+            }
 
             Expect(TokenType.Equal, "Expected '=' after property name");
             var value = ParseExpression();
@@ -243,6 +286,71 @@ public class Parser
                 Column = token.Column,
                 VariableName = name,
                 Value = ParseExpression()
+            };
+        }
+
+        // Check for compound assignments (+=, -=, *=, /=)
+        if (Check(TokenType.PlusEqual) || Check(TokenType.MinusEqual) ||
+            Check(TokenType.MultiplyEqual) || Check(TokenType.DivideEqual))
+        {
+            var opToken = Advance();
+            var op = opToken.Type switch
+            {
+                TokenType.PlusEqual => BinaryOperator.Add,
+                TokenType.MinusEqual => BinaryOperator.Subtract,
+                TokenType.MultiplyEqual => BinaryOperator.Multiply,
+                TokenType.DivideEqual => BinaryOperator.Divide,
+                _ => throw new ParserException("Invalid compound operator", opToken.Line, opToken.Column)
+            };
+
+            var rightValue = ParseExpression();
+
+            // x += 5 becomes x = x + 5
+            return new LetStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                VariableName = name,
+                Value = new BinaryExpression
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    Left = new VariableExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        Name = name
+                    },
+                    Operator = op,
+                    Right = rightValue
+                }
+            };
+        }
+
+        // Check for postfix increment/decrement (i++, i--)
+        if (Check(TokenType.Increment) || Check(TokenType.Decrement))
+        {
+            var opToken = Advance();
+            var op = opToken.Type == TokenType.Increment
+                ? UnaryOperator.PostIncrement
+                : UnaryOperator.PostDecrement;
+
+            return new ExpressionStatement
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Expression = new UnaryExpression
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    Operator = op,
+                    Operand = new VariableExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        Name = name
+                    }
+                }
             };
         }
 
@@ -1174,8 +1282,19 @@ public class Parser
         var nameToken = Expect(TokenType.Identifier, "Expected constant name");
         stmt.ConstantName = nameToken.Value;
 
+        // Handle optional negative sign
+        bool isNegative = false;
+        if (Check(TokenType.Minus))
+        {
+            Advance();
+            isNegative = true;
+        }
+
         var valueToken = Expect(TokenType.Number, "Expected numeric value");
-        stmt.Value = new NumberLiteral { Value = double.Parse(valueToken.Value), Line = valueToken.Line, Column = valueToken.Column };
+        var value = double.Parse(valueToken.Value);
+        if (isNegative) value = -value;
+
+        stmt.Value = new NumberLiteral { Value = value, Line = valueToken.Line, Column = valueToken.Column };
 
         return stmt;
     }
@@ -1306,8 +1425,32 @@ public class Parser
         // Parse CASE clauses
         while (Check(TokenType.Case))
         {
-            var caseClause = new CaseClause();
             Advance(); // Consume CASE
+
+            // Check for CASE ELSE (alternative to DEFAULT)
+            if (Check(TokenType.Else))
+            {
+                Advance(); // Consume ELSE
+                if (Check(TokenType.Colon))
+                {
+                    Advance();
+                }
+                SkipNewlines();
+
+                // Parse default body until END SELECT
+                while (!Check(TokenType.EndSelect) && !Check(TokenType.Eof))
+                {
+                    var bodyStmt = ParseStatement();
+                    if (bodyStmt != null)
+                    {
+                        stmt.DefaultBody.Add(bodyStmt);
+                    }
+                    SkipNewlines();
+                }
+                break; // CASE ELSE must be last, exit the loop
+            }
+
+            var caseClause = new CaseClause();
 
             // Parse case values (comma-separated)
             caseClause.Values.Add(ParseExpression());
@@ -1340,7 +1483,7 @@ public class Parser
             stmt.Cases.Add(caseClause);
         }
 
-        // Parse DEFAULT clause if present
+        // Parse DEFAULT clause if present (alternative to CASE ELSE)
         if (Check(TokenType.Default))
         {
             Advance();
@@ -1472,9 +1615,72 @@ public class Parser
 
     private ExpressionNode ParseAnd()
     {
-        var left = ParseNot();
+        var left = ParseBitwiseOr();
 
         while (Check(TokenType.And))
+        {
+            Advance();
+            var right = ParseBitwiseOr();
+            left = new BinaryExpression
+            {
+                Line = left.Line,
+                Column = left.Column,
+                Left = left,
+                Operator = BinaryOperator.And,
+                Right = right
+            };
+        }
+
+        return left;
+    }
+
+    private ExpressionNode ParseBitwiseOr()
+    {
+        var left = ParseBitwiseXor();
+
+        while (Check(TokenType.BitOr) || Check(TokenType.Pipe))
+        {
+            Advance();
+            var right = ParseBitwiseXor();
+            left = new BinaryExpression
+            {
+                Line = left.Line,
+                Column = left.Column,
+                Left = left,
+                Operator = BinaryOperator.BitOr,
+                Right = right
+            };
+        }
+
+        return left;
+    }
+
+    private ExpressionNode ParseBitwiseXor()
+    {
+        var left = ParseBitwiseAnd();
+
+        while (Check(TokenType.BitXor))
+        {
+            Advance();
+            var right = ParseBitwiseAnd();
+            left = new BinaryExpression
+            {
+                Line = left.Line,
+                Column = left.Column,
+                Left = left,
+                Operator = BinaryOperator.BitXor,
+                Right = right
+            };
+        }
+
+        return left;
+    }
+
+    private ExpressionNode ParseBitwiseAnd()
+    {
+        var left = ParseNot();
+
+        while (Check(TokenType.BitAnd) || Check(TokenType.Ampersand))
         {
             Advance();
             var right = ParseNot();
@@ -1483,7 +1689,7 @@ public class Parser
                 Line = left.Line,
                 Column = left.Column,
                 Left = left,
-                Operator = BinaryOperator.And,
+                Operator = BinaryOperator.BitAnd,
                 Right = right
             };
         }
@@ -1510,7 +1716,7 @@ public class Parser
 
     private ExpressionNode ParseComparison()
     {
-        var left = ParseAddSub();
+        var left = ParseShift();
 
         while (Check(TokenType.Equal) || Check(TokenType.NotEqual) ||
                Check(TokenType.LessThan) || Check(TokenType.GreaterThan) ||
@@ -1527,6 +1733,31 @@ public class Parser
                 TokenType.GreaterEqual => BinaryOperator.GreaterEqual,
                 _ => throw new ParserException("Invalid comparison operator", opToken.Line, opToken.Column)
             };
+            var right = ParseShift();
+            left = new BinaryExpression
+            {
+                Line = left.Line,
+                Column = left.Column,
+                Left = left,
+                Operator = op,
+                Right = right
+            };
+        }
+
+        return left;
+    }
+
+    private ExpressionNode ParseShift()
+    {
+        var left = ParseAddSub();
+
+        while (Check(TokenType.ShiftLeft) || Check(TokenType.ShiftRight) ||
+               Check(TokenType.Shl) || Check(TokenType.Shr))
+        {
+            var opToken = Advance();
+            var op = (opToken.Type == TokenType.ShiftLeft || opToken.Type == TokenType.Shl)
+                ? BinaryOperator.ShiftLeft
+                : BinaryOperator.ShiftRight;
             var right = ParseAddSub();
             left = new BinaryExpression
             {
@@ -1634,7 +1865,68 @@ public class Parser
             return ParseUnary();
         }
 
-        return ParsePrimary();
+        // Prefix increment (++x)
+        if (Check(TokenType.Increment))
+        {
+            var token = Advance();
+            var operand = ParseUnary();
+            return new UnaryExpression
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Operator = UnaryOperator.PreIncrement,
+                Operand = operand
+            };
+        }
+
+        // Prefix decrement (--x)
+        if (Check(TokenType.Decrement))
+        {
+            var token = Advance();
+            var operand = ParseUnary();
+            return new UnaryExpression
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Operator = UnaryOperator.PreDecrement,
+                Operand = operand
+            };
+        }
+
+        return ParsePostfix();
+    }
+
+    private ExpressionNode ParsePostfix()
+    {
+        var expr = ParsePrimary();
+
+        // Postfix increment (x++)
+        if (Check(TokenType.Increment))
+        {
+            var token = Advance();
+            return new UnaryExpression
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Operator = UnaryOperator.PostIncrement,
+                Operand = expr
+            };
+        }
+
+        // Postfix decrement (x--)
+        if (Check(TokenType.Decrement))
+        {
+            var token = Advance();
+            return new UnaryExpression
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Operator = UnaryOperator.PostDecrement,
+                Operand = expr
+            };
+        }
+
+        return expr;
     }
 
     private ExpressionNode ParsePrimary()
@@ -1684,6 +1976,51 @@ public class Parser
                 Column = token.Column,
                 Value = false
             };
+        }
+
+        // Handle SHL, SHR, and other bitwise keyword functions when used as function calls
+        if (Check(TokenType.Shl) || Check(TokenType.Shr) ||
+            Check(TokenType.BitAnd) || Check(TokenType.BitOr) || Check(TokenType.BitXor) || Check(TokenType.BitNot))
+        {
+            var funcToken = Advance();
+            var funcName = funcToken.Type switch
+            {
+                TokenType.Shl => "SHL",
+                TokenType.Shr => "SHR",
+                TokenType.BitAnd => "BAND",
+                TokenType.BitOr => "BOR",
+                TokenType.BitXor => "BXOR",
+                TokenType.BitNot => "BNOT",
+                _ => funcToken.Value.ToUpperInvariant()
+            };
+
+            if (Check(TokenType.LeftParen))
+            {
+                Advance();
+                var args = new List<ExpressionNode>();
+
+                if (!Check(TokenType.RightParen))
+                {
+                    args.Add(ParseExpression());
+                    while (Check(TokenType.Comma))
+                    {
+                        Advance();
+                        args.Add(ParseExpression());
+                    }
+                }
+
+                Expect(TokenType.RightParen, "Expected ')'");
+
+                return new FunctionCallExpression
+                {
+                    Line = funcToken.Line,
+                    Column = funcToken.Column,
+                    FunctionName = funcName,
+                    Arguments = { }
+                }.Also(f => f.Arguments.AddRange(args));
+            }
+
+            throw new ParserException($"Expected '(' after {funcName}", funcToken.Line, funcToken.Column);
         }
 
         if (Check(TokenType.Identifier))
@@ -1764,19 +2101,38 @@ public class Parser
             }
 
             // Check for device property read: device.Property or device.Property.BatchMode
+            // Also handles device.Slot[n].Property syntax
             if (Check(TokenType.Dot))
             {
                 Advance(); // Consume '.'
                 var propToken = ExpectPropertyName("Expected property name");
                 var propertyName = propToken.Value;
 
-                // Check for batch mode suffix (.Average, .Sum, .Min, .Max, .Minimum, .Maximum)
+                // Check for .Slot[n].Property syntax (alternative to device[n].Property)
+                if (propertyName.Equals("Slot", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+                {
+                    Advance(); // Consume '['
+                    var slotIndex = ParseExpression();
+                    Expect(TokenType.RightBracket, "Expected ']'");
+                    Expect(TokenType.Dot, "Expected '.' after slot index");
+                    var slotPropToken = ExpectPropertyName("Expected property name after slot index");
+                    return new DeviceSlotReadExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        DeviceName = name,
+                        SlotIndex = slotIndex,
+                        PropertyName = slotPropToken.Value
+                    };
+                }
+
+                // Check for batch mode suffix (.Average, .Sum, .Min, .Max, .Minimum, .Maximum, .Count)
                 if (Check(TokenType.Dot))
                 {
                     Advance(); // Consume '.'
                     var batchModeToken = Expect(TokenType.Identifier, "Expected batch mode");
                     var batchMode = batchModeToken.Value.ToUpperInvariant();
-                    if (batchMode is "AVERAGE" or "SUM" or "MIN" or "MAX" or "MINIMUM" or "MAXIMUM")
+                    if (batchMode is "AVERAGE" or "SUM" or "MIN" or "MAX" or "MINIMUM" or "MAXIMUM" or "COUNT")
                     {
                         propertyName = $"{propertyName}.{batchModeToken.Value}";
                     }

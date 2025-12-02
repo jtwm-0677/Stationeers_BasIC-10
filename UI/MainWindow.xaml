@@ -9,7 +9,7 @@
         Height="900" Width="1400"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
-        Style="{StaticResource MainWindowStyle}"
+        Style="{DynamicResource MainWindowStyle}"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
@@ -23,6 +23,7 @@
         <KeyBinding Key="F6" Command="{Binding ToggleSnippetsCommand}"/>
         <KeyBinding Key="F7" Command="{Binding ToggleSimulatorCommand}"/>
         <KeyBinding Key="Space" Modifiers="Control" Command="{Binding TriggerAutocompleteCommand}"/>
+        <KeyBinding Key="M" Modifiers="Control+Shift" Command="{Binding ToggleProblemsCommand}"/>
     </Window.InputBindings>
 
     <Grid>
@@ -32,10 +33,11 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Menu Bar -->
-        <DockPanel Grid.Row="0" Background="{StaticResource SecondaryBackgroundBrush}">
+        <DockPanel Grid.Row="0" Background="{DynamicResource SecondaryBackgroundBrush}">
             <Menu Background="Transparent">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" InputGestureText="Ctrl+N" Click="NewFile_Click">
@@ -98,14 +100,14 @@
             <MenuItem Header="_Build">
                 <MenuItem Header="_Compile" InputGestureText="F5" Click="Compile_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource SuccessBrush}"/>
+                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource SuccessBrush}"/>
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Compile and _Copy IC10" InputGestureText="F6" Click="CompileAndCopy_Click"/>
                 <Separator/>
                 <MenuItem Header="_Run Simulator..." InputGestureText="F9" Click="RunSimulator_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="&#xEBE8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource InfoBrush}"/>
+                        <TextBlock Text="&#xEBE8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource InfoBrush}"/>
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
@@ -136,6 +138,7 @@
                 <MenuItem Header="Show S_imulator Window" x:Name="ShowSimulatorMenu" IsCheckable="True" Click="ToggleSimulator_Click" InputGestureText="F7"/>
                 <MenuItem Header="Show _Watch Window" x:Name="ShowWatchMenu" IsCheckable="True" Click="ToggleWatch_Click" InputGestureText="F8"/>
                 <MenuItem Header="Show Variable _Inspector" x:Name="ShowVariableInspectorMenu" IsCheckable="True" Click="ToggleVariableInspector_Click" InputGestureText="F9"/>
+                <MenuItem Header="Show _Problems Panel" x:Name="ShowProblemsMenu" IsCheckable="True" Click="ToggleProblems_Click" InputGestureText="Ctrl+Shift+M"/>
                 <Separator/>
                 <MenuItem Header="Show _Line Numbers" x:Name="ShowLineNumbersMenu" IsCheckable="True" IsChecked="True" Click="ToggleLineNumbers_Click"/>
                 <MenuItem Header="Word _Wrap" x:Name="WordWrapMenu" IsCheckable="True" Click="ToggleWordWrap_Click"/>
@@ -208,47 +211,47 @@
         </DockPanel>
 
         <!-- Toolbar -->
-        <Border Grid.Row="1" Background="{StaticResource SecondaryBackgroundBrush}" Padding="4,2" BorderBrush="{StaticResource SeparatorBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="4,2" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="New (Ctrl+N)" Click="NewFile_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="New (Ctrl+N)" Click="NewFile_Click">
                     <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open (Ctrl+O)" Click="OpenFile_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Open (Ctrl+O)" Click="OpenFile_Click">
                     <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Save (Ctrl+S)" Click="SaveFile_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Save (Ctrl+S)" Click="SaveFile_Click">
                     <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
 
-                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
 
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Undo (Ctrl+Z)" Click="Undo_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Undo (Ctrl+Z)" Click="Undo_Click">
                     <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Redo (Ctrl+Y)" Click="Redo_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Redo (Ctrl+Y)" Click="Redo_Click">
                     <TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
 
-                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
 
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Find (Ctrl+F)" Click="Find_Click">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Find (Ctrl+F)" Click="Find_Click">
                     <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
 
-                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
 
-                <Button x:Name="CompileButton" Style="{StaticResource PrimaryButtonStyle}" Padding="12,4" ToolTip="Compile (F5)" Click="Compile_Click">
+                <Button x:Name="CompileButton" Style="{DynamicResource PrimaryButtonStyle}" Padding="12,4" ToolTip="Compile (F5)" Click="Compile_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"/>
                         <TextBlock Text=" Compile" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource IconButtonStyle}" ToolTip="Copy IC10 to Clipboard" Click="CopyIC10_Click" Margin="4,0,0,0">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Copy IC10 to Clipboard" Click="CopyIC10_Click" Margin="4,0,0,0">
                     <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
                 </Button>
 
-                <Rectangle Width="1" Fill="{StaticResource SeparatorBrush}" Margin="8,4"/>
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
 
                 <CheckBox x:Name="AutoCompileCheckBox" Content="Auto-compile" IsChecked="True"
                           VerticalAlignment="Center" Margin="4,0"
@@ -284,24 +287,24 @@
             </Grid.ColumnDefinitions>
 
             <!-- Symbols Panel (Variables, Labels, etc.) -->
-            <Border Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}" Width="180" x:Name="SymbolsPanel">
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" Width="180" x:Name="SymbolsPanel">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="8,6">
+                    <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="8,6">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text=" Symbols" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Padding="2" ToolTip="Close Symbols Panel" Click="CloseSymbols_Click">
+                            <Button Grid.Column="1" Style="{DynamicResource IconButtonStyle}" Padding="2" ToolTip="Close Symbols Panel" Click="CloseSymbols_Click">
                                 <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
                             </Button>
                         </Grid>
@@ -335,7 +338,7 @@
             </Border>
 
             <!-- Symbols Panel Splitter -->
-            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" Background="{StaticResource TertiaryBackgroundBrush}" Cursor="SizeWE" x:Name="SymbolsSplitter"/>
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" Background="{DynamicResource TertiaryBackgroundBrush}" Cursor="SizeWE" x:Name="SymbolsSplitter"/>
 
             <!-- Editor Area -->
             <Grid Grid.Column="2" x:Name="EditorGrid">
@@ -346,38 +349,114 @@
                 </Grid.RowDefinitions>
 
                 <!-- BASIC Editor Panel -->
-                <Border Grid.Row="0" Background="{StaticResource EditorBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                <Border Grid.Row="0" Background="{DynamicResource EditorBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
                         <!-- BASIC Editor Header -->
-                        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,6">
+                        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="12,6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                     <TextBlock Text=" BASIC Source" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                    <TextBlock x:Name="BasicFileNameText" Text="" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                    <TextBlock x:Name="ModifiedIndicator" Text="*" Foreground="{StaticResource WarningBrush}" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="BasicFileNameText" Text="" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <TextBlock x:Name="ModifiedIndicator" Text="*" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Visibility="Collapsed"/>
                                 </StackPanel>
-                                <TextBlock Grid.Column="1" x:Name="BasicLineCountText" Text="Lines: 0" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" x:Name="BasicLineCountText" Text="Lines: 0" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Tab Bar -->
+                        <Border Grid.Row="1" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="4,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Tab Items -->
+                                <ItemsControl x:Name="TabBar" Grid.Column="0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="TabBorder"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1,1,1,0"
+                                                    CornerRadius="4,4,0,0"
+                                                    Margin="0,0,2,0"
+                                                    Padding="8,4"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="Tab_MouseLeftButtonDown"
+                                                    MouseUp="Tab_MouseUp">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource TertiaryBackgroundBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource EditorBackgroundBrush}"/>
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               VerticalAlignment="Center"
+                                                               ToolTip="{Binding FilePath}"
+                                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                    <Button Content="&#xE711;"
+                                                            FontFamily="Segoe MDL2 Assets"
+                                                            FontSize="10"
+                                                            Margin="8,0,0,0"
+                                                            Padding="2"
+                                                            VerticalAlignment="Center"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Foreground="{DynamicResource SecondaryTextBrush}"
+                                                            Cursor="Hand"
+                                                            Click="TabClose_Click"
+                                                            ToolTip="Close tab"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- New Tab Button -->
+                                <Button Grid.Column="1"
+                                        Content="&#xE710;"
+                                        FontFamily="Segoe MDL2 Assets"
+                                        FontSize="12"
+                                        Padding="6,4"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="{DynamicResource SecondaryTextBrush}"
+                                        Cursor="Hand"
+                                        Click="NewTab_Click"
+                                        ToolTip="New tab (Ctrl+T)"/>
                             </Grid>
                         </Border>
 
                         <!-- BASIC Editor -->
                         <avalon:TextEditor x:Name="BasicEditor"
-                                          Grid.Row="1"
-                                          FontFamily="{StaticResource CodeFont}"
+                                          Grid.Row="2"
+                                          FontFamily="{DynamicResource CodeFont}"
                                           FontSize="14"
-                                          Background="{StaticResource EditorBackgroundBrush}"
-                                          Foreground="{StaticResource PrimaryTextBrush}"
-                                          LineNumbersForeground="{StaticResource SecondaryTextBrush}"
+                                          Background="{DynamicResource EditorBackgroundBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          LineNumbersForeground="{DynamicResource SecondaryTextBrush}"
                                           ShowLineNumbers="True"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Auto"
@@ -387,10 +466,10 @@
                 </Border>
 
                 <!-- Splitter -->
-                <GridSplitter x:Name="EditorSplitter" Grid.Row="1" Height="6" HorizontalAlignment="Stretch" Background="{StaticResource TertiaryBackgroundBrush}" Cursor="SizeNS"/>
+                <GridSplitter x:Name="EditorSplitter" Grid.Row="1" Height="6" HorizontalAlignment="Stretch" Background="{DynamicResource TertiaryBackgroundBrush}" Cursor="SizeNS"/>
 
                 <!-- MIPS Output Panel -->
-                <Border x:Name="MipsOutputPanel" Grid.Row="2" Background="{StaticResource EditorBackgroundBrush}">
+                <Border x:Name="MipsOutputPanel" Grid.Row="2" Background="{DynamicResource EditorBackgroundBrush}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -398,17 +477,17 @@
                         </Grid.RowDefinitions>
 
                         <!-- MIPS Output Header -->
-                        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,6">
+                        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="12,6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE756;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="&#xE756;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                                     <TextBlock Text=" IC10 MIPS" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                    <TextBlock x:Name="MipsEditableIndicator" Text=" (Editable)" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center" FontStyle="Italic" FontSize="12"/>
-                                    <Button x:Name="DecompileButton" Style="{StaticResource IconButtonStyle}" ToolTip="Decompile to BASIC" Click="Decompile_Click" Margin="8,0,0,0" Padding="4,2">
+                                    <TextBlock x:Name="MipsEditableIndicator" Text=" (Editable)" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" FontStyle="Italic" FontSize="12"/>
+                                    <Button x:Name="DecompileButton" Style="{DynamicResource IconButtonStyle}" ToolTip="Decompile to BASIC" Click="Decompile_Click" Margin="8,0,0,0" Padding="4,2">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                             <TextBlock Text=" To BASIC" FontSize="11" Margin="4,0,0,0"/>
@@ -416,11 +495,11 @@
                                     </Button>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <TextBlock x:Name="MipsLineCountText" Text="Lines: 0 / 128" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                                    <Border x:Name="LineWarningBadge" Background="{StaticResource WarningBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                    <TextBlock x:Name="MipsLineCountText" Text="Lines: 0 / 128" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <Border x:Name="LineWarningBadge" Background="{DynamicResource WarningBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
                                         <TextBlock Text="Near limit!" FontSize="11" Foreground="#1E1E1E"/>
                                     </Border>
-                                    <Border x:Name="LineErrorBadge" Background="{StaticResource ErrorBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                    <Border x:Name="LineErrorBadge" Background="{DynamicResource ErrorBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
                                         <TextBlock Text="Over limit!" FontSize="11" Foreground="White"/>
                                     </Border>
                                 </StackPanel>
@@ -430,11 +509,11 @@
                         <!-- MIPS Output (Now Editable) -->
                         <avalon:TextEditor x:Name="MipsOutput"
                                           Grid.Row="1"
-                                          FontFamily="{StaticResource CodeFont}"
+                                          FontFamily="{DynamicResource CodeFont}"
                                           FontSize="14"
-                                          Background="{StaticResource EditorBackgroundBrush}"
-                                          Foreground="{StaticResource PrimaryTextBrush}"
-                                          LineNumbersForeground="{StaticResource SecondaryTextBrush}"
+                                          Background="{DynamicResource EditorBackgroundBrush}"
+                                          Foreground="{DynamicResource PrimaryTextBrush}"
+                                          LineNumbersForeground="{DynamicResource SecondaryTextBrush}"
                                           ShowLineNumbers="True"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Auto"
@@ -445,10 +524,10 @@
             </Grid>
 
             <!-- Docs Panel Splitter -->
-            <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Center" Background="{StaticResource TertiaryBackgroundBrush}" Cursor="SizeWE" x:Name="DocsSplitter"/>
+            <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Center" Background="{DynamicResource TertiaryBackgroundBrush}" Cursor="SizeWE" x:Name="DocsSplitter"/>
 
             <!-- Documentation Panel -->
-            <Border Grid.Column="4" Background="{StaticResource SidebarBackgroundBrush}" x:Name="DocsPanel">
+            <Border Grid.Column="4" Background="{DynamicResource SidebarBackgroundBrush}" x:Name="DocsPanel">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -456,17 +535,17 @@
                     </Grid.RowDefinitions>
 
                     <!-- Docs Header -->
-                    <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,8">
+                    <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="12,8">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource InfoBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text=" Documentation" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Padding="4" ToolTip="Close Documentation" Click="CloseDocs_Click">
+                            <Button Grid.Column="1" Style="{DynamicResource IconButtonStyle}" Padding="4" ToolTip="Close Documentation" Click="CloseDocs_Click">
                                 <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                             </Button>
                         </Grid>
@@ -538,7 +617,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <!-- Wiki Navigation Bar with Address Bar -->
-                                <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="4">
+                                <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="4">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -547,16 +626,16 @@
                                         </Grid.ColumnDefinitions>
                                         <!-- Navigation Buttons -->
                                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                            <Button x:Name="WikiBackButton" Style="{StaticResource IconButtonStyle}" Click="WikiBack_Click" ToolTip="Back" Padding="6,4">
+                                            <Button x:Name="WikiBackButton" Style="{DynamicResource IconButtonStyle}" Click="WikiBack_Click" ToolTip="Back" Padding="6,4">
                                                 <TextBlock Text="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                             </Button>
-                                            <Button x:Name="WikiForwardButton" Style="{StaticResource IconButtonStyle}" Click="WikiForward_Click" ToolTip="Forward" Padding="6,4">
+                                            <Button x:Name="WikiForwardButton" Style="{DynamicResource IconButtonStyle}" Click="WikiForward_Click" ToolTip="Forward" Padding="6,4">
                                                 <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                             </Button>
-                                            <Button Style="{StaticResource IconButtonStyle}" Click="WikiRefresh_Click" ToolTip="Refresh" Padding="6,4">
+                                            <Button Style="{DynamicResource IconButtonStyle}" Click="WikiRefresh_Click" ToolTip="Refresh" Padding="6,4">
                                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                             </Button>
-                                            <Button Style="{StaticResource IconButtonStyle}" Click="WikiHome_Click" ToolTip="Stationeers Wiki Home" Padding="6,4">
+                                            <Button Style="{DynamicResource IconButtonStyle}" Click="WikiHome_Click" ToolTip="Stationeers Wiki Home" Padding="6,4">
                                                 <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                             </Button>
                                         </StackPanel>
@@ -570,7 +649,7 @@
                                                  KeyDown="WikiAddressBar_KeyDown"
                                                  ToolTip="Enter URL and press Enter to navigate"/>
                                         <!-- Go Button -->
-                                        <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}" Click="WikiGo_Click" ToolTip="Go to URL" Padding="8,4">
+                                        <Button Grid.Column="2" Style="{DynamicResource IconButtonStyle}" Click="WikiGo_Click" ToolTip="Go to URL" Padding="8,4">
                                             <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
                                         </Button>
                                     </Grid>
@@ -590,8 +669,8 @@
 
         <!-- Snippets Popup Panel (floating over editor) -->
         <Border x:Name="SnippetsPopup" Grid.Row="2"
-                Background="{StaticResource SidebarBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
+                Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="4"
                 Width="280" Height="400"
@@ -604,17 +683,17 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="8,6" CornerRadius="4,4,0,0">
+                <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="8,6" CornerRadius="4,4,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8ED;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#xE8ED;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text=" Code Snippets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Padding="2" ToolTip="Close" Click="CloseSnippetsPanel_Click">
+                        <Button Grid.Column="1" Style="{DynamicResource IconButtonStyle}" Padding="2" ToolTip="Close" Click="CloseSnippetsPanel_Click">
                             <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
                         </Button>
                     </Grid>
@@ -628,8 +707,75 @@
 
         <!-- Note: Watch panel is now a floating window (WatchWindow.xaml) -->
 
+        <!-- Problems Panel (Collapsible) -->
+        <Border x:Name="ProblemsPanel" Grid.Row="3" Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto" MaxHeight="200"/>
+                </Grid.RowDefinitions>
+
+                <!-- Problems Header -->
+                <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="8,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text=" Problems" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <Border x:Name="ErrorCountBadge" Background="{DynamicResource ErrorBrush}"
+                                    CornerRadius="8" Padding="6,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="ErrorCountText" Text="0" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                            </Border>
+                            <Border x:Name="WarningCountBadge" Background="{DynamicResource WarningBrush}"
+                                    CornerRadius="8" Padding="6,2" Margin="4,0,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="WarningCountText" Text="0" FontSize="11" Foreground="#1E1E1E" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Grid.Column="1" Style="{DynamicResource IconButtonStyle}" Padding="4"
+                                ToolTip="Close Problems Panel" Click="CloseProblemsPanel_Click">
+                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="12"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Problems List -->
+                <ListView x:Name="ProblemsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                          SelectionChanged="ProblemsList_SelectionChanged">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="4,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="50"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets"
+                                           FontSize="14" Foreground="{Binding Color}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Location}" Foreground="{DynamicResource AccentBrush}"
+                                           FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="4,2"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Grid>
+        </Border>
+
         <!-- Bottom Action Bar -->
-        <Border Grid.Row="3" Background="{StaticResource SecondaryBackgroundBrush}" Padding="12,8" BorderBrush="{StaticResource SeparatorBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="4" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="12,8" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -637,24 +783,24 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Error/Warning Panel -->
-                <Border x:Name="ErrorPanel" Background="{StaticResource TertiaryBackgroundBrush}" CornerRadius="4" Padding="12,6" Visibility="Collapsed">
+                <Border x:Name="ErrorPanel" Background="{DynamicResource TertiaryBackgroundBrush}" CornerRadius="4" Padding="12,6" Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="ErrorIcon" Text="&#xEA39;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource ErrorBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ErrorIcon" Text="&#xEA39;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                         <TextBlock x:Name="ErrorText" Text="" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Action Buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Style="{StaticResource ModernButtonStyle}" Content="Load Example" Click="LoadExample_Click" Margin="0,0,8,0"/>
-                    <Button Style="{StaticResource ModernButtonStyle}" Content="Optimize" Click="Optimize_Click" Margin="0,0,8,0"/>
-                    <Button Style="{StaticResource PrimaryButtonStyle}" Content="Save &amp; Deploy" Click="SaveAndDeploy_Click"/>
+                    <Button Style="{DynamicResource ModernButtonStyle}" Content="Load Example" Click="LoadExample_Click" Margin="0,0,8,0"/>
+                    <Button Style="{DynamicResource ModernButtonStyle}" Content="Optimize" Click="Optimize_Click" Margin="0,0,8,0"/>
+                    <Button Style="{DynamicResource PrimaryButtonStyle}" Content="Save &amp; Deploy" Click="SaveAndDeploy_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Status Bar -->
-        <StatusBar Grid.Row="4">
+        <StatusBar Grid.Row="5">
             <StatusBarItem>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="StatusIcon" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center"/>

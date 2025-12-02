@@ -5,7 +5,7 @@
         Title="Example Programs"
         Height="700" Width="1000"
         WindowStartupLocation="CenterOwner"
-        Style="{StaticResource MainWindowStyle}">
+        Style="{DynamicResource MainWindowStyle}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -15,9 +15,9 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="16,12">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="20" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                 <TextBlock Text=" Example Programs" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
         </Border>
@@ -30,7 +30,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Example List -->
-            <Border Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
                 <ListBox x:Name="ExamplesList"
                          Background="Transparent"
                          BorderThickness="0"
@@ -38,8 +38,8 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="8,6">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}"/>
-                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -57,10 +57,10 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="{StaticResource HighlightBrush}"/>
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource HighlightBrush}"/>
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="{StaticResource SelectionBrush}"/>
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource SelectionBrush}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -78,16 +78,16 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource TertiaryBackgroundBrush}" Padding="12,8">
+                <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="12,8">
                     <TextBlock x:Name="PreviewTitle" Text="Select an example" FontWeight="SemiBold"/>
                 </Border>
 
                 <avalon:TextEditor x:Name="CodePreview"
                                   Grid.Row="1"
-                                  FontFamily="{StaticResource CodeFont}"
+                                  FontFamily="{DynamicResource CodeFont}"
                                   FontSize="13"
-                                  Background="{StaticResource EditorBackgroundBrush}"
-                                  Foreground="{StaticResource PrimaryTextBrush}"
+                                  Background="{DynamicResource EditorBackgroundBrush}"
+                                  Foreground="{DynamicResource PrimaryTextBrush}"
                                   ShowLineNumbers="True"
                                   IsReadOnly="True"
                                   VerticalScrollBarVisibility="Auto"
@@ -97,16 +97,16 @@
         </Grid>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource SecondaryBackgroundBrush}" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBackgroundBrush}" Padding="16,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel"
-                        Style="{StaticResource ModernButtonStyle}"
+                        Style="{DynamicResource ModernButtonStyle}"
                         Width="100"
                         Margin="0,0,8,0"
                         Click="Cancel_Click"/>
                 <Button x:Name="LoadButton"
                         Content="Load Example"
-                        Style="{StaticResource PrimaryButtonStyle}"
+                        Style="{DynamicResource PrimaryButtonStyle}"
                         Width="120"
                         IsEnabled="False"
                         Click="Load_Click"/>

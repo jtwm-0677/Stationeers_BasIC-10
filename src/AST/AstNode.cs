@@ -198,6 +198,14 @@ public class SleepStatement : StatementNode
 public class YieldStatement : StatementNode { }
 
 /// <summary>
+/// Represents a standalone expression used as a statement (e.g., ++i, --i, function calls).
+/// </summary>
+public class ExpressionStatement : StatementNode
+{
+    public ExpressionNode Expression { get; set; } = null!;
+}
+
+/// <summary>
 /// Represents a comment from the source code that should be preserved in output.
 /// </summary>
 public class CommentStatement : StatementNode
@@ -408,7 +416,11 @@ public enum UnaryOperator
 {
     Negate,
     Not,
-    BitNot
+    BitNot,
+    PreIncrement,   // ++x
+    PreDecrement,   // --x
+    PostIncrement,  // x++
+    PostDecrement   // x--
 }
 
 public enum BatchMode

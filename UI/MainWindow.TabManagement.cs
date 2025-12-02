@@ -34,6 +34,137 @@ public partial class MainWindow
         };
         _tabs.Add(initialTab);
         _currentTab = initialTab;
+
+        // Bind tab bar to tabs collection
+        TabBar.ItemsSource = _tabs;
+        UpdateTabBarSelection();
+    }
+
+    /// <summary>
+    /// Update visual selection state of tabs in the tab bar
+    /// </summary>
+    private void UpdateTabBarSelection()
+    {
+        foreach (var tab in _tabs)
+        {
+            tab.IsSelected = tab == _currentTab;
+        }
+    }
+
+    /// <summary>
+    /// Handle tab click to switch tabs
+    /// </summary>
+    private void Tab_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.DataContext is EditorTab tab)
+        {
+            SwitchToTab(tab);
+        }
+    }
+
+    /// <summary>
+    /// Handle middle-click to close tab
+    /// </summary>
+    private void Tab_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Middle &&
+            sender is FrameworkElement element &&
+            element.DataContext is EditorTab tab)
+        {
+            CloseTab(tab);
+        }
+    }
+
+    /// <summary>
+    /// Handle close button click on tab
+    /// </summary>
+    private void TabClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.DataContext is EditorTab tab)
+        {
+            CloseTab(tab);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Handle new tab button click
+    /// </summary>
+    private void NewTab_Click(object sender, RoutedEventArgs e)
+    {
+        CreateNewTab();
+    }
+
+    /// <summary>
+    /// Switch to a specific tab
+    /// </summary>
+    private void SwitchToTab(EditorTab tab)
+    {
+        if (_currentTab == tab) return;
+
+        // Save current tab content
+        SyncEditorToTab();
+
+        // Switch to new tab
+        _currentTab = tab;
+        SyncTabToEditor();
+        UpdateTabBarSelection();
+        BasicEditor.Focus();
+    }
+
+    /// <summary>
+    /// Close a specific tab
+    /// </summary>
+    private void CloseTab(EditorTab tab) => CloseTab(tab, promptToSave: true);
+
+    /// <summary>
+    /// Close a specific tab with option to skip save prompt (for API calls)
+    /// </summary>
+    private void CloseTab(EditorTab tab, bool promptToSave)
+    {
+        // Don't close the last tab
+        if (_tabs.Count <= 1)
+        {
+            // Just clear the tab instead
+            tab.Content = "";
+            tab.FilePath = null;
+            tab.IsModified = false;
+            SyncTabToEditor();
+            return;
+        }
+
+        // Check for unsaved changes (only if prompting is enabled)
+        if (promptToSave && tab.IsModified)
+        {
+            var result = MessageBox.Show(
+                $"Save changes to {tab.DisplayName.TrimEnd(' ', '*')}?",
+                "Unsaved Changes",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel) return;
+            if (result == MessageBoxResult.Yes)
+            {
+                // Switch to tab and save
+                SwitchToTab(tab);
+                SaveFile_Click(null!, null!);
+                if (_isModified) return; // Save was cancelled
+            }
+        }
+
+        // Find index and remove
+        var index = _tabs.IndexOf(tab);
+        _tabs.Remove(tab);
+
+        // Switch to adjacent tab
+        if (_currentTab == tab)
+        {
+            var newIndex = Math.Min(index, _tabs.Count - 1);
+            _currentTab = _tabs[newIndex];
+            SyncTabToEditor();
+        }
+
+        UpdateTabBarSelection();
     }
 
     /// <summary>
@@ -96,6 +227,7 @@ public partial class MainWindow
         _workingDirectory = null;
         SyncTabToEditor();
         UpdateWorkingDirectoryDisplay();
+        UpdateTabBarSelection();
         ClearOutput();
         BasicEditor.Focus();
     }
@@ -123,6 +255,7 @@ public partial class MainWindow
             {
                 _currentTab = existingTab;
                 SyncTabToEditor();
+                UpdateTabBarSelection();
                 return;
             }
 
@@ -142,6 +275,7 @@ public partial class MainWindow
 
             // Update editor
             SyncTabToEditor();
+            UpdateTabBarSelection();
             _settings.AddRecentFile(filePath);
             UpdateRecentFilesMenu();
             SetStatus("File opened", true);

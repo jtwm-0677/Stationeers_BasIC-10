@@ -11,6 +11,8 @@ public class GenerationResult
 {
     public string Code { get; set; } = "";
     public SourceMap SourceMap { get; set; } = new();
+    public List<string> Warnings { get; set; } = new();
+    public int LineCount { get; set; }
 }
 
 public class MipsGenerator
@@ -147,10 +149,30 @@ public class MipsGenerator
         var now = DateTime.Now;
         var signature = $"# Stationeers Basic-10 By Dog Tired Studios on {now:MM_dd_yyyy} at {now:HH:mm:ss}";
 
+        // Count actual IC10 instructions (excluding comments and blank lines)
+        var codeLines = code.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var instructionCount = codeLines.Count(line =>
+        {
+            var trimmed = line.Trim();
+            return !string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("#");
+        });
+
+        var warnings = new List<string>();
+        if (instructionCount > 128)
+        {
+            warnings.Add($"IC10 line limit exceeded: {instructionCount} instructions (max 128). Your script will not fit on an IC chip.");
+        }
+        else if (instructionCount > 115)
+        {
+            warnings.Add($"Approaching IC10 line limit: {instructionCount}/128 instructions.");
+        }
+
         return new GenerationResult
         {
             Code = code + Environment.NewLine + signature,
-            SourceMap = _sourceMap
+            SourceMap = _sourceMap,
+            Warnings = warnings,
+            LineCount = instructionCount
         };
     }
 
@@ -361,7 +383,17 @@ public class MipsGenerator
             case CommentStatement comment:
                 GenerateComment(comment);
                 break;
+            case ExpressionStatement exprStmt:
+                GenerateExpressionStatement(exprStmt);
+                break;
         }
+    }
+
+    private void GenerateExpressionStatement(ExpressionStatement stmt)
+    {
+        // Evaluate the expression for its side effects (e.g., ++i, --i)
+        // We don't need the result, but the code generation produces the side effect
+        GenerateExpression(stmt.Expression);
     }
 
     private void GenerateComment(CommentStatement comment)
@@ -1217,9 +1249,62 @@ public class MipsGenerator
     /// </summary>
     private void ProcessConst(ConstStatement constStmt)
     {
-        if (constStmt.Value is NumberLiteral num)
+        var value = TryEvaluateConstant(constStmt.Value);
+        if (value.HasValue)
         {
-            _defines[constStmt.ConstantName] = num.Value;
+            _defines[constStmt.ConstantName] = value.Value;
+        }
+    }
+
+    /// <summary>
+    /// Try to evaluate an expression as a compile-time constant.
+    /// Returns null if the expression cannot be evaluated at compile time.
+    /// </summary>
+    private double? TryEvaluateConstant(ExpressionNode expr)
+    {
+        switch (expr)
+        {
+            case NumberLiteral num:
+                return num.Value;
+
+            case UnaryExpression unary when unary.Operator == UnaryOperator.Negate:
+                var operand = TryEvaluateConstant(unary.Operand);
+                return operand.HasValue ? -operand.Value : null;
+
+            case UnaryExpression unary when unary.Operator == UnaryOperator.Not:
+                var notOperand = TryEvaluateConstant(unary.Operand);
+                return notOperand.HasValue ? (notOperand.Value == 0 ? 1 : 0) : null;
+
+            case UnaryExpression unary when unary.Operator == UnaryOperator.BitNot:
+                var bitNotOperand = TryEvaluateConstant(unary.Operand);
+                return bitNotOperand.HasValue ? ~(long)bitNotOperand.Value : null;
+
+            case BinaryExpression bin:
+                var left = TryEvaluateConstant(bin.Left);
+                var right = TryEvaluateConstant(bin.Right);
+                if (!left.HasValue || !right.HasValue) return null;
+                return bin.Operator switch
+                {
+                    BinaryOperator.Add => left.Value + right.Value,
+                    BinaryOperator.Subtract => left.Value - right.Value,
+                    BinaryOperator.Multiply => left.Value * right.Value,
+                    BinaryOperator.Divide when right.Value != 0 => left.Value / right.Value,
+                    BinaryOperator.Modulo when right.Value != 0 => left.Value % right.Value,
+                    BinaryOperator.Power => Math.Pow(left.Value, right.Value),
+                    BinaryOperator.BitAnd => (long)left.Value & (long)right.Value,
+                    BinaryOperator.BitOr => (long)left.Value | (long)right.Value,
+                    BinaryOperator.BitXor => (long)left.Value ^ (long)right.Value,
+                    BinaryOperator.ShiftLeft => (long)left.Value << (int)right.Value,
+                    BinaryOperator.ShiftRight => (long)left.Value >> (int)right.Value,
+                    _ => null
+                };
+
+            case VariableExpression varExpr when _defines.ContainsKey(varExpr.Name):
+                // Allow referencing other constants
+                return _defines[varExpr.Name];
+
+            default:
+                return null;
         }
     }
 
@@ -1797,6 +1882,13 @@ public class MipsGenerator
 
     private string GenerateUnaryExpression(UnaryExpression unary)
     {
+        // Handle increment/decrement specially - they modify the variable
+        if (unary.Operator is UnaryOperator.PreIncrement or UnaryOperator.PreDecrement
+            or UnaryOperator.PostIncrement or UnaryOperator.PostDecrement)
+        {
+            return GenerateIncrementDecrement(unary);
+        }
+
         var operandOp = GenerateExpression(unary.Operand);
         var resultReg = AllocateRegister();
 
@@ -1815,6 +1907,39 @@ public class MipsGenerator
 
         FreeIfTemp(operandOp);
         return resultReg;
+    }
+
+    private string GenerateIncrementDecrement(UnaryExpression unary)
+    {
+        // The operand must be a variable
+        if (unary.Operand is not VariableExpression varExpr)
+        {
+            throw new InvalidOperationException(
+                $"Increment/decrement operator can only be applied to variables at line {_currentSourceLine}");
+        }
+
+        var varReg = GetOrCreateVariable(varExpr.Name);
+        var delta = unary.Operator is UnaryOperator.PreIncrement or UnaryOperator.PostIncrement ? "1" : "-1";
+
+        switch (unary.Operator)
+        {
+            case UnaryOperator.PreIncrement:
+            case UnaryOperator.PreDecrement:
+                // Pre: increment first, then return the new value
+                Emit($"add {varReg} {varReg} {delta}");
+                return varReg;
+
+            case UnaryOperator.PostIncrement:
+            case UnaryOperator.PostDecrement:
+                // Post: save old value, increment, return old value
+                var tempReg = AllocateRegister();
+                Emit($"move {tempReg} {varReg}");
+                Emit($"add {varReg} {varReg} {delta}");
+                return tempReg;
+
+            default:
+                throw new InvalidOperationException($"Unknown increment/decrement operator: {unary.Operator}");
+        }
     }
 
     private string GenerateTernaryExpression(TernaryExpression ternary)
@@ -1838,7 +1963,7 @@ public class MipsGenerator
         var resultReg = AllocateRegister();
 
         // Extract batch mode from property name (e.g., "Pressure.Average" -> "Pressure", mode 0)
-        var (propertyName, batchMode) = ExtractBatchMode(read.PropertyName);
+        var (propertyName, batchMode, isCount) = ExtractBatchMode(read.PropertyName);
 
         // Check for advanced device reference (batch/named) - use inline hash values
         if (_deviceReferences.TryGetValue(read.DeviceName, out var devRef))
@@ -1846,22 +1971,45 @@ public class MipsGenerator
             switch (devRef.Type)
             {
                 case DeviceReferenceType.Device:
-                    // Batch read: lb result HASH Property Mode - use inline hash
                     var deviceHash = _deviceHashes[read.DeviceName];
-                    Emit($"lb {resultReg} {deviceHash} {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        // Device count: ldc result HASH
+                        Emit($"ldc {resultReg} {deviceHash}");
+                    }
+                    else
+                    {
+                        // Batch read: lb result HASH Property Mode - use inline hash
+                        Emit($"lb {resultReg} {deviceHash} {propertyName} {batchMode}");
+                    }
                     return resultReg;
 
                 case DeviceReferenceType.DeviceNamed:
-                    // Named device read: lbn result HASH NAMEHASH Property Mode - use inline hashes
                     var devHash = _deviceHashes[read.DeviceName];
                     var nameHash = _deviceNameHashes[read.DeviceName];
-                    Emit($"lbn {resultReg} {devHash} {nameHash} {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        // Named device count: ldcn result HASH NAMEHASH
+                        Emit($"ldcn {resultReg} {devHash} {nameHash}");
+                    }
+                    else
+                    {
+                        // Named device read: lbn result HASH NAMEHASH Property Mode - use inline hashes
+                        Emit($"lbn {resultReg} {devHash} {nameHash} {propertyName} {batchMode}");
+                    }
                     return resultReg;
 
                 case DeviceReferenceType.ReferenceId:
                     // Reference ID read - use inline value
                     var refId = _deviceHashes[read.DeviceName];
-                    Emit($"lbn {resultReg} {refId} 0 {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        Emit($"ldcn {resultReg} {refId} 0");
+                    }
+                    else
+                    {
+                        Emit($"lbn {resultReg} {refId} 0 {propertyName} {batchMode}");
+                    }
                     return resultReg;
 
                 case DeviceReferenceType.Pin:
@@ -1902,7 +2050,7 @@ public class MipsGenerator
     private void GenerateDeviceReadIntoRegister(DeviceReadExpression read, string targetReg)
     {
         // Extract batch mode from property name (e.g., "Pressure.Average" -> "Pressure", mode 0)
-        var (propertyName, batchMode) = ExtractBatchMode(read.PropertyName);
+        var (propertyName, batchMode, isCount) = ExtractBatchMode(read.PropertyName);
 
         // Check for advanced device reference (batch/named) - use inline hash values
         if (_deviceReferences.TryGetValue(read.DeviceName, out var devRef))
@@ -1911,18 +2059,39 @@ public class MipsGenerator
             {
                 case DeviceReferenceType.Device:
                     var deviceHash = _deviceHashes[read.DeviceName];
-                    Emit($"lb {targetReg} {deviceHash} {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        Emit($"ldc {targetReg} {deviceHash}");
+                    }
+                    else
+                    {
+                        Emit($"lb {targetReg} {deviceHash} {propertyName} {batchMode}");
+                    }
                     return;
 
                 case DeviceReferenceType.DeviceNamed:
                     var devHash = _deviceHashes[read.DeviceName];
                     var nameHash = _deviceNameHashes[read.DeviceName];
-                    Emit($"lbn {targetReg} {devHash} {nameHash} {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        Emit($"ldcn {targetReg} {devHash} {nameHash}");
+                    }
+                    else
+                    {
+                        Emit($"lbn {targetReg} {devHash} {nameHash} {propertyName} {batchMode}");
+                    }
                     return;
 
                 case DeviceReferenceType.ReferenceId:
                     var refId = _deviceHashes[read.DeviceName];
-                    Emit($"lbn {targetReg} {refId} 0 {propertyName} {batchMode}");
+                    if (isCount)
+                    {
+                        Emit($"ldcn {targetReg} {refId} 0");
+                    }
+                    else
+                    {
+                        Emit($"lbn {targetReg} {refId} 0 {propertyName} {batchMode}");
+                    }
                     return;
 
                 case DeviceReferenceType.Pin:
@@ -1985,23 +2154,27 @@ public class MipsGenerator
     /// Returns (basePropertyName, batchModeNumber).
     /// Batch modes: Average=0, Sum=1, Minimum=2, Maximum=3
     /// </summary>
-    private static (string propertyName, int batchMode) ExtractBatchMode(string fullPropertyName)
+    private static (string propertyName, int batchMode, bool isCount) ExtractBatchMode(string fullPropertyName)
     {
+        // Check for Count first (uses ldc instruction, not lb batch mode)
+        if (fullPropertyName.EndsWith(".Count", StringComparison.OrdinalIgnoreCase))
+            return (fullPropertyName[..^6], 0, true);
+
         if (fullPropertyName.EndsWith(".Average", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^8], 0);
+            return (fullPropertyName[..^8], 0, false);
         if (fullPropertyName.EndsWith(".Sum", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^4], 1);
+            return (fullPropertyName[..^4], 1, false);
         if (fullPropertyName.EndsWith(".Minimum", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^8], 2);
+            return (fullPropertyName[..^8], 2, false);
         if (fullPropertyName.EndsWith(".Min", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^4], 2);
+            return (fullPropertyName[..^4], 2, false);
         if (fullPropertyName.EndsWith(".Maximum", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^8], 3);
+            return (fullPropertyName[..^8], 3, false);
         if (fullPropertyName.EndsWith(".Max", StringComparison.OrdinalIgnoreCase))
-            return (fullPropertyName[..^4], 3);
+            return (fullPropertyName[..^4], 3, false);
 
         // No batch mode suffix - default to Average (0)
-        return (fullPropertyName, 0);
+        return (fullPropertyName, 0, false);
     }
 
     private string GenerateDeviceSlotRead(DeviceSlotReadExpression read)
