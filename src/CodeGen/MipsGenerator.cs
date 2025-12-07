@@ -216,7 +216,11 @@ public class MipsGenerator
             else
             {
                 outputLines.Add(line);
-                instructionNumber++;
+                // Don't count comment lines - IC10 ignores them for jump targets
+                if (!trimmed.StartsWith("#"))
+                {
+                    instructionNumber++;
+                }
             }
         }
 
