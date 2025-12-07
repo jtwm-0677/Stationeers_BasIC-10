@@ -55,7 +55,7 @@ A professional Windows IDE that compiles BASIC programming language code into op
 - [.NET 8.0 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (or use self-contained build)
 
 ### Download
-Download the latest release from the [Releases](../../releases) page.
+Download the latest release from the [Releases](https://github.com/jtwm-0677/Basic-10-Download/releases) page.
 
 ### Building from Source
 
