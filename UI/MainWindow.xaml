@@ -139,6 +139,7 @@
                 <MenuItem Header="Show _Watch Window" x:Name="ShowWatchMenu" IsCheckable="True" Click="ToggleWatch_Click" InputGestureText="F8"/>
                 <MenuItem Header="Show Variable _Inspector" x:Name="ShowVariableInspectorMenu" IsCheckable="True" Click="ToggleVariableInspector_Click" InputGestureText="F9"/>
                 <MenuItem Header="Show _Problems Panel" x:Name="ShowProblemsMenu" IsCheckable="True" Click="ToggleProblems_Click" InputGestureText="Ctrl+Shift+M"/>
+                <MenuItem Header="Show _Widget Dashboard" x:Name="ShowDashboardMenu" IsCheckable="True" Click="ToggleDashboard_Click" InputGestureText="Ctrl+F10"/>
                 <Separator/>
                 <MenuItem Header="Show _Line Numbers" x:Name="ShowLineNumbersMenu" IsCheckable="True" IsChecked="True" Click="ToggleLineNumbers_Click"/>
                 <MenuItem Header="Word _Wrap" x:Name="WordWrapMenu" IsCheckable="True" Click="ToggleWordWrap_Click"/>

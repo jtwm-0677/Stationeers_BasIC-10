@@ -1,3 +1,5 @@
+using BasicToMips.UI.Simulator;
+
 namespace BasicToMips.Simulator;
 
 public class IC10Simulator
@@ -11,6 +13,11 @@ public class IC10Simulator
     public SimDevice[] Devices { get; } = new SimDevice[DeviceCount];
     public double[] Stack { get; } = new double[StackSize];
     public int StackPointer { get; private set; } = 0;
+
+    /// <summary>
+    /// Registry for named device aliases (DEVICE statements)
+    /// </summary>
+    public DeviceAliasRegistry DeviceRegistry { get; } = new DeviceAliasRegistry();
 
     public int ProgramCounter { get; private set; } = 0;
     public int InstructionCount { get; private set; } = 0;
@@ -66,6 +73,9 @@ public class IC10Simulator
             Devices[i] = new SimDevice { Name = $"d{i}" };
         }
 
+        // Clear device registry
+        DeviceRegistry.Clear();
+
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -75,6 +85,9 @@ public class IC10Simulator
         _lines = code.Split('\n', StringSplitOptions.None);
         _labels.Clear();
         _defines.Clear();
+
+        // Parse and register DEVICE statements from BASIC code
+        DeviceRegistry.ParseAndRegisterDevices(code);
 
         // First pass: collect labels and defines
         for (int i = 0; i < _lines.Length; i++)
@@ -135,7 +148,8 @@ public class IC10Simulator
             line.StartsWith("#") ||
             line.EndsWith(":") ||
             line.StartsWith("define ", StringComparison.OrdinalIgnoreCase) ||
-            line.StartsWith("alias ", StringComparison.OrdinalIgnoreCase))
+            line.StartsWith("alias ", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("device ", StringComparison.OrdinalIgnoreCase))
         {
             ProgramCounter++;
             StateChanged?.Invoke(this, EventArgs.Empty);
@@ -201,6 +215,15 @@ public class IC10Simulator
     {
         IsRunning = false;
         IsHalted = true;
+    }
+
+    /// <summary>
+    /// Resume execution after a yield.
+    /// </summary>
+    public void Resume()
+    {
+        IsYielding = false;
+        IsPaused = false;
     }
 
     /// <summary>
@@ -387,6 +410,8 @@ public class IC10Simulator
             case "s": StoreDevice(parts); break;
             case "ls": LoadSlot(parts); break;
             case "ss": StoreSlot(parts); break;
+            case "lb": LoadBatch(parts); break;
+            case "sb": StoreBatch(parts); break;
 
             // Flow control
             case "yield": IsYielding = true; ProgramCounter++; break;
@@ -633,29 +658,51 @@ public class IC10Simulator
     private void LoadDevice(string[] parts)
     {
         var dest = GetRegisterIndex(parts[1]);
-        var deviceIndex = GetDeviceIndex(parts[2]);
+        var deviceRef = parts[2];
         var property = parts[3];
 
-        if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+        // Check if it's a named device (from registry) first
+        var virtualDevice = DeviceRegistry.GetDevice(deviceRef);
+        if (virtualDevice != null)
         {
-            Registers[dest] = Devices[deviceIndex].GetProperty(property);
+            Registers[dest] = virtualDevice.GetProperty(property);
         }
         else
         {
-            Registers[dest] = 0;
+            // Fall back to traditional d0-d5 devices
+            var deviceIndex = GetDeviceIndex(deviceRef);
+            if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+            {
+                Registers[dest] = Devices[deviceIndex].GetProperty(property);
+            }
+            else
+            {
+                Registers[dest] = 0;
+            }
         }
         ProgramCounter++;
     }
 
     private void StoreDevice(string[] parts)
     {
-        var deviceIndex = GetDeviceIndex(parts[1]);
+        var deviceRef = parts[1];
         var property = parts[2];
         var value = GetValue(parts[3]);
 
-        if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+        // Check if it's a named device (from registry) first
+        var virtualDevice = DeviceRegistry.GetDevice(deviceRef);
+        if (virtualDevice != null)
         {
-            Devices[deviceIndex].SetProperty(property, value);
+            virtualDevice.SetProperty(property, value);
+        }
+        else
+        {
+            // Fall back to traditional d0-d5 devices
+            var deviceIndex = GetDeviceIndex(deviceRef);
+            if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+            {
+                Devices[deviceIndex].SetProperty(property, value);
+            }
         }
         ProgramCounter++;
     }
@@ -663,32 +710,86 @@ public class IC10Simulator
     private void LoadSlot(string[] parts)
     {
         var dest = GetRegisterIndex(parts[1]);
-        var deviceIndex = GetDeviceIndex(parts[2]);
+        var deviceRef = parts[2];
         var slotIndex = (int)GetValue(parts[3]);
         var property = parts[4];
 
-        if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+        // Check if it's a named device (from registry) first
+        var virtualDevice = DeviceRegistry.GetDevice(deviceRef);
+        if (virtualDevice != null)
         {
-            Registers[dest] = Devices[deviceIndex].GetSlotProperty(slotIndex, property);
+            Registers[dest] = virtualDevice.GetSlotProperty(slotIndex, property);
         }
         else
         {
-            Registers[dest] = 0;
+            // Fall back to traditional d0-d5 devices
+            var deviceIndex = GetDeviceIndex(deviceRef);
+            if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+            {
+                Registers[dest] = Devices[deviceIndex].GetSlotProperty(slotIndex, property);
+            }
+            else
+            {
+                Registers[dest] = 0;
+            }
         }
         ProgramCounter++;
     }
 
     private void StoreSlot(string[] parts)
     {
-        var deviceIndex = GetDeviceIndex(parts[1]);
+        var deviceRef = parts[1];
         var slotIndex = (int)GetValue(parts[2]);
         var property = parts[3];
         var value = GetValue(parts[4]);
 
-        if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+        // Check if it's a named device (from registry) first
+        var virtualDevice = DeviceRegistry.GetDevice(deviceRef);
+        if (virtualDevice != null)
         {
-            Devices[deviceIndex].SetSlotProperty(slotIndex, property, value);
+            virtualDevice.SetSlotProperty(slotIndex, property, value);
         }
+        else
+        {
+            // Fall back to traditional d0-d5 devices
+            var deviceIndex = GetDeviceIndex(deviceRef);
+            if (deviceIndex >= 0 && deviceIndex < DeviceCount)
+            {
+                Devices[deviceIndex].SetSlotProperty(slotIndex, property, value);
+            }
+        }
+        ProgramCounter++;
+    }
+
+    /// <summary>
+    /// Load Batch (lb) - reads from all devices matching a prefab hash
+    /// Format: lb result HASH Property Mode
+    /// </summary>
+    private void LoadBatch(string[] parts)
+    {
+        var dest = GetRegisterIndex(parts[1]);
+        var hash = (int)GetValue(parts[2]);
+        var property = parts[3];
+        var mode = parts.Length > 4 ? (BatchMode)(int)GetValue(parts[4]) : BatchMode.Average;
+
+        // Use the device pool for batch operations
+        var value = DeviceRegistry.DevicePool.BatchRead(hash, property, mode);
+        Registers[dest] = value;
+        ProgramCounter++;
+    }
+
+    /// <summary>
+    /// Store Batch (sb) - writes to all devices matching a prefab hash
+    /// Format: sb HASH Property value
+    /// </summary>
+    private void StoreBatch(string[] parts)
+    {
+        var hash = (int)GetValue(parts[1]);
+        var property = parts[2];
+        var value = GetValue(parts[3]);
+
+        // Use the device pool for batch operations
+        DeviceRegistry.DevicePool.BatchWrite(hash, property, value);
         ProgramCounter++;
     }
 

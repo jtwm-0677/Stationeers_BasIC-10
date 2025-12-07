@@ -25,6 +25,7 @@ public class MipsGenerator
     private readonly Dictionary<string, string> _aliases = new();
     private readonly Dictionary<string, DeviceReference> _deviceReferences = new();
     private readonly Dictionary<string, int> _dynamicAliases = new(); // Track dynamic alias arrays (name -> device hash)
+    private readonly Dictionary<string, int> _namedDevices = new(); // Track named device declarations (name -> prefab hash)
     private readonly Dictionary<string, double> _defines = new();
     private readonly HashSet<string> _declaredVariables = new(); // Track explicitly declared variables
     private CompilerOptions _options = new();
@@ -187,16 +188,6 @@ public class MipsGenerator
                         .Where(l => !string.IsNullOrWhiteSpace(l))
                         .ToList();
 
-        // Internal label prefixes that should be converted to numeric offsets
-        var internalPrefixes = new[] { "else_", "endif_", "while_", "wend_", "for_", "next_",
-                                        "do_", "loop_", "case_", "endselect_", "line_", "_end" };
-
-        bool IsInternalLabel(string labelName)
-        {
-            return internalPrefixes.Any(p => labelName.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-                   || labelName == "_end";
-        }
-
         // First pass: find all labels and their target instruction numbers
         var labelToLine = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var outputLines = new List<string>();
@@ -205,17 +196,22 @@ public class MipsGenerator
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
+
+            // Check if this is a comment line - IC10 ignores these, they don't consume line numbers
+            if (trimmed.StartsWith("#"))
+            {
+                outputLines.Add(line);
+                // Don't increment instructionNumber - comments don't count as executable lines
+                continue;
+            }
+
             if (trimmed.EndsWith(":") && !trimmed.Contains(" "))
             {
                 var labelName = trimmed.TrimEnd(':');
                 labelToLine[labelName] = instructionNumber;
-
-                // Keep user-defined labels, remove internal ones
-                if (!IsInternalLabel(labelName))
-                {
-                    outputLines.Add(line);
-                    instructionNumber++; // User labels count as lines in IC10 output
-                }
+                // Don't add ANY label definitions to output - IC10 doesn't handle them well
+                // All jump references are converted to numeric addresses, so labels aren't needed
+                // Don't increment instructionNumber - labels point to the NEXT instruction
             }
             else
             {
@@ -224,30 +220,28 @@ public class MipsGenerator
             }
         }
 
-        // Second pass: replace internal label references with numeric offsets
+        // Second pass: replace ALL label references with numeric offsets
+        // IC10 requires numeric addresses for jump targets, not label names
         var result = new StringBuilder();
         foreach (var line in outputLines)
         {
             var modifiedLine = line;
 
-            // Only replace internal labels with offsets
+            // Replace ALL label references (both internal and user labels) with numeric offsets
             foreach (var kvp in labelToLine)
             {
                 var labelName = kvp.Key;
                 var targetLine = kvp.Value;
 
-                if (IsInternalLabel(labelName))
+                // Replace label references with numeric offset
+                // Use word boundary matching to avoid partial replacements
+                if (modifiedLine.EndsWith($" {labelName}"))
                 {
-                    // Replace label references with numeric offset
-                    // Use word boundary matching to avoid partial replacements
-                    if (modifiedLine.EndsWith($" {labelName}"))
-                    {
-                        modifiedLine = modifiedLine.Substring(0, modifiedLine.Length - labelName.Length) + targetLine.ToString();
-                    }
-                    else if (modifiedLine.Contains($" {labelName} "))
-                    {
-                        modifiedLine = modifiedLine.Replace($" {labelName} ", $" {targetLine} ");
-                    }
+                    modifiedLine = modifiedLine.Substring(0, modifiedLine.Length - labelName.Length) + targetLine.ToString();
+                }
+                else if (modifiedLine.Contains($" {labelName} "))
+                {
+                    modifiedLine = modifiedLine.Replace($" {labelName} ", $" {targetLine} ");
                 }
             }
 
@@ -364,6 +358,9 @@ public class MipsGenerator
                 {
                     GenerateDynamicAlias(aliasStmt);
                 }
+                break;
+            case DeviceStatement deviceStmt:
+                GenerateDeviceStatement(deviceStmt);
                 break;
             case DefineStatement:
                 // Already handled in first pass
@@ -1503,6 +1500,26 @@ public class MipsGenerator
             {
                 _dynamicAliases[alias.AliasName] = deviceHash;
             }
+        }
+    }
+
+    /// <summary>
+    /// Generate code for DEVICE statement: DEVICE aliasName "PrefabName"
+    /// This creates a named device reference that stores the device hash for later use.
+    /// </summary>
+    private void GenerateDeviceStatement(DeviceStatement stmt)
+    {
+        // Calculate the hash of the prefab name at compile time
+        int prefabHash = BasicToMips.Data.DeviceDatabase.GetDeviceHash(stmt.PrefabName);
+
+        // Store the device hash in a register/variable for later use in property reads/writes
+        var reg = GetOrCreateVariable(stmt.AliasName);
+        Emit($"move {reg} {prefabHash}  # DEVICE {stmt.AliasName} \"{stmt.PrefabName}\"");
+
+        // Track this as a named device for batch operations
+        if (!_namedDevices.ContainsKey(stmt.AliasName))
+        {
+            _namedDevices[stmt.AliasName] = prefabHash;
         }
     }
 

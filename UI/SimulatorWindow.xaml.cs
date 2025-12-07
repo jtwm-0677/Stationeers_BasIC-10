@@ -16,6 +16,9 @@ public partial class SimulatorWindow : Window
     private readonly ObservableCollection<RegisterItem> _registers = new();
     private readonly ObservableCollection<DeviceItem> _devices = new();
     private CurrentLineHighlighter? _lineHighlighter;
+    private bool _isLooping;
+    private bool _isInYieldPause;  // Track yield pause state explicitly
+    private int _loopCount;
 
     public SimulatorWindow(string ic10Code)
     {
@@ -61,14 +64,70 @@ public partial class SimulatorWindow : Window
 
         for (int i = 0; i < stepsPerTick; i++)
         {
-            if (!_simulator.Step() || _simulator.IsPaused || _simulator.IsYielding)
+            if (!_simulator.Step() || _simulator.IsPaused)
             {
                 _runTimer.Stop();
+                if (_isLooping && _simulator.IsHalted)
+                {
+                    StopLooping();
+                }
+                break;
+            }
+
+            if (_simulator.IsYielding)
+            {
+                _runTimer.Stop();
+
+                if (_isLooping)
+                {
+                    // In loop mode, schedule resume after yield pause using async delay
+                    _loopCount++;
+                    ScheduleLoopResume();
+                }
                 break;
             }
         }
 
         UpdateUI();
+    }
+
+    private async void ScheduleLoopResume()
+    {
+        // Calculate delay based on speed slider
+        int delayMs = (int)GetLoopTickInterval();
+
+        // Update UI to show yield pause state
+        _isInYieldPause = true;
+        UpdateUI();
+
+        // Wait for the delay (ConfigureAwait(true) ensures we return to UI thread)
+        await Task.Delay(delayMs).ConfigureAwait(true);
+
+        // Clear yield pause state
+        _isInYieldPause = false;
+
+        // Check if we're still looping after the delay
+        if (!_isLooping)
+        {
+            UpdateUI();
+            return;
+        }
+
+        // Resume execution after yield
+        _simulator.Resume();
+
+        // Continue running
+        _runTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(10, 110 - SpeedSlider.Value));
+        _runTimer.Start();
+
+        UpdateUI();
+    }
+
+    private double GetLoopTickInterval()
+    {
+        // Slider value 1-100 maps to 2000ms-100ms tick interval
+        // Lower slider = slower (longer pause), Higher slider = faster (shorter pause)
+        return 2100 - (SpeedSlider.Value * 20);
     }
 
     private void Simulator_StateChanged(object? sender, EventArgs e)
@@ -98,6 +157,7 @@ public partial class SimulatorWindow : Window
 
     private void Stop_Click(object sender, RoutedEventArgs e)
     {
+        StopLooping();
         _runTimer.Stop();
         _simulator.Stop();
         UpdateUI();
@@ -119,9 +179,55 @@ public partial class SimulatorWindow : Window
 
     private void Reset_Click(object sender, RoutedEventArgs e)
     {
+        StopLooping();
         _runTimer.Stop();
         _simulator.Reset();
         _simulator.LoadProgram(CodeEditor.Text);
+        _loopCount = 0;
+        UpdateUI();
+    }
+
+    private void Loop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isLooping)
+        {
+            StopLooping();
+        }
+        else
+        {
+            StartLooping();
+        }
+    }
+
+    private void StartLooping()
+    {
+        _isLooping = true;
+        _loopCount = 0;
+
+        if (_simulator.IsHalted)
+        {
+            _simulator.Reset();
+            _simulator.LoadProgram(CodeEditor.Text);
+        }
+
+        // If yielding, resume first
+        if (_simulator.IsYielding)
+        {
+            _simulator.Resume();
+        }
+
+        // Start execution
+        _runTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(10, 110 - SpeedSlider.Value));
+        _runTimer.Start();
+
+        UpdateUI();
+    }
+
+    private void StopLooping()
+    {
+        _isLooping = false;
+        _isInYieldPause = false;
+        _runTimer.Stop();
         UpdateUI();
     }
 
@@ -132,6 +238,16 @@ public partial class SimulatorWindow : Window
         {
             StatusText.Text = string.IsNullOrEmpty(_simulator.ErrorMessage) ? "Halted" : "Error";
             StatusText.Foreground = string.IsNullOrEmpty(_simulator.ErrorMessage) ? Brushes.White : Brushes.LightCoral;
+        }
+        else if (_isLooping && _isInYieldPause)
+        {
+            StatusText.Text = "Looping (yield pause)";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(197, 134, 192)); // Purple
+        }
+        else if (_isLooping)
+        {
+            StatusText.Text = "Looping";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(197, 134, 192)); // Purple
         }
         else if (_simulator.IsYielding)
         {
@@ -148,6 +264,12 @@ public partial class SimulatorWindow : Window
             StatusText.Text = "Paused";
             StatusText.Foreground = Brushes.White;
         }
+
+        // Update loop button and counter
+        LoopButtonText.Text = _isLooping ? " Stop Loop" : " Loop";
+        LoopCountLabel.Visibility = _isLooping || _loopCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        LoopCountText.Visibility = _isLooping || _loopCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        LoopCountText.Text = _loopCount.ToString();
 
         ErrorText.Text = _simulator.ErrorMessage ?? "";
 
@@ -174,6 +296,29 @@ public partial class SimulatorWindow : Window
             _devices[i].On = dev.GetProperty("On");
             _devices[i].Setting = dev.GetProperty("Setting");
             _devices[i].Temperature = dev.GetProperty("Temperature");
+        }
+
+        // Add virtual devices from registry (if not already in list)
+        int deviceIndex = IC10Simulator.DeviceCount;
+        var virtualDevices = _simulator.DeviceRegistry.GetAllDevices();
+
+        // Remove old virtual devices and add new ones
+        while (_devices.Count > IC10Simulator.DeviceCount)
+        {
+            _devices.RemoveAt(_devices.Count - 1);
+        }
+
+        foreach (var kvp in virtualDevices)
+        {
+            var virtualDev = kvp.Value;
+            _devices.Add(new DeviceItem
+            {
+                Name = virtualDev.Alias,
+                Alias = virtualDev.PrefabName,
+                On = virtualDev.GetProperty("On"),
+                Setting = virtualDev.GetProperty("Setting"),
+                Temperature = virtualDev.GetProperty("Temperature")
+            });
         }
 
         DevicesGrid.Items.Refresh();
@@ -227,18 +372,33 @@ public partial class SimulatorWindow : Window
         if (e.EditingElement is TextBox textBox)
         {
             var item = (DeviceItem)e.Row.Item;
+            var header = e.Column.Header.ToString();
+
+            if (!double.TryParse(textBox.Text, out double value))
+                return;
+
+            // Check if it's a traditional d0-d5 device
             if (item.Name.StartsWith("d") && int.TryParse(item.Name.Substring(1), out int devIndex))
             {
                 var device = _simulator.Devices[devIndex];
-                var header = e.Column.Header.ToString();
-
-                if (double.TryParse(textBox.Text, out double value))
+                switch (header)
+                {
+                    case "On": device.SetProperty("On", value); break;
+                    case "Setting": device.SetProperty("Setting", value); break;
+                    case "Temp": device.SetProperty("Temperature", value); break;
+                }
+            }
+            else
+            {
+                // It's a virtual device from the registry
+                var virtualDevice = _simulator.DeviceRegistry.GetDevice(item.Name);
+                if (virtualDevice != null)
                 {
                     switch (header)
                     {
-                        case "On": device.SetProperty("On", value); break;
-                        case "Setting": device.SetProperty("Setting", value); break;
-                        case "Temp": device.SetProperty("Temperature", value); break;
+                        case "On": virtualDevice.SetProperty("On", value); break;
+                        case "Setting": virtualDevice.SetProperty("Setting", value); break;
+                        case "Temp": virtualDevice.SetProperty("Temperature", value); break;
                     }
                 }
             }
@@ -247,6 +407,8 @@ public partial class SimulatorWindow : Window
 
     private void Window_Closed(object sender, EventArgs e)
     {
+        _isLooping = false;
+        _isInYieldPause = false;
         _runTimer.Stop();
     }
 

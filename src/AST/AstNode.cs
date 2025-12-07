@@ -223,6 +223,24 @@ public class AliasStatement : StatementNode
 }
 
 /// <summary>
+/// Named device declaration: DEVICE aliasName "PrefabName"
+/// This is shorthand for defining a device that can be referenced by prefab name.
+/// Used to bypass the 6-pin limit by referencing devices by their type/name.
+/// </summary>
+public class DeviceStatement : StatementNode
+{
+    /// <summary>
+    /// The alias name to use for the device in code
+    /// </summary>
+    public string AliasName { get; set; } = "";
+
+    /// <summary>
+    /// The Stationeers prefab/device type name (e.g., "StructureSolarPanel")
+    /// </summary>
+    public string PrefabName { get; set; } = "";
+}
+
+/// <summary>
 /// Represents advanced device reference types:
 /// - IC.Pin[n] - Direct pin reference (same as d0-d5)
 /// - IC.Device[hash] - Batch reference by device type hash

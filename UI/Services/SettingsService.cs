@@ -2,6 +2,9 @@ using System.IO;
 using System.Text.Json;
 using BasicToMips.Editor.Highlighting;
 using BasicToMips.Shared;
+using BasicToMips.UI.VisualScripting;
+using BasicToMips.UI.VisualScripting.Project;
+using BasicToMips.UI.VisualScripting.Animations;
 
 namespace BasicToMips.UI.Services;
 
@@ -40,6 +43,23 @@ public class SettingsService
     // Script metadata for instruction.xml
     public string ScriptAuthor { get; set; } = "";
     public string ScriptDescription { get; set; } = "";
+
+    // Dashboard window settings
+    public bool ShowDashboard { get; set; } = false;
+
+    // Visual Scripting Experience Mode
+    public ExperienceLevel ExperienceMode { get; set; } = ExperienceLevel.Beginner;
+    public ExperienceModeSettings? CustomModeSettings { get; set; } = null;
+
+    // Recent Visual Script Projects
+    public List<RecentProjectData> RecentVisualProjects { get; set; } = new();
+
+    // Visual Script Auto-save settings
+    public bool VisualScriptAutoSaveEnabled { get; set; } = true;
+    public int VisualScriptAutoSaveIntervalMinutes { get; set; } = 5;
+
+    // Visual Script Animation Settings
+    public AnimationSettings? VisualScriptAnimationSettings { get; set; } = null;
 
     public SettingsService()
     {
@@ -87,6 +107,19 @@ public class SettingsService
                     // Script metadata
                     ScriptAuthor = settings.ScriptAuthor ?? "";
                     ScriptDescription = settings.ScriptDescription ?? "";
+                    // Dashboard
+                    ShowDashboard = settings.ShowDashboard;
+                    // Experience Mode
+                    ExperienceMode = settings.ExperienceMode;
+                    CustomModeSettings = settings.CustomModeSettings;
+                    // Recent Visual Projects
+                    RecentVisualProjects = settings.RecentVisualProjects ?? new List<RecentProjectData>();
+                    // Visual Script Auto-save
+                    VisualScriptAutoSaveEnabled = settings.VisualScriptAutoSaveEnabled;
+                    VisualScriptAutoSaveIntervalMinutes = settings.VisualScriptAutoSaveIntervalMinutes > 0
+                        ? settings.VisualScriptAutoSaveIntervalMinutes : 5;
+                    // Animation Settings
+                    VisualScriptAnimationSettings = settings.VisualScriptAnimationSettings ?? new AnimationSettings();
                 }
             }
         }
@@ -129,7 +162,19 @@ public class SettingsService
                 ApiServerPort = ApiServerPort,
                 // Script metadata
                 ScriptAuthor = ScriptAuthor,
-                ScriptDescription = ScriptDescription
+                ScriptDescription = ScriptDescription,
+                // Dashboard
+                ShowDashboard = ShowDashboard,
+                // Experience Mode
+                ExperienceMode = ExperienceMode,
+                CustomModeSettings = CustomModeSettings,
+                // Recent Visual Projects
+                RecentVisualProjects = RecentVisualProjects,
+                // Visual Script Auto-save
+                VisualScriptAutoSaveEnabled = VisualScriptAutoSaveEnabled,
+                VisualScriptAutoSaveIntervalMinutes = VisualScriptAutoSaveIntervalMinutes,
+                // Animation Settings
+                VisualScriptAnimationSettings = VisualScriptAnimationSettings
             };
 
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -182,5 +227,17 @@ public class SettingsService
         // Script metadata
         public string? ScriptAuthor { get; set; }
         public string? ScriptDescription { get; set; }
+        // Dashboard
+        public bool ShowDashboard { get; set; } = false;
+        // Experience Mode
+        public ExperienceLevel ExperienceMode { get; set; } = ExperienceLevel.Beginner;
+        public ExperienceModeSettings? CustomModeSettings { get; set; } = null;
+        // Recent Visual Projects
+        public List<RecentProjectData>? RecentVisualProjects { get; set; } = null;
+        // Visual Script Auto-save
+        public bool VisualScriptAutoSaveEnabled { get; set; } = true;
+        public int VisualScriptAutoSaveIntervalMinutes { get; set; } = 5;
+        // Animation Settings
+        public AnimationSettings? VisualScriptAnimationSettings { get; set; } = null;
     }
 }

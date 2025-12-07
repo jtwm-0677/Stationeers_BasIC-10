@@ -1,0 +1,221 @@
+# Visual Scripting QA Final Report
+
+**Test Date:** 2025-12-04
+**Tester:** Claude Code (QA Instance)
+**Version:** v3.0.6+
+
+---
+
+## Executive Summary
+
+Visual Scripting is now fully functional via MCP. All three test scripts compile successfully with 0 errors. Key node properties (ReadProperty.PropertyName, WriteProperty.PropertyName, Compare.Operator, Increment.VariableName) are now configurable.
+
+---
+
+## Test Scripts Created
+
+### Script 1: Temperature Controller
+**Purpose:** Test conditional logic with device comparison
+
+**BASIC Output:**
+```basic
+DEVICE sensor "StructureGasSensor"
+DEVICE cooler "StructureWallCooler"
+
+MainLoop:
+IF (sensor.Temperature > 295) THEN
+    cooler.On = 1
+ELSE
+    cooler.On = 0
+ENDIF
+YIELD
+GOTO MainLoop
+```
+
+**Result:** ✅ Compiles with 0 warnings
+
+**Properties Tested:**
+- ReadProperty.PropertyName = "Temperature" ✅
+- Compare.Operator = "Greater Than (>)" ✅
+- WriteProperty.PropertyName = "On" ✅
+
+---
+
+### Script 2: Counter Loop
+**Purpose:** Test variable increment in loop
+
+**BASIC Output:**
+```basic
+VAR counter = 0
+MainLoop:
+++counter
+YIELD
+GOTO MainLoop
+```
+
+**Result:** ✅ Compiles (1 warning: counter declared but never read)
+
+**Properties Tested:**
+- Variable.VariableName ✅
+- Variable.InitialValue ✅
+- Increment.VariableName = "counter" ✅
+- Label.LabelName ✅
+- Goto.TargetLabel ✅
+
+**Bug Found:** "Loop" is a reserved word - cannot be used as label name
+
+---
+
+### Script 3: Solar Tracker
+**Purpose:** Test multi-device data flow
+
+**BASIC Output:**
+```basic
+DEVICE sensor "StructureDaylightSensor"
+DEVICE panel "StructureSolarPanel"
+
+Track:
+panel.Horizontal = sensor.SolarAngle
+YIELD
+GOTO Track
+```
+
+**Result:** ✅ Compiles with 0 errors, 0 warnings
+
+**Properties Tested:**
+- Multiple NamedDevice nodes ✅
+- ReadProperty.PropertyName = "SolarAngle" ✅
+- WriteProperty.PropertyName = "Horizontal" ✅
+- Data flow wiring (Device → ReadProperty → WriteProperty → Device) ✅
+
+---
+
+## MCP Property Status (Final)
+
+| Node Type | Property | Status | Notes |
+|-----------|----------|--------|-------|
+| NamedDevice | AliasName | ✅ WORKS | |
+| NamedDevice | PrefabName | ✅ WORKS | |
+| Variable | VariableName | ✅ WORKS | |
+| Variable | InitialValue | ✅ WORKS | |
+| Const | ConstName | ✅ WORKS | |
+| Const | Value | ✅ WORKS | |
+| Label | LabelName | ✅ WORKS | "Loop" is reserved |
+| Goto | TargetLabel | ✅ WORKS | |
+| ReadProperty | PropertyName | ✅ WORKS | Any valid property |
+| WriteProperty | PropertyName | ✅ WORKS | Any valid property |
+| Compare | Operator | ✅ WORKS | Use full text format |
+| Increment | VariableName | ✅ WORKS | |
+| Constant | Value | ✅ WORKS | |
+
+---
+
+## Bugs Found
+
+### HIGH Severity
+
+| Bug | Description | Impact |
+|-----|-------------|--------|
+| Simulator alias mapping | Simulator uses d0-d5 pins but IC10 uses named aliases (sensor, cooler). Cannot test scripts with DEVICE statements. | Cannot simulate VS-generated scripts |
+
+### MEDIUM Severity
+
+| Bug | Description | Impact |
+|-----|-------------|--------|
+| Dropdown text invisible | ReadProperty (and likely other) dropdown selections not visible when closed. Options visible when dropdown is open, but selected value invisible when closed. | User cannot see what property is selected without opening dropdown |
+| Wire removal | No way to remove wires without deleting connected node | User must delete and recreate nodes to fix wiring mistakes |
+| "Loop" reserved | Cannot use "Loop" as label name - compilation fails | Use "MainLoop" or other names |
+| Code pane no auto-refresh | Generated code pane doesn't update when properties edited via UI | Code only refreshes on MCP query or other actions |
+
+### LOW Severity
+
+| Bug | Description | Impact |
+|-----|-------------|--------|
+| Compare operator format | Must use full text "Greater Than (>)" not ">" | Workaround exists |
+| Cursor position | Cursor appears one character early when clicking TextBox | Cosmetic only |
+
+---
+
+## Enhancement Requests
+
+| Request | Description |
+|---------|-------------|
+| MCP simulator visibility | When simulator runs via MCP, user should see execution animate in VS window |
+| Wire animations broken | Wire animations do NOT play at all currently - not even when simulator is running. Animations should play continuously to make visual scripting more dynamic and provide visual feedback of data/execution flow |
+| Simulator loop mode | Add a "loop" or "continuous" mode to the simulator that keeps the program running indefinitely. This allows users to change device values and variables on-the-fly while the program executes, testing how their script handles real-time data changes. This is critical for realistic testing since in-game sensors and devices update their values constantly without waiting - scripts must handle mid-execution data changes gracefully |
+
+---
+
+## Feature Roadmap Suggestions
+
+### Node Additions
+
+**High Priority:**
+| Node | Purpose |
+|------|---------|
+| Comment | Add documentation/notes to visual scripts |
+| Clamp | Limit value between min/max (essential for motor control, etc.) |
+| Map/Scale | Remap value from one range to another (e.g., 0-100 → 0-1) |
+| Switch/Case | Multiple branches based on value (cleaner than nested IF) |
+| ForLoop | Iterate a set number of times |
+| Sleep/Wait | Non-blocking delay (using yield counter) |
+
+**Medium Priority:**
+| Node | Purpose |
+|------|---------|
+| Math Functions | Sin, Cos, Abs, Min, Max, Round, Floor, Ceil (for solar tracking, calculations) |
+| Random | Generate random values |
+| BatchRead (lb) | Read from all devices of a type on network |
+| BatchWrite (sb) | Write to all devices of a type on network |
+| SlotRead (ls) | Read device slot data (inventory, reagents) |
+| SlotWrite (ss) | Write to device slots |
+
+**Nice to Have:**
+| Node | Purpose |
+|------|---------|
+| Group/Region | Visually group related nodes with a colored box |
+| Subroutine | Reusable node groups (like functions) |
+
+### Visual Programming Features
+
+| Feature | Description |
+|---------|-------------|
+| Copy/paste | Duplicate nodes or groups |
+| Alignment tools | Snap/align selected nodes (grid, horizontal, vertical) |
+| Mini-map | Navigate large scripts |
+| Zoom to fit | Auto-zoom to show entire script |
+| Drag-Select | Click-drag to select multiple nodes for reposition or deletion |
+
+### Simulator Enhancements
+
+| Feature | Description |
+|---------|-------------|
+| Execution trace | History of executed lines with values |
+| Step backward | Undo last step |
+| Network simulation | Simulate multiple ICs communicating |
+
+---
+
+## Previous Bugs Fixed (This Session)
+
+| Bug | Status |
+|-----|--------|
+| Bug 5: UI TextBox editing | ✅ FIXED in v3.0.6 |
+| MCP property exposure | ✅ FIXED - All key properties now configurable |
+
+---
+
+## Conclusion
+
+Visual Scripting is production-ready for v2.0 release. Users can:
+- Create devices with custom aliases and prefab names
+- Read and write any device property
+- Use comparison operators in conditionals
+- Increment/decrement variables
+- Build complete automation scripts visually
+
+The main limitation is simulator support for named device aliases, which prevents in-app testing of scripts that use DEVICE statements.
+
+---
+
+**End of Report**

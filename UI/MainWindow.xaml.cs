@@ -24,6 +24,9 @@ using BasicToMips.Editor;
 using BasicToMips.Editor.RetroEffects;
 using ICSharpCode.AvalonEdit.Folding;
 using BasicToMips.Services;
+using BasicToMips.UI.VisualScripting;
+using BasicToMips.UI.VisualScripting.Nodes;
+using BasicToMips.UI.VisualScripting.Services;
 
 namespace BasicToMips.UI;
 
@@ -90,6 +93,16 @@ public partial class MainWindow : Window
         _settings = new SettingsService();
         _docs = new DocumentationService();
 
+        // Load Visual Scripting experience mode from saved settings
+        VisualScripting.ExperienceModeManager.Instance.LoadFromSettings(_settings);
+
+        // Save settings when experience mode changes
+        VisualScripting.ExperienceModeManager.Instance.ModeChanged += (s, e) =>
+        {
+            VisualScripting.ExperienceModeManager.Instance.SaveToSettings(_settings);
+            _settings.Save();
+        };
+
         InitializeTabManagement();
         SetupEditors();
         SetupAutoComplete();
@@ -110,6 +123,9 @@ public partial class MainWindow : Window
         // Apply saved syntax colors before creating highlighting
         BasicHighlighting.SetColors(_settings.SyntaxColors);
         MipsHighlighting.SetColors(_settings.SyntaxColors);
+
+        // Initialize Visual Scripting node colors with current syntax theme
+        NodeColorProvider.UpdateSettings(_settings.SyntaxColors);
 
         // Apply BASIC syntax highlighting
         BasicEditor.SyntaxHighlighting = BasicHighlighting.Create();
@@ -823,7 +839,7 @@ CheckStatus:
 
     # Check temperature (warning if outside comfort range)
     IF temp < TARGET_TEMP - 10 OR temp > TARGET_TEMP + 10 THEN
-        IF status > 0 THEN status = 1
+        IF status > 0 THEN status = 1 ENDIF
     ENDIF
 
     RETURN
@@ -2592,6 +2608,8 @@ END
     private SimulatorWindow? _simulatorWindow;
     private WatchWindow? _watchWindow;
     private VariableInspectorWindow? _variableInspectorWindow;
+    private Dashboard.DashboardWindow? _dashboardWindow;
+    private VisualScripting.VisualScriptingWindow? _visualScriptingWindow;
 
     private void InitializeSimulator()
     {
@@ -3023,6 +3041,9 @@ END
         var bgBrush = new System.Windows.Media.SolidColorBrush(bgColor);
         BasicEditor.Background = bgBrush;
         MipsOutput.Background = bgBrush;
+
+        // Update Visual Scripting node colors to match syntax theme
+        NodeColorProvider.UpdateSettings(_settings.SyntaxColors);
     }
 
     #endregion
@@ -3057,6 +3078,13 @@ END
                 // Toggle Variable Inspector
                 ShowVariableInspectorMenu.IsChecked = !ShowVariableInspectorMenu.IsChecked;
                 ToggleVariableInspector_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Toggle Widget Dashboard - Ctrl+F10
+                ShowDashboardMenu.IsChecked = !ShowDashboardMenu.IsChecked;
+                ToggleDashboard_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
             else if (e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.None)
@@ -3359,6 +3387,98 @@ END
         _variableInspectorWindow.SetSimulator(_simulator);
         _variableInspectorWindow.Show();
         _variableInspectorWindow.Activate();
+    }
+
+    #endregion
+
+    #region Widget Dashboard
+
+    private void ToggleDashboard_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowDashboardMenu.IsChecked)
+        {
+            ShowDashboardWindow();
+        }
+        else
+        {
+            _dashboardWindow?.Hide();
+        }
+    }
+
+    private void ShowDashboardWindow()
+    {
+        if (_dashboardWindow == null)
+        {
+            _dashboardWindow = new Dashboard.DashboardWindow();
+            _dashboardWindow.Owner = this;
+            _dashboardWindow.Closing += (s, e) =>
+            {
+                ShowDashboardMenu.IsChecked = false;
+            };
+        }
+
+        // Set current project path
+        var currentFilePath = _currentTab?.FilePath;
+        _dashboardWindow.SetProjectPath(currentFilePath);
+        _dashboardWindow.Show();
+        _dashboardWindow.Activate();
+    }
+
+    private void OpenVisualScripting_Click(object sender, RoutedEventArgs e)
+    {
+        OpenVisualScriptingWindow();
+    }
+
+    private void OpenVisualScriptingWindow()
+    {
+        if (_visualScriptingWindow == null)
+        {
+            _visualScriptingWindow = new VisualScripting.VisualScriptingWindow();
+            _visualScriptingWindow.Owner = this; // Ensure VS window closes with main window
+
+            // Hide instead of close to preserve user's work
+            _visualScriptingWindow.Closing += (s, e) =>
+            {
+                // Only hide if main window is still open (user clicked X on VS window)
+                // Allow actual close if main window is closing
+                if (IsVisible)
+                {
+                    e.Cancel = true;
+                    _visualScriptingWindow.Hide();
+                }
+            };
+
+            // Subscribe to code generation events to sync VS code with main editor
+            _visualScriptingWindow.BasicCodeGenerated += VisualScripting_BasicCodeGenerated;
+        }
+
+        _visualScriptingWindow.Show();
+        _visualScriptingWindow.Activate();
+    }
+
+    private void VisualScripting_BasicCodeGenerated(object? sender, BasicCodeGeneratedEventArgs e)
+    {
+        // Sync both BASIC and IC10 code to the main editor
+        if (!string.IsNullOrWhiteSpace(e.BasicCode))
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // Suppress auto-compile since VS already compiled the code
+                _suppressBasicUpdate = true;
+                BasicEditor.Text = e.BasicCode;
+                _suppressBasicUpdate = false;
+
+                // Set the compiled IC10 code directly (VS already compiled it)
+                if (!string.IsNullOrWhiteSpace(e.IC10Code))
+                {
+                    _suppressMipsUpdate = true;
+                    MipsOutput.Text = e.IC10Code;
+                    _suppressMipsUpdate = false;
+                }
+
+                SetStatus("Code synced from Visual Scripting", true);
+            });
+        }
     }
 
     #endregion
@@ -3999,6 +4119,64 @@ END
         return GetSimulatorState();
     }
 
+    /// <summary>
+    /// Set a property on a named device (DEVICE statement alias).
+    /// </summary>
+    public SimulatorStateResult ApiSimulatorSetNamedDeviceProperty(string aliasName, string property, double value)
+    {
+        var device = _mcpSimulator.DeviceRegistry.GetDevice(aliasName);
+        if (device == null)
+        {
+            return new SimulatorStateResult { Success = false, Error = $"Named device not found: {aliasName}" };
+        }
+        device.SetProperty(property, value);
+        return GetSimulatorState();
+    }
+
+    /// <summary>
+    /// Get a property from a named device (DEVICE statement alias).
+    /// </summary>
+    public NamedDevicePropertyResult ApiSimulatorGetNamedDeviceProperty(string aliasName, string property)
+    {
+        var device = _mcpSimulator.DeviceRegistry.GetDevice(aliasName);
+        if (device == null)
+        {
+            return new NamedDevicePropertyResult
+            {
+                Success = false,
+                Error = $"Named device not found: {aliasName}"
+            };
+        }
+        return new NamedDevicePropertyResult
+        {
+            Success = true,
+            AliasName = aliasName,
+            PrefabName = device.PrefabName,
+            Property = property,
+            Value = device.GetProperty(property)
+        };
+    }
+
+    /// <summary>
+    /// List all named devices registered in the simulator.
+    /// </summary>
+    public NamedDeviceListResult ApiSimulatorListNamedDevices()
+    {
+        var devices = _mcpSimulator.DeviceRegistry.GetAllDevices();
+        var result = new NamedDeviceListResult
+        {
+            Count = devices.Count,
+            Devices = devices.Select(kvp => new NamedDeviceInfoResult
+            {
+                AliasName = kvp.Key,
+                PrefabName = kvp.Value.PrefabName,
+                Hash = kvp.Value.Hash,
+                Properties = kvp.Value.GetAllProperties()
+            }).ToList()
+        };
+        return result;
+    }
+
     #endregion
 
     #region Debugging API Methods
@@ -4328,6 +4506,162 @@ END
 
     #endregion
 
+    #region Visual Scripting API
+
+    /// <summary>
+    /// Open the visual scripting window and return status.
+    /// </summary>
+    public VisualScriptingResult ApiOpenVisualScripting()
+    {
+        OpenVisualScriptingWindow();
+        return new VisualScriptingResult { Success = true };
+    }
+
+    /// <summary>
+    /// Close the visual scripting window.
+    /// </summary>
+    public VisualScriptingResult ApiCloseVisualScripting()
+    {
+        if (_visualScriptingWindow != null)
+        {
+            _visualScriptingWindow.Close();
+            _visualScriptingWindow = null;
+        }
+        return new VisualScriptingResult { Success = true };
+    }
+
+    /// <summary>
+    /// Check if visual scripting window is open.
+    /// </summary>
+    public bool ApiIsVisualScriptingOpen()
+    {
+        return _visualScriptingWindow != null && _visualScriptingWindow.IsVisible;
+    }
+
+    /// <summary>
+    /// Get available node types for visual scripting.
+    /// </summary>
+    public List<NodeTypeInfo> ApiGetVisualScriptingNodeTypes()
+    {
+        if (_visualScriptingWindow == null)
+            OpenVisualScriptingWindow();
+
+        return _visualScriptingWindow?.ApiGetNodeTypes() ?? new List<NodeTypeInfo>();
+    }
+
+    /// <summary>
+    /// Add a node to the visual scripting canvas.
+    /// </summary>
+    public VisualScriptingNodeResult ApiAddVisualScriptingNode(string nodeType, double x, double y, Dictionary<string, string>? properties = null)
+    {
+        if (_visualScriptingWindow == null)
+            OpenVisualScriptingWindow();
+
+        return _visualScriptingWindow?.ApiAddNode(nodeType, x, y, properties)
+            ?? new VisualScriptingNodeResult { Success = false, Error = "Visual scripting window not available" };
+    }
+
+    /// <summary>
+    /// Remove a node from the visual scripting canvas.
+    /// </summary>
+    public VisualScriptingResult ApiRemoveVisualScriptingNode(string nodeId)
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiRemoveNode(nodeId);
+    }
+
+    /// <summary>
+    /// Connect two nodes in visual scripting.
+    /// </summary>
+    public VisualScriptingResult ApiConnectVisualScriptingNodes(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId)
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiConnectNodes(sourceNodeId, sourcePinId, targetNodeId, targetPinId);
+    }
+
+    /// <summary>
+    /// Disconnect two nodes in visual scripting.
+    /// </summary>
+    public VisualScriptingResult ApiDisconnectVisualScriptingNodes(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId)
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiDisconnectNodes(sourceNodeId, sourcePinId, targetNodeId, targetPinId);
+    }
+
+    /// <summary>
+    /// Get the current visual scripting graph state.
+    /// </summary>
+    public VisualScriptingGraphState ApiGetVisualScriptingGraphState()
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingGraphState();
+
+        return _visualScriptingWindow.ApiGetGraphState();
+    }
+
+    /// <summary>
+    /// Update a node property in visual scripting.
+    /// </summary>
+    public VisualScriptingResult ApiUpdateVisualScriptingNodeProperty(string nodeId, string propertyName, string value)
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiUpdateNodeProperty(nodeId, propertyName, value);
+    }
+
+    /// <summary>
+    /// Get a node by ID in visual scripting.
+    /// </summary>
+    public VisualScriptingNodeInfo? ApiGetVisualScriptingNode(string nodeId)
+    {
+        if (_visualScriptingWindow == null)
+            return null;
+
+        return _visualScriptingWindow.ApiGetNode(nodeId);
+    }
+
+    /// <summary>
+    /// Clear the visual scripting canvas.
+    /// </summary>
+    public VisualScriptingResult ApiClearVisualScriptingCanvas()
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiClearCanvas();
+    }
+
+    /// <summary>
+    /// Get generated code from visual scripting.
+    /// </summary>
+    public VisualScriptingCodeResult ApiGetVisualScriptingCode()
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingCodeResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiGetGeneratedCode();
+    }
+
+    /// <summary>
+    /// Move a node in visual scripting.
+    /// </summary>
+    public VisualScriptingResult ApiMoveVisualScriptingNode(string nodeId, double x, double y)
+    {
+        if (_visualScriptingWindow == null)
+            return new VisualScriptingResult { Success = false, Error = "Visual scripting window not open" };
+
+        return _visualScriptingWindow.ApiMoveNode(nodeId, x, y);
+    }
+
+    #endregion
+
     #endregion
 }
 
@@ -4529,4 +4863,37 @@ public class ProblemItem
     public string Icon { get; set; } = "";
     public System.Windows.Media.Brush? Color { get; set; }
     public string Location { get; set; } = "";
+}
+
+/// <summary>
+/// Result of getting a named device property.
+/// </summary>
+public class NamedDevicePropertyResult
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public string? AliasName { get; set; }
+    public string? PrefabName { get; set; }
+    public string? Property { get; set; }
+    public double Value { get; set; }
+}
+
+/// <summary>
+/// Result of listing named devices.
+/// </summary>
+public class NamedDeviceListResult
+{
+    public int Count { get; set; }
+    public List<NamedDeviceInfoResult> Devices { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a named device.
+/// </summary>
+public class NamedDeviceInfoResult
+{
+    public string AliasName { get; set; } = "";
+    public string PrefabName { get; set; } = "";
+    public int Hash { get; set; }
+    public Dictionary<string, double> Properties { get; set; } = new();
 }

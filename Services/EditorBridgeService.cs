@@ -1,6 +1,8 @@
 using System.Windows.Threading;
 using BasicToMips.UI;
 using BasicToMips.UI.Services;
+using BasicToMips.UI.VisualScripting;
+using BasicToMips.UI.VisualScripting.Nodes;
 using BasicToMips.Shared;
 
 namespace BasicToMips.Services;
@@ -336,6 +338,32 @@ public class EditorBridgeService
         return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorSetDeviceSlotProperty(deviceIndex, slot, property, value));
     }
 
+    // ==================== NAMED DEVICE API ====================
+
+    /// <summary>
+    /// Set a property on a named device (DEVICE statement alias).
+    /// </summary>
+    public BasicToMips.UI.SimulatorStateResult SimulatorSetNamedDeviceProperty(string aliasName, string property, double value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorSetNamedDeviceProperty(aliasName, property, value));
+    }
+
+    /// <summary>
+    /// Get a property from a named device (DEVICE statement alias).
+    /// </summary>
+    public BasicToMips.UI.NamedDevicePropertyResult SimulatorGetNamedDeviceProperty(string aliasName, string property)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorGetNamedDeviceProperty(aliasName, property));
+    }
+
+    /// <summary>
+    /// List all named devices registered in the simulator.
+    /// </summary>
+    public BasicToMips.UI.NamedDeviceListResult SimulatorListNamedDevices()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiSimulatorListNamedDevices());
+    }
+
     // ==================== DEBUGGING API ====================
 
     /// <summary>
@@ -468,6 +496,120 @@ public class EditorBridgeService
     public BasicToMips.UI.CodeMetrics GetCodeMetrics()
     {
         return _dispatcher.Invoke(() => _mainWindow.ApiGetCodeMetrics());
+    }
+
+    // ==================== VISUAL SCRIPTING API ====================
+
+    /// <summary>
+    /// Open the visual scripting window.
+    /// </summary>
+    public VisualScriptingResult OpenVisualScripting()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiOpenVisualScripting());
+    }
+
+    /// <summary>
+    /// Close the visual scripting window.
+    /// </summary>
+    public VisualScriptingResult CloseVisualScripting()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiCloseVisualScripting());
+    }
+
+    /// <summary>
+    /// Check if visual scripting window is open.
+    /// </summary>
+    public bool IsVisualScriptingOpen()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiIsVisualScriptingOpen());
+    }
+
+    /// <summary>
+    /// Get available node types.
+    /// </summary>
+    public List<NodeTypeInfo> GetVisualScriptingNodeTypes()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetVisualScriptingNodeTypes());
+    }
+
+    /// <summary>
+    /// Add a node to the visual scripting canvas.
+    /// </summary>
+    public VisualScriptingNodeResult AddVisualScriptingNode(string nodeType, double x, double y, Dictionary<string, string>? properties = null)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiAddVisualScriptingNode(nodeType, x, y, properties));
+    }
+
+    /// <summary>
+    /// Remove a node from visual scripting.
+    /// </summary>
+    public VisualScriptingResult RemoveVisualScriptingNode(string nodeId)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiRemoveVisualScriptingNode(nodeId));
+    }
+
+    /// <summary>
+    /// Connect two nodes.
+    /// </summary>
+    public VisualScriptingResult ConnectVisualScriptingNodes(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiConnectVisualScriptingNodes(sourceNodeId, sourcePinId, targetNodeId, targetPinId));
+    }
+
+    /// <summary>
+    /// Disconnect two nodes.
+    /// </summary>
+    public VisualScriptingResult DisconnectVisualScriptingNodes(string sourceNodeId, string sourcePinId, string targetNodeId, string targetPinId)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiDisconnectVisualScriptingNodes(sourceNodeId, sourcePinId, targetNodeId, targetPinId));
+    }
+
+    /// <summary>
+    /// Get graph state.
+    /// </summary>
+    public VisualScriptingGraphState GetVisualScriptingGraphState()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetVisualScriptingGraphState());
+    }
+
+    /// <summary>
+    /// Update a node property.
+    /// </summary>
+    public VisualScriptingResult UpdateVisualScriptingNodeProperty(string nodeId, string propertyName, string value)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiUpdateVisualScriptingNodeProperty(nodeId, propertyName, value));
+    }
+
+    /// <summary>
+    /// Get a node by ID.
+    /// </summary>
+    public VisualScriptingNodeInfo? GetVisualScriptingNode(string nodeId)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetVisualScriptingNode(nodeId));
+    }
+
+    /// <summary>
+    /// Clear visual scripting canvas.
+    /// </summary>
+    public VisualScriptingResult ClearVisualScriptingCanvas()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiClearVisualScriptingCanvas());
+    }
+
+    /// <summary>
+    /// Get generated code from visual scripting.
+    /// </summary>
+    public VisualScriptingCodeResult GetVisualScriptingCode()
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiGetVisualScriptingCode());
+    }
+
+    /// <summary>
+    /// Move a node.
+    /// </summary>
+    public VisualScriptingResult MoveVisualScriptingNode(string nodeId, double x, double y)
+    {
+        return _dispatcher.Invoke(() => _mainWindow.ApiMoveVisualScriptingNode(nodeId, x, y));
     }
 }
 

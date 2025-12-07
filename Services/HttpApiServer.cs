@@ -368,7 +368,7 @@ public class HttpApiServer
             }
         });
 
-        // === Message Queue (Claude Assistant) ===
+        // === Message Queue ===
 
         // POST /api/messages - User sends a message
         app.MapPost("/api/messages", async (HttpContext ctx) =>
@@ -763,6 +763,58 @@ public class HttpApiServer
             }
         });
 
+        // ==================== NAMED DEVICE ENDPOINTS ====================
+
+        // POST /api/simulator/named-device - Set a named device property
+        app.MapPost("/api/simulator/named-device", async (HttpContext ctx) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<NamedDeviceRequest>(ctx.Request.Body, jsonOptions);
+                if (string.IsNullOrWhiteSpace(body?.AliasName))
+                    return Results.BadRequest(new { error = "Missing 'aliasName' field" });
+                if (string.IsNullOrWhiteSpace(body?.Property))
+                    return Results.BadRequest(new { error = "Missing 'property' field" });
+
+                var result = _bridge.SimulatorSetNamedDeviceProperty(body.AliasName, body.Property, body.Value);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/simulator/named-device/{aliasName}/{property} - Get a named device property
+        app.MapGet("/api/simulator/named-device/{aliasName}/{property}", (string aliasName, string property) =>
+        {
+            try
+            {
+                var result = _bridge.SimulatorGetNamedDeviceProperty(
+                    Uri.UnescapeDataString(aliasName),
+                    Uri.UnescapeDataString(property));
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/simulator/named-devices - List all named devices
+        app.MapGet("/api/simulator/named-devices", () =>
+        {
+            try
+            {
+                var result = _bridge.SimulatorListNamedDevices();
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
         // POST /api/simulator/device/slot - Set a device slot property
         app.MapPost("/api/simulator/device/slot", async (HttpContext ctx) =>
         {
@@ -1026,6 +1078,237 @@ public class HttpApiServer
                 return Results.Problem(ex.Message);
             }
         });
+
+        // ==================== VISUAL SCRIPTING ENDPOINTS ====================
+
+        // POST /api/visual-scripting/open - Open visual scripting window
+        app.MapPost("/api/visual-scripting/open", () =>
+        {
+            try
+            {
+                return Results.Ok(_bridge.OpenVisualScripting());
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // POST /api/visual-scripting/close - Close visual scripting window
+        app.MapPost("/api/visual-scripting/close", () =>
+        {
+            try
+            {
+                return Results.Ok(_bridge.CloseVisualScripting());
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/visual-scripting/status - Check if visual scripting is open
+        app.MapGet("/api/visual-scripting/status", () =>
+        {
+            try
+            {
+                var isOpen = _bridge.IsVisualScriptingOpen();
+                return Results.Ok(new { isOpen });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/visual-scripting/node-types - Get available node types
+        app.MapGet("/api/visual-scripting/node-types", () =>
+        {
+            try
+            {
+                var nodeTypes = _bridge.GetVisualScriptingNodeTypes();
+                return Results.Ok(new { nodeTypes, count = nodeTypes.Count });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // POST /api/visual-scripting/nodes - Add a node
+        app.MapPost("/api/visual-scripting/nodes", async (HttpContext ctx) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<AddNodeRequest>(ctx.Request.Body, jsonOptions);
+                if (string.IsNullOrWhiteSpace(body?.NodeType))
+                    return Results.BadRequest(new { error = "Missing 'nodeType' field" });
+
+                var result = _bridge.AddVisualScriptingNode(body.NodeType, body.X, body.Y, body.Properties);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // DELETE /api/visual-scripting/nodes/{nodeId} - Remove a node
+        app.MapDelete("/api/visual-scripting/nodes/{nodeId}", (string nodeId) =>
+        {
+            try
+            {
+                var result = _bridge.RemoveVisualScriptingNode(Uri.UnescapeDataString(nodeId));
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/visual-scripting/nodes/{nodeId} - Get a node by ID
+        app.MapGet("/api/visual-scripting/nodes/{nodeId}", (string nodeId) =>
+        {
+            try
+            {
+                var node = _bridge.GetVisualScriptingNode(Uri.UnescapeDataString(nodeId));
+                if (node == null)
+                    return Results.NotFound(new { error = "Node not found" });
+                return Results.Ok(node);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // PUT /api/visual-scripting/nodes/{nodeId}/properties - Update a node property
+        app.MapPut("/api/visual-scripting/nodes/{nodeId}/properties", async (HttpContext ctx, string nodeId) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<UpdateNodePropertyRequest>(ctx.Request.Body, jsonOptions);
+                if (string.IsNullOrWhiteSpace(body?.PropertyName))
+                    return Results.BadRequest(new { error = "Missing 'propertyName' field" });
+
+                var result = _bridge.UpdateVisualScriptingNodeProperty(
+                    Uri.UnescapeDataString(nodeId), body.PropertyName, body.Value ?? "");
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // PUT /api/visual-scripting/nodes/{nodeId}/position - Move a node
+        app.MapPut("/api/visual-scripting/nodes/{nodeId}/position", async (HttpContext ctx, string nodeId) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<MoveNodeRequest>(ctx.Request.Body, jsonOptions);
+                if (body == null)
+                    return Results.BadRequest(new { error = "Invalid request body" });
+
+                var result = _bridge.MoveVisualScriptingNode(Uri.UnescapeDataString(nodeId), body.X, body.Y);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // POST /api/visual-scripting/wires - Connect two nodes
+        app.MapPost("/api/visual-scripting/wires", async (HttpContext ctx) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<ConnectNodesRequest>(ctx.Request.Body, jsonOptions);
+                if (body == null ||
+                    string.IsNullOrWhiteSpace(body.SourceNodeId) ||
+                    string.IsNullOrWhiteSpace(body.SourcePinId) ||
+                    string.IsNullOrWhiteSpace(body.TargetNodeId) ||
+                    string.IsNullOrWhiteSpace(body.TargetPinId))
+                {
+                    return Results.BadRequest(new { error = "Missing required fields" });
+                }
+
+                var result = _bridge.ConnectVisualScriptingNodes(
+                    body.SourceNodeId, body.SourcePinId, body.TargetNodeId, body.TargetPinId);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // DELETE /api/visual-scripting/wires - Disconnect two nodes
+        app.MapDelete("/api/visual-scripting/wires", async (HttpContext ctx) =>
+        {
+            try
+            {
+                var body = await JsonSerializer.DeserializeAsync<ConnectNodesRequest>(ctx.Request.Body, jsonOptions);
+                if (body == null ||
+                    string.IsNullOrWhiteSpace(body.SourceNodeId) ||
+                    string.IsNullOrWhiteSpace(body.SourcePinId) ||
+                    string.IsNullOrWhiteSpace(body.TargetNodeId) ||
+                    string.IsNullOrWhiteSpace(body.TargetPinId))
+                {
+                    return Results.BadRequest(new { error = "Missing required fields" });
+                }
+
+                var result = _bridge.DisconnectVisualScriptingNodes(
+                    body.SourceNodeId, body.SourcePinId, body.TargetNodeId, body.TargetPinId);
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/visual-scripting/graph - Get current graph state
+        app.MapGet("/api/visual-scripting/graph", () =>
+        {
+            try
+            {
+                var state = _bridge.GetVisualScriptingGraphState();
+                return Results.Ok(state);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // DELETE /api/visual-scripting/canvas - Clear the canvas
+        app.MapDelete("/api/visual-scripting/canvas", () =>
+        {
+            try
+            {
+                return Results.Ok(_bridge.ClearVisualScriptingCanvas());
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
+        // GET /api/visual-scripting/code - Get generated code
+        app.MapGet("/api/visual-scripting/code", () =>
+        {
+            try
+            {
+                return Results.Ok(_bridge.GetVisualScriptingCode());
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
     }
 
     private static DeviceApiResponse ToDeviceResponse(DeviceInfo device) => new()
@@ -1144,6 +1427,13 @@ internal class SimulatorDeviceSlotRequest
     public double Value { get; set; }
 }
 
+internal class NamedDeviceRequest
+{
+    public string? AliasName { get; set; }
+    public string? Property { get; set; }
+    public double Value { get; set; }
+}
+
 internal class WatchRequest
 {
     public string? Expression { get; set; }
@@ -1170,12 +1460,41 @@ internal class FindReferencesRequest
     public string? SymbolName { get; set; }
 }
 
+// Visual Scripting Request Models
+internal class AddNodeRequest
+{
+    public string? NodeType { get; set; }
+    public double X { get; set; }
+    public double Y { get; set; }
+    public Dictionary<string, string>? Properties { get; set; }
+}
+
+internal class UpdateNodePropertyRequest
+{
+    public string? PropertyName { get; set; }
+    public string? Value { get; set; }
+}
+
+internal class MoveNodeRequest
+{
+    public double X { get; set; }
+    public double Y { get; set; }
+}
+
+internal class ConnectNodesRequest
+{
+    public string? SourceNodeId { get; set; }
+    public string? SourcePinId { get; set; }
+    public string? TargetNodeId { get; set; }
+    public string? TargetPinId { get; set; }
+}
+
 #endregion
 
 #region Message Queue
 
 /// <summary>
-/// Thread-safe message queue for Claude Assistant chat.
+/// Thread-safe message queue for inter-process chat communication.
 /// </summary>
 public static class MessageQueue
 {

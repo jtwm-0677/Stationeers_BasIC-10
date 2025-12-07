@@ -1,0 +1,121 @@
+<local:WidgetBase x:Class="BasicToMips.UI.Dashboard.Widgets.RegisterViewWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:BasicToMips.UI.Dashboard"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="#252526" Padding="6" BorderBrush="#3F3F46" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="IC10 Registers"
+                           FontSize="12"
+                           Foreground="#858585"
+                           VerticalAlignment="Center"/>
+
+                <!-- Hex/Decimal toggle -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <RadioButton x:Name="DecimalRadio"
+                                 Content="Dec"
+                                 IsChecked="True"
+                                 GroupName="Format"
+                                 Foreground="White"
+                                 FontSize="11"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 Checked="FormatChanged"/>
+                    <RadioButton x:Name="HexRadio"
+                                 Content="Hex"
+                                 GroupName="Format"
+                                 Foreground="White"
+                                 FontSize="11"
+                                 VerticalAlignment="Center"
+                                 Checked="FormatChanged"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Register grid -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="4">
+            <ItemsControl x:Name="RegisterList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#252526"
+                                Margin="2"
+                                Padding="6,4"
+                                BorderBrush="#3F3F46"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <ColorAnimation Storyboard.TargetProperty="Background.Color"
+                                                                        From="#CCC900"
+                                                                        To="#252526"
+                                                                        Duration="0:0:0.8"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="50"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Register name -->
+                                <TextBlock Grid.Column="0"
+                                          Text="{Binding Name}"
+                                          FontFamily="Consolas, Cascadia Code, Courier New"
+                                          FontSize="12"
+                                          Foreground="#4A9EFF"
+                                          FontWeight="SemiBold"
+                                          VerticalAlignment="Center"/>
+
+                                <!-- Value -->
+                                <TextBlock Grid.Column="1"
+                                          Text="{Binding FormattedValue}"
+                                          FontFamily="Consolas, Cascadia Code, Courier New"
+                                          FontSize="12"
+                                          Foreground="White"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Placeholder when no simulation running -->
+        <TextBlock x:Name="PlaceholderText"
+                   Grid.Row="1"
+                   Text="Simulation not running"
+                   Foreground="#858585"
+                   FontSize="13"
+                   FontStyle="Italic"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Visibility="Visible"/>
+    </Grid>
+</local:WidgetBase>

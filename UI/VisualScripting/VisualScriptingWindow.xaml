@@ -1,0 +1,152 @@
+<Window x:Class="BasicToMips.UI.VisualScripting.VisualScriptingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:canvas="clr-namespace:BasicToMips.UI.VisualScripting.Canvas"
+        xmlns:local="clr-namespace:BasicToMips.UI.VisualScripting"
+        Title="Visual Scripting - Basic-10"
+        Icon="/icon.ico"
+        Height="700" Width="1400"
+        MinHeight="500" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        Style="{DynamicResource MainWindowStyle}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{DynamicResource SecondaryBackgroundBrush}"
+                Padding="8,4" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Reset View" Click="ResetView_Click">
+                    <TextBlock Text="&#xE81E;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Zoom to Fit" Click="ZoomToFit_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE71E;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <CheckBox x:Name="ShowGridCheckBox" Content="Show Grid" IsChecked="True"
+                          VerticalAlignment="Center" Margin="4,0"
+                          Foreground="White"
+                          Checked="ShowGrid_Changed" Unchecked="ShowGrid_Changed"/>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Undo (Ctrl+Z)" Click="Undo_Click">
+                    <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Redo (Ctrl+Y)" Click="Redo_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE7A6;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button x:Name="ToggleCodePanelButton" Style="{DynamicResource IconButtonStyle}"
+                        ToolTip="Toggle Code Panel" Click="ToggleCodePanel_Click">
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Generate Code Now (F5)"
+                        Click="GenerateCode_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <!-- Experience Mode Selector -->
+                <local:ExperienceModeSelector x:Name="ExperienceModeSelector"
+                                            ModeChanged="ExperienceMode_Changed"
+                                            Margin="4,0"/>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Help &amp; Instructions"
+                        Click="Help_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Clear Canvas"
+                        Click="ClearCanvas_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Button Style="{DynamicResource IconButtonStyle}" ToolTip="Load Example"
+                        Click="LoadExample_Click" Margin="4,0,0,0">
+                    <TextBlock Text="&#xE8F4;" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                </Button>
+
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+
+                <TextBlock Text="Pan: MMB / Space+Drag | Zoom: Wheel"
+                           VerticalAlignment="Center" Margin="8,0"
+                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content - Split View -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" MinWidth="180" x:Name="NodePaletteColumn"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="300"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="0.6*" MinWidth="200" x:Name="CodePanelColumn"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Node Palette -->
+            <local:NodePalette x:Name="NodePalette" Grid.Column="0"
+                               NodeTypeSelected="NodePalette_NodeTypeSelected"/>
+
+            <!-- Palette Splitter -->
+            <GridSplitter Grid.Column="1" Width="4"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="{DynamicResource SeparatorBrush}"/>
+
+            <!-- Visual Canvas -->
+            <canvas:VisualCanvas x:Name="Canvas" Grid.Column="2"
+                                 SelectionChanged="Canvas_SelectionChanged"
+                                 CanvasClicked="Canvas_CanvasClicked"
+                                 ZoomChanged="Canvas_ZoomChanged"/>
+
+            <!-- Resizable Splitter -->
+            <GridSplitter Grid.Column="3" Width="4"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="{DynamicResource SeparatorBrush}"
+                          x:Name="CodePanelSplitter"/>
+
+            <!-- Code Panel -->
+            <local:CodePanel x:Name="CodePanel" Grid.Column="4"/>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatusText" Text="Ready - Click to select, drag to box select" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StatusBarItem>
+            <Separator Background="#FFFFFF" Opacity="0.3"/>
+            <StatusBarItem>
+                <TextBlock x:Name="SelectionText" Text="No selection"/>
+            </StatusBarItem>
+            <Separator Background="#FFFFFF" Opacity="0.3"/>
+            <StatusBarItem>
+                <TextBlock x:Name="ZoomText" Text="Zoom: 100%"/>
+            </StatusBarItem>
+            <Separator Background="#FFFFFF" Opacity="0.3"/>
+            <StatusBarItem>
+                <TextBlock x:Name="UndoRedoText" Text="Undo/Redo: 0/0"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="Basic-10 Visual Scripting v3.0"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

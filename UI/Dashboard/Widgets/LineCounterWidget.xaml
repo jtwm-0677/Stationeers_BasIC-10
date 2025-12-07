@@ -1,0 +1,64 @@
+<local:WidgetBase x:Class="BasicToMips.UI.Dashboard.Widgets.LineCounterWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:BasicToMips.UI.Dashboard"
+             mc:Ignorable="d"
+             d:DesignHeight="150" d:DesignWidth="300">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- BASIC line count -->
+        <TextBlock x:Name="BasicLineText"
+                   Grid.Row="0"
+                   Text="BASIC: 0 lines"
+                   FontSize="14"
+                   Foreground="White"
+                   HorizontalAlignment="Left"/>
+
+        <!-- IC10 line count -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
+            <TextBlock x:Name="Ic10LineText"
+                       Text="IC10: 0 / 128 lines"
+                       FontSize="14"
+                       Foreground="White"/>
+            <TextBlock x:Name="WarningIcon"
+                       Text=" ⚠"
+                       FontSize="14"
+                       Foreground="#CCC900"
+                       Visibility="Collapsed"
+                       ToolTip="Approaching IC10 line limit"/>
+        </StackPanel>
+
+        <!-- Percentage display -->
+        <TextBlock Grid.Row="4"
+                   x:Name="PercentageText"
+                   Text="0%"
+                   FontSize="12"
+                   Foreground="#858585"
+                   HorizontalAlignment="Right"
+                   Margin="0,4,0,4"/>
+
+        <!-- Progress bar -->
+        <Border Grid.Row="5"
+                Height="8"
+                Background="#1E1E1E"
+                BorderBrush="#4A4A4A"
+                BorderThickness="1"
+                CornerRadius="4">
+            <Border x:Name="ProgressBar"
+                    HorizontalAlignment="Left"
+                    Width="0"
+                    Background="#4EC9B0"
+                    CornerRadius="3"/>
+        </Border>
+    </Grid>
+</local:WidgetBase>

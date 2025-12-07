@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>BasicToMips</RootNamespace>
     <AssemblyName>Basic_10</AssemblyName>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <Authors>Dog Tired Studios</Authors>
     <Description>Stationeers Basic-10 - A BASIC to IC10 compiler</Description>
     <ApplicationIcon>icon.ico</ApplicationIcon>
@@ -47,10 +47,17 @@
     </None>
   </ItemGroup>
 
-  <!-- Copy docs folder to output (exclude from compilation) -->
+  <!-- Copy user-facing docs to output (exclude plans and test documents from release) -->
   <ItemGroup>
-    <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="docs" />
+    <None Include="docs\*.md" CopyToOutputDirectory="PreserveNewest" LinkBase="docs" />
+    <None Include="docs\*.pdf" CopyToOutputDirectory="PreserveNewest" LinkBase="docs" />
     <Compile Remove="docs\**\*" />
+  </ItemGroup>
+
+  <!-- Exclude planning and test documents from output (dev-only) -->
+  <ItemGroup>
+    <None Remove="docs\plans\**\*" />
+    <None Remove="docs\Test Documents\**\*" />
   </ItemGroup>
 
   <!-- Copy Data folder non-code files to output -->

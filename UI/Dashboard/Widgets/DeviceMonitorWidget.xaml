@@ -1,0 +1,221 @@
+<local:WidgetBase x:Class="BasicToMips.UI.Dashboard.Widgets.DeviceMonitorWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:BasicToMips.UI.Dashboard"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="450">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="#252526" Padding="6" BorderBrush="#3F3F46" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Add device input -->
+                <TextBox x:Name="AddDeviceTextBox"
+                         Grid.Column="0"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#3F3F46"
+                         BorderThickness="1"
+                         Padding="6,4"
+                         FontSize="12"
+                         VerticalContentAlignment="Center"
+                         CaretBrush="White"
+                         KeyDown="AddDeviceTextBox_KeyDown">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="TextBox">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="3">
+                                            <Grid>
+                                                <ScrollViewer x:Name="PART_ContentHost"
+                                                             Padding="{TemplateBinding Padding}"/>
+                                                <TextBlock Text="Device alias or pin (d0-d5, db)..."
+                                                          Foreground="#858585"
+                                                          FontSize="12"
+                                                          Margin="6,4"
+                                                          IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource TemplatedParent}}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+
+                <!-- Add button -->
+                <Button x:Name="AddButton"
+                        Grid.Column="1"
+                        Content="Add Device"
+                        Background="#007ACC"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="12,4"
+                        Margin="6,0,0,0"
+                        FontSize="12"
+                        Cursor="Hand"
+                        Click="AddButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="3"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#1C97EA"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Device list -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="4">
+            <ItemsControl x:Name="DeviceList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#252526"
+                                Margin="2"
+                                Padding="8"
+                                BorderBrush="#3F3F46"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Device header -->
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Device icon/indicator -->
+                                    <Border Grid.Column="0"
+                                            Width="8"
+                                            Height="8"
+                                            Background="{Binding TypeColor}"
+                                            CornerRadius="4"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,8,0"/>
+
+                                    <!-- Device name -->
+                                    <TextBlock Grid.Column="1"
+                                              Text="{Binding Name}"
+                                              FontSize="13"
+                                              FontWeight="SemiBold"
+                                              Foreground="White"
+                                              VerticalAlignment="Center"/>
+
+                                    <!-- Remove button -->
+                                    <Button Grid.Column="2"
+                                            Content="✕"
+                                            Width="20"
+                                            Height="20"
+                                            FontSize="12"
+                                            Background="Transparent"
+                                            Foreground="#858585"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Click="RemoveDeviceButton_Click"
+                                            Tag="{Binding}">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Foreground" Value="#F14C4C"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Properties -->
+                                <ItemsControl Grid.Row="1"
+                                             ItemsSource="{Binding Properties}"
+                                             Margin="16,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{Binding Name}"
+                                                          FontFamily="Consolas, Cascadia Code, Courier New"
+                                                          FontSize="11"
+                                                          Foreground="#858585"/>
+
+                                                <TextBlock Grid.Column="1"
+                                                          Text="{Binding Value}"
+                                                          FontFamily="Consolas, Cascadia Code, Courier New"
+                                                          FontSize="11"
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Right"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Empty state -->
+        <TextBlock x:Name="EmptyMessage"
+                   Grid.Row="1"
+                   Text="Add devices to monitor"
+                   Foreground="#858585"
+                   FontSize="13"
+                   FontStyle="Italic"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Visibility="Visible"/>
+    </Grid>
+</local:WidgetBase>

@@ -110,7 +110,16 @@
 
                 <Rectangle Width="1" Fill="#3F3F46" Margin="8,2"/>
 
-                <TextBlock Text="Execution Speed:" Foreground="#808080" VerticalAlignment="Center" Margin="8,0"/>
+                <Button x:Name="LoopButton" Style="{StaticResource SimButton}" Click="Loop_Click" ToolTip="Loop Mode - Continuous execution with YIELD pauses">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE1CD;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#C586C0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LoopButtonText" Text=" Loop" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Button>
+
+                <Rectangle Width="1" Fill="#3F3F46" Margin="8,2"/>
+
+                <TextBlock Text="Tick Speed:" Foreground="#808080" VerticalAlignment="Center" Margin="8,0"/>
                 <Slider x:Name="SpeedSlider" Width="100" Minimum="1" Maximum="100" Value="50"
                         VerticalAlignment="Center" Margin="4,0"/>
             </StackPanel>
@@ -272,6 +281,11 @@
                 <StackPanel Grid.Column="3" Orientation="Horizontal">
                     <TextBlock Text="SP: " Foreground="White" Opacity="0.8"/>
                     <TextBlock x:Name="SPText" Text="0" Foreground="White" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="20,0,0,0">
+                    <TextBlock x:Name="LoopCountLabel" Text="Loops: " Foreground="White" Opacity="0.8" Visibility="Collapsed"/>
+                    <TextBlock x:Name="LoopCountText" Text="0" Foreground="#C586C0" FontWeight="SemiBold" Visibility="Collapsed"/>
                 </StackPanel>
 
                 <TextBlock x:Name="ErrorText" Grid.Column="5" Text="" Foreground="#FFB0B0" FontWeight="SemiBold"/>

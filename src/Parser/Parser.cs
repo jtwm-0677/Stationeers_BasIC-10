@@ -92,6 +92,7 @@ public class Parser
         if (Check(TokenType.Sleep)) return ParseSleepStatement();
         if (Check(TokenType.Yield)) return ParseYieldStatement();
         if (Check(TokenType.Alias)) return ParseAliasStatement();
+        if (Check(TokenType.Device)) return ParseDeviceStatement();
         if (Check(TokenType.Define)) return ParseDefineStatement();
         if (Check(TokenType.Push)) return ParsePushStatement();
         if (Check(TokenType.Pop)) return ParsePopStatement();
@@ -461,8 +462,8 @@ public class Parser
                 {
                     var currentToken = Current();
                     throw new ParserException(
-                        $"Incomplete IF statement - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
-                        currentToken.Line, currentToken.Column);
+                        $"Incomplete IF statement (started at line {token.Line}) - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
+                        token.Line, token.Column);
                 }
                 lastPosition = _position;
 
@@ -576,8 +577,8 @@ public class Parser
                         {
                             var currentToken = Current();
                             throw new ParserException(
-                                $"Incomplete ELSEIF statement - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
-                                currentToken.Line, currentToken.Column);
+                                $"Incomplete ELSEIF statement (IF started at line {token.Line}) - expected ENDIF, ELSE, or ELSEIF but found {currentToken.Type}",
+                                token.Line, token.Column);
                         }
                         elseIfLastPosition = _position;
 
@@ -632,8 +633,8 @@ public class Parser
                     {
                         var currentToken = Current();
                         throw new ParserException(
-                            $"Incomplete ELSE statement - expected ENDIF but found {currentToken.Type}",
-                            currentToken.Line, currentToken.Column);
+                            $"Incomplete ELSE statement (IF started at line {token.Line}) - expected ENDIF but found {currentToken.Type}",
+                            token.Line, token.Column);
                     }
                     elseLastPosition = _position;
 
@@ -662,11 +663,10 @@ public class Parser
             }
             else if (rootStmt.IsMultiLine)
             {
-                // Multi-line IF must have ENDIF
-                var currentToken = Current();
+                // Multi-line IF must have ENDIF - report at the IF statement's line
                 throw new ParserException(
-                    $"Expected ENDIF to close multi-line IF statement, got {currentToken.Type}",
-                    currentToken.Line, currentToken.Column);
+                    $"Missing ENDIF for IF statement at line {token.Line}",
+                    token.Line, token.Column);
             }
         }
 
@@ -1151,6 +1151,25 @@ public class Parser
                 stmt.DeviceSpec = deviceToken.Value;
             }
         }
+
+        return stmt;
+    }
+
+    /// <summary>
+    /// Parse a DEVICE statement: DEVICE aliasName "PrefabName"
+    /// This creates a named device reference that can be used to access devices by prefab type.
+    /// </summary>
+    private DeviceStatement ParseDeviceStatement()
+    {
+        var token = Advance(); // Consume DEVICE
+        var stmt = new DeviceStatement { Line = token.Line, Column = token.Column };
+
+        var nameToken = Expect(TokenType.Identifier, "Expected device alias name");
+        stmt.AliasName = nameToken.Value;
+
+        // Expect the prefab name as a string
+        var prefabToken = Expect(TokenType.String, "Expected device prefab name in quotes");
+        stmt.PrefabName = prefabToken.Value;
 
         return stmt;
     }
