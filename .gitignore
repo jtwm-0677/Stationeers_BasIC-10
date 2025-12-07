@@ -44,6 +44,10 @@ publish/
 # MCP config (local)
 .mcp.json
 
+# Claude Code config (local)
+.claude/
+CLAUDE.md
+
 # Temp/notes
 nul
 CONTINUATION_NOTES.md
