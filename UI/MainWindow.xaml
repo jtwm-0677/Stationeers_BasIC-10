@@ -263,6 +263,12 @@
                           Foreground="White"
                           ToolTip="Show auto-complete suggestions when typing"
                           Checked="AutoCompleteCheckBox_Changed" Unchecked="AutoCompleteCheckBox_Changed"/>
+                <Rectangle Width="1" Fill="{DynamicResource SeparatorBrush}" Margin="8,4"/>
+                <CheckBox x:Name="ExtendedModeCheckBox" Content="Extended (512)"
+                          VerticalAlignment="Center" Margin="4,0"
+                          Foreground="White"
+                          ToolTip="Allow scripts up to 512 lines (requires 'More Lines of Code' mod by jixxed)"
+                          Checked="ExtendedModeCheckBox_Changed" Unchecked="ExtendedModeCheckBox_Changed"/>
             </StackPanel>
         </Border>
 
