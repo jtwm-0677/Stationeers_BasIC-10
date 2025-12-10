@@ -79,6 +79,15 @@ public partial class MainWindow : Window
     private DispatcherTimer? _autoSaveTimer;
     private DateTime _lastAutoSave = DateTime.MinValue;
 
+    // Extended script mode (512 lines - requires "More Lines of Code" mod)
+    private const int VANILLA_LINE_LIMIT = 128;
+    private const int EXTENDED_LINE_LIMIT = 512;
+    private const string MOD_WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=3265272725";
+    private const string MOD_NAME = "More Lines of Code";
+    private const string MOD_AUTHOR = "jixxed";
+    private bool _extendedModeEnabled = false;
+    private bool _extendedModeWarningShown = false;
+
     // Last compilation result for Problems Panel
     private CompilationResult? _lastCompilationResult;
 
@@ -823,7 +832,9 @@ CheckStatus:
 
     # Check temperature (warning if outside comfort range)
     IF temp < TARGET_TEMP - 10 OR temp > TARGET_TEMP + 10 THEN
-        IF status > 0 THEN status = 1
+        IF status > 0 THEN
+            status = 1
+        ENDIF
     ENDIF
 
     RETURN
@@ -831,16 +842,16 @@ CheckStatus:
 # ── Subroutine: Update display and alarm ───────────────────────
 UpdateDisplay:
     display.Setting = pressure
+    alarm.On = 1
 
     IF status = 0 THEN
-        alarm.On = 1
-        alarm.Color = Red
-    ELSEIF status = 1 THEN
-        alarm.On = 1
-        alarm.Color = Yellow
+        alarm.Color = 4     # Red
     ELSE
-        alarm.On = 1
-        alarm.Color = Green
+        IF status = 1 THEN
+            alarm.Color = 3  # Yellow
+        ELSE
+            alarm.Color = 2  # Green
+        ENDIF
     ENDIF
 
     RETURN
@@ -1239,13 +1250,30 @@ END
         return "";
     }
 
+    private string GetExtendedScriptHeader()
+    {
+        return $"# EXTENDED SCRIPT - Requires \"{MOD_NAME}\" mod by {MOD_AUTHOR}\n# {MOD_WORKSHOP_URL}\n";
+    }
+
+    private bool IsExtendedScript(int lineCount)
+    {
+        return _extendedModeEnabled && lineCount > VANILLA_LINE_LIMIT;
+    }
+
     private void GenerateInstructionXml(string path, string scriptName, string ic10Code, string author)
     {
         // Generate timestamp in game format (ticks)
         var ticks = DateTime.UtcNow.Ticks;
 
+        // Count actual IC10 lines (for extended script detection)
+        var lineCount = ic10Code.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+        var isExtended = IsExtendedScript(lineCount);
+
+        // Prepend extended script header if needed
+        var finalCode = isExtended ? GetExtendedScriptHeader() + ic10Code : ic10Code;
+
         // Escape the IC10 code for XML
-        var escapedCode = System.Security.SecurityElement.Escape(ic10Code);
+        var escapedCode = System.Security.SecurityElement.Escape(finalCode);
 
         // Use settings author first, then meta comment author, then default
         var displayAuthor = !string.IsNullOrWhiteSpace(_settings.ScriptAuthor)
@@ -1258,6 +1286,11 @@ END
             ? "Built in Basic-10"
             : $"{userDesc}\n\nBuilt in Basic-10";
 
+        // Build RequiresMod element if extended
+        var requireModElement = isExtended
+            ? $"\n  <RequiresMod>{MOD_WORKSHOP_URL}</RequiresMod>"
+            : "";
+
         var xml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <InstructionData xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
   <DateTime>{ticks}</DateTime>
@@ -1266,7 +1299,7 @@ END
   <Description>{System.Security.SecurityElement.Escape(description)}</Description>
   <Author>{System.Security.SecurityElement.Escape(displayAuthor)}</Author>
   <WorkshopFileHandle>0</WorkshopFileHandle>
-  <Instructions>{escapedCode}</Instructions>
+  <Instructions>{escapedCode}</Instructions>{requireModElement}
 </InstructionData>";
         File.WriteAllText(path, xml);
     }
@@ -1703,7 +1736,16 @@ END
     {
         if (!string.IsNullOrEmpty(MipsOutput.Text))
         {
-            Clipboard.SetText(MipsOutput.Text);
+            var code = MipsOutput.Text;
+            var lineCount = code.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+
+            // Prepend extended script header if needed
+            if (IsExtendedScript(lineCount))
+            {
+                code = GetExtendedScriptHeader() + code;
+            }
+
+            Clipboard.SetText(code);
             SetStatus("IC10 code copied to clipboard", true);
         }
     }
@@ -1990,6 +2032,53 @@ END
         _settings.Save();
         // Keep menu in sync
         AutoCompleteMenu.IsChecked = AutoCompleteCheckBox.IsChecked == true;
+    }
+
+    private void ExtendedModeCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        var isChecked = ExtendedModeCheckBox.IsChecked == true;
+
+        if (isChecked && !_extendedModeWarningShown)
+        {
+            // Show first-time warning dialog
+            var result = MessageBox.Show(
+                $"This mode allows scripts up to 512 lines, but requires the \"{MOD_NAME}\" mod by {MOD_AUTHOR} to be installed in Stationeers.\n\n" +
+                "Scripts saved in this mode will not work without the mod.\n\n" +
+                "Click 'Yes' to enable extended mode, 'No' to cancel, or 'Cancel' to open the mod's Steam Workshop page.",
+                "Extended Script Mode",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _extendedModeEnabled = true;
+                _extendedModeWarningShown = true;
+            }
+            else if (result == MessageBoxResult.Cancel)
+            {
+                // "Cancel" acts as "Learn More" - open workshop page
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = MOD_WORKSHOP_URL,
+                    UseShellExecute = true
+                });
+                ExtendedModeCheckBox.IsChecked = false;
+                return;
+            }
+            else
+            {
+                // No - cancel
+                ExtendedModeCheckBox.IsChecked = false;
+                return;
+            }
+        }
+        else
+        {
+            _extendedModeEnabled = isChecked;
+        }
+
+        // Update line count display with new limits
+        UpdateLineCount();
     }
 
     private void AutoCompileMenu_Click(object sender, RoutedEventArgs e)
@@ -2335,30 +2424,80 @@ END
     {
         var basicLines = BasicEditor.LineCount;
         var mipsLines = string.IsNullOrEmpty(MipsOutput.Text) ? 0 : MipsOutput.LineCount;
+        var lineLimit = _extendedModeEnabled ? EXTENDED_LINE_LIMIT : VANILLA_LINE_LIMIT;
 
         BasicLineCountText.Text = $"Lines: {basicLines}";
-        MipsLineCountText.Text = $"Lines: {mipsLines} / 128";
+        MipsLineCountText.Text = $"Lines: {mipsLines} / {lineLimit}";
 
-        // Update warning badges
-        LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= 128 ? Visibility.Visible : Visibility.Collapsed;
-        LineErrorBadge.Visibility = mipsLines > 128 ? Visibility.Visible : Visibility.Collapsed;
-
-        // Update line budget indicator in status bar with color coding
-        LineBudgetText.Text = $"{mipsLines}/128";
-        if (mipsLines > 128)
+        // Update warning badges based on current mode
+        if (_extendedModeEnabled)
         {
-            MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
-        }
-        else if (mipsLines >= 100)
-        {
-            MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            // Extended mode: warn at vanilla limit, error at extended limit
+            LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+            LineErrorBadge.Visibility = mipsLines > EXTENDED_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
-            MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            // Vanilla mode: warn near 128, error over 128
+            LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+            LineErrorBadge.Visibility = mipsLines > VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // Update line budget indicator in status bar with color coding
+        LineBudgetText.Text = $"{mipsLines}/{lineLimit}";
+
+        if (_extendedModeEnabled)
+        {
+            // Extended mode color thresholds
+            if (mipsLines > EXTENDED_LINE_LIMIT)
+            {
+                // Over extended limit - red error
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines > 450)
+            {
+                // Near extended limit (451-512) - red warning
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines > VANILLA_LINE_LIMIT)
+            {
+                // Exceeds vanilla but valid for mod (129-450) - purple
+                MipsLineCountText.Foreground = (Brush)FindResource("ExtendedModeBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(156, 39, 176)); // Purple
+            }
+            else if (mipsLines >= 100)
+            {
+                // Near vanilla limit (100-128) - orange warning
+                MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            }
+            else
+            {
+                // Safe (0-99) - green
+                MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            }
+        }
+        else
+        {
+            // Vanilla mode - original behavior
+            if (mipsLines > VANILLA_LINE_LIMIT)
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines >= 100)
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            }
+            else
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            }
         }
     }
 

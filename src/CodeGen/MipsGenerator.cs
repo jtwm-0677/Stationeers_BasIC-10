@@ -208,7 +208,9 @@ public class MipsGenerator
             if (trimmed.EndsWith(":") && !trimmed.Contains(" "))
             {
                 var labelName = trimmed.TrimEnd(':');
-                labelToLine[labelName] = instructionNumber;
+                // Use outputLines.Count (actual line number) not instructionNumber
+                // IC10 counts ALL lines including comments for jump targets
+                labelToLine[labelName] = outputLines.Count;
 
                 // Keep user-defined labels, remove internal ones
                 if (!IsInternalLabel(labelName))
