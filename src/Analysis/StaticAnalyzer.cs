@@ -192,6 +192,12 @@ public class StaticAnalyzer
                 CollectUsagesInExpression(batchWrite.Value);
                 break;
 
+            case ExternalMemoryWriteStatement memWrite:
+                CollectUsagesInExpression(memWrite.Address);
+                CollectUsagesInExpression(memWrite.Value);
+                MarkUsed(memWrite.DeviceName);
+                break;
+
             case InputStatement input:
                 if (input.DeviceName != null)
                 {
@@ -314,6 +320,11 @@ public class StaticAnalyzer
             case DeviceSlotReadExpression devSlotRead:
                 MarkUsed(devSlotRead.DeviceName);
                 CollectUsagesInExpression(devSlotRead.SlotIndex);
+                break;
+
+            case ExternalMemoryReadExpression memRead:
+                MarkUsed(memRead.DeviceName);
+                CollectUsagesInExpression(memRead.Address);
                 break;
 
             case ReagentReadExpression reagentRead:

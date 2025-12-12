@@ -209,6 +209,25 @@ public class Parser
                 };
             }
 
+            // Check for .Memory[n] = value syntax (external memory write)
+            if (propertyName.Equals("Memory", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+            {
+                Advance(); // Consume '['
+                var address = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+                Expect(TokenType.Equal, "Expected '='");
+                var memValue = ParseExpression();
+
+                return new ExternalMemoryWriteStatement
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    DeviceName = name,
+                    Address = address,
+                    Value = memValue
+                };
+            }
+
             Expect(TokenType.Equal, "Expected '=' after property name");
             var value = ParseExpression();
 
@@ -2123,6 +2142,21 @@ public class Parser
                         DeviceName = name,
                         SlotIndex = slotIndex,
                         PropertyName = slotPropToken.Value
+                    };
+                }
+
+                // Check for .Memory[n] syntax (external memory read)
+                if (propertyName.Equals("Memory", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+                {
+                    Advance(); // Consume '['
+                    var address = ParseExpression();
+                    Expect(TokenType.RightBracket, "Expected ']'");
+                    return new ExternalMemoryReadExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        DeviceName = name,
+                        Address = address
                     };
                 }
 

@@ -208,7 +208,9 @@ public class MipsGenerator
             if (trimmed.EndsWith(":") && !trimmed.Contains(" "))
             {
                 var labelName = trimmed.TrimEnd(':');
-                labelToLine[labelName] = instructionNumber;
+                // Use outputLines.Count (actual line number) not instructionNumber
+                // IC10 counts ALL lines including comments for jump targets
+                labelToLine[labelName] = outputLines.Count;
 
                 // Keep user-defined labels, remove internal ones
                 if (!IsInternalLabel(labelName))
@@ -360,6 +362,9 @@ public class MipsGenerator
                 break;
             case BatchWriteStatement batchWrite:
                 GenerateBatchWrite(batchWrite);
+                break;
+            case ExternalMemoryWriteStatement memWrite:
+                GenerateExternalMemoryWrite(memWrite);
                 break;
             case AliasStatement aliasStmt:
                 // Static aliases handled in first pass
@@ -1650,6 +1655,52 @@ public class MipsGenerator
         FreeRegister(valueReg);
     }
 
+    private void GenerateExternalMemoryWrite(ExternalMemoryWriteStatement write)
+    {
+        var addressReg = GenerateExpression(write.Address);
+        var valueReg = GenerateExpression(write.Value);
+
+        // Check for advanced device reference (named device)
+        if (_deviceReferences.TryGetValue(write.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.DeviceNamed:
+                    // Named device: putd deviceHash nameHash address value
+                    var devHash = _deviceHashes[write.DeviceName];
+                    var nameHash = _deviceNameHashes[write.DeviceName];
+                    Emit($"putd {devHash} {nameHash} {addressReg} {valueReg}");
+                    FreeRegister(addressReg);
+                    FreeRegister(valueReg);
+                    return;
+
+                case DeviceReferenceType.ReferenceId:
+                    // Reference ID: putd refId 0 address value
+                    var refId = _deviceHashes[write.DeviceName];
+                    Emit($"putd {refId} 0 {addressReg} {valueReg}");
+                    FreeRegister(addressReg);
+                    FreeRegister(valueReg);
+                    return;
+
+                case DeviceReferenceType.Pin:
+                case DeviceReferenceType.Device:
+                case DeviceReferenceType.Channel:
+                    // Fall through to standard handling
+                    break;
+            }
+        }
+
+        // Standard pin alias: put device address value
+        var deviceSpec = _aliases.GetValueOrDefault(write.DeviceName, write.DeviceName);
+        if (deviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+        {
+            deviceSpec = "db";
+        }
+        Emit($"put {deviceSpec} {addressReg} {valueReg}");
+        FreeRegister(addressReg);
+        FreeRegister(valueReg);
+    }
+
     private void GenerateSubDefinition(SubDefinition sub)
     {
         EmitLabel(sub.Name);
@@ -1746,6 +1797,9 @@ public class MipsGenerator
 
             case DeviceSlotReadExpression slotRead:
                 return GenerateDeviceSlotRead(slotRead);
+
+            case ExternalMemoryReadExpression memRead:
+                return GenerateExternalMemoryRead(memRead);
 
             case BatchReadExpression batchRead:
                 return GenerateBatchRead(batchRead);
@@ -2191,6 +2245,50 @@ public class MipsGenerator
         return resultReg;
     }
 
+    private string GenerateExternalMemoryRead(ExternalMemoryReadExpression read)
+    {
+        var resultReg = AllocateRegister();
+        var addressReg = GenerateExpression(read.Address);
+
+        // Check for advanced device reference (named device)
+        if (_deviceReferences.TryGetValue(read.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.DeviceNamed:
+                    // Named device: getd result deviceHash nameHash address
+                    var devHash = _deviceHashes[read.DeviceName];
+                    var nameHash = _deviceNameHashes[read.DeviceName];
+                    Emit($"getd {resultReg} {devHash} {nameHash} {addressReg}");
+                    FreeRegister(addressReg);
+                    return resultReg;
+
+                case DeviceReferenceType.ReferenceId:
+                    // Reference ID: getd result refId 0 address
+                    var refId = _deviceHashes[read.DeviceName];
+                    Emit($"getd {resultReg} {refId} 0 {addressReg}");
+                    FreeRegister(addressReg);
+                    return resultReg;
+
+                case DeviceReferenceType.Pin:
+                case DeviceReferenceType.Device:
+                case DeviceReferenceType.Channel:
+                    // Fall through to standard handling
+                    break;
+            }
+        }
+
+        // Standard pin alias: get result device address
+        var deviceSpec = _aliases.GetValueOrDefault(read.DeviceName, read.DeviceName);
+        if (deviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+        {
+            deviceSpec = "db";
+        }
+        Emit($"get {resultReg} {deviceSpec} {addressReg}");
+        FreeRegister(addressReg);
+        return resultReg;
+    }
+
     private string GenerateBatchRead(BatchReadExpression read)
     {
         var resultReg = AllocateRegister();
@@ -2518,7 +2616,12 @@ public class MipsGenerator
         }
 
         // Return as signed int32 (Stationeers convention)
-        return unchecked((int)(crc ^ 0xFFFFFFFF));
+        var hash = unchecked((int)(crc ^ 0xFFFFFFFF));
+
+        // Register in the living hash dictionary for decompilation support
+        Data.HashDictionary.RegisterHash(str, hash);
+
+        return hash;
     }
 
     // Register allocation
