@@ -13,6 +13,7 @@ public class IC10Decompiler
     private readonly Dictionary<string, string> _registerVars = new();
     private readonly Dictionary<int, string> _hashToDevice = new();
     private readonly Dictionary<int, string> _hashToUserName = new();
+    private readonly Dictionary<int, string> _lineToLabel = new();
     private int _varCounter = 0;
 
     public IC10Decompiler(IC10Program program)
@@ -103,39 +104,65 @@ public class IC10Decompiler
     }
 
     /// <summary>
-    /// Tries to find a device type name for a hash, returns the hash as string if not found
+    /// Tries to find a device type name for a hash.
+    /// Checks local context first, then the living hash dictionary.
+    /// Returns [DEVICE_UNKNOWN:hash] if not found to prompt user to fill in.
     /// </summary>
     private string LookupDeviceHash(string hashStr)
     {
         if (int.TryParse(hashStr, out int hash))
         {
+            // Check local context first
             if (_hashToDevice.TryGetValue(hash, out var deviceName))
             {
                 return $"HASH(\"{deviceName}\")";
             }
+
+            // Fall back to living hash dictionary
+            var dictLookup = Data.HashDictionary.LookupHash(hash);
+            if (dictLookup != null)
+            {
+                return $"HASH(\"{dictLookup}\")";
+            }
+
+            // Unknown hash - label it clearly for user to fill in
+            return $"HASH(\"[DEVICE_UNKNOWN:{hash}]\")";
         }
-        return hashStr; // Return raw hash if not found
+        return hashStr; // Return as-is if not a numeric hash
     }
 
     /// <summary>
-    /// Tries to find a user-defined device name for a hash, returns the hash as string if not found
+    /// Tries to find a user-defined device name for a hash.
+    /// Checks local context first, then the living hash dictionary.
+    /// Returns [NAME_UNKNOWN:hash] if not found to prompt user to fill in.
     /// </summary>
     private string LookupUserNameHash(string hashStr)
     {
         if (int.TryParse(hashStr, out int hash))
         {
+            // Check local context first
             if (_hashToUserName.TryGetValue(hash, out var userName))
             {
                 return $"HASH(\"{userName}\")";
             }
+
+            // Fall back to living hash dictionary
+            var dictLookup = Data.HashDictionary.LookupHash(hash);
+            if (dictLookup != null)
+            {
+                return $"HASH(\"{dictLookup}\")";
+            }
+
+            // Unknown hash - label it clearly for user to fill in
+            return $"HASH(\"[NAME_UNKNOWN:{hash}]\")";
         }
-        return hashStr; // Return raw hash if not found
+        return hashStr; // Return as-is if not a numeric hash
     }
 
     public string Decompile()
     {
         _output.Clear();
-        _output.AppendLine("' Decompiled from IC10 MIPS assembly");
+        _output.AppendLine("# Decompiled from IC10 MIPS assembly");
         _output.AppendLine();
 
         // Output aliases
@@ -155,17 +182,83 @@ public class IC10Decompiler
             _output.AppendLine();
         }
 
-        // Track which labels we've emitted
-        var emittedLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // First pass: collect all numeric jump targets and generate labels for them
+        CollectNumericJumpTargets();
 
-        // Process instructions
+        // Second pass: process instructions with label insertion
         for (int i = 0; i < _program.Instructions.Count; i++)
         {
             var inst = _program.Instructions[i];
+
+            // Insert generated label if this instruction address is a jump target
+            // (only executable instructions have valid addresses)
+            if (inst.InstructionAddress >= 0 && _lineToLabel.TryGetValue(inst.InstructionAddress, out var label))
+            {
+                _output.AppendLine($"{label}:");
+            }
+
             DecompileInstruction(inst, i);
         }
 
         return _output.ToString();
+    }
+
+    /// <summary>
+    /// First pass: find all numeric jump targets and create labels for them.
+    /// Jump targets in MIPS are instruction addresses (0-based, executable instructions only).
+    /// </summary>
+    private void CollectNumericJumpTargets()
+    {
+        foreach (var inst in _program.Instructions)
+        {
+            string? target = null;
+
+            // Check jump instructions
+            if (inst.Type == IC10InstructionType.Jump && inst.Operands.Length >= 1)
+            {
+                target = inst.Operands[0];
+            }
+            // Check branch instructions
+            else if (inst.Type == IC10InstructionType.Branch)
+            {
+                if (inst.Opcode?.EndsWith("z") == true && inst.Operands.Length >= 2)
+                {
+                    target = inst.Operands[1];
+                }
+                else if (inst.Operands.Length >= 3)
+                {
+                    target = inst.Operands[2];
+                }
+            }
+
+            // If target is a number (instruction address), create a label for it
+            if (target != null && int.TryParse(target, out int address))
+            {
+                if (!_lineToLabel.ContainsKey(address))
+                {
+                    _lineToLabel[address] = $"addr_{address}";
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts a jump target to a label name. If the target is a number (instruction address), returns the generated label.
+    /// </summary>
+    private string TranslateJumpTarget(string target)
+    {
+        if (int.TryParse(target, out int address))
+        {
+            if (_lineToLabel.TryGetValue(address, out var label))
+            {
+                return label;
+            }
+            // If we don't have a label (shouldn't happen), create one
+            var newLabel = $"addr_{address}";
+            _lineToLabel[address] = newLabel;
+            return newLabel;
+        }
+        return target; // Already a label name
     }
 
     private void DecompileInstruction(IC10Instruction inst, int index)
@@ -173,7 +266,7 @@ public class IC10Decompiler
         switch (inst.Type)
         {
             case IC10InstructionType.Comment:
-                _output.AppendLine($"' {inst.Comment}");
+                _output.AppendLine($"# {inst.Comment}");
                 break;
 
             case IC10InstructionType.Label:
@@ -250,7 +343,7 @@ public class IC10Decompiler
 
             default:
                 // Output as comment for unknown instructions
-                _output.AppendLine($"    ' IC10: {inst}");
+                _output.AppendLine($"    # IC10: {inst}");
                 break;
         }
     }
@@ -389,14 +482,14 @@ public class IC10Decompiler
                 }
                 else
                 {
-                    _output.AppendLine($"    GOTO {target}");
+                    _output.AppendLine($"    GOTO {TranslateJumpTarget(target)}");
                 }
                 break;
             case "jal":
-                _output.AppendLine($"    GOSUB {target}");
+                _output.AppendLine($"    GOSUB {TranslateJumpTarget(target)}");
                 break;
             case "jr":
-                _output.AppendLine($"    ' JUMP RELATIVE {target}");
+                _output.AppendLine($"    # JUMP RELATIVE {target}");
                 break;
         }
     }
@@ -409,7 +502,7 @@ public class IC10Decompiler
         if (inst.Opcode?.EndsWith("z") == true)
         {
             var op1 = TranslateOperand(inst.Operands[0]);
-            var target = inst.Operands[1];
+            var target = TranslateJumpTarget(inst.Operands[1]);
 
             var comparison = inst.Opcode switch
             {
@@ -436,7 +529,7 @@ public class IC10Decompiler
         {
             var op1 = TranslateOperand(inst.Operands[0]);
             var op2 = TranslateOperand(inst.Operands[1]);
-            var target = inst.Operands[2];
+            var target = TranslateJumpTarget(inst.Operands[2]);
 
             var comparison = inst.Opcode switch
             {
@@ -511,7 +604,7 @@ public class IC10Decompiler
                     var device = TranslateDevice(inst.Operands[0]);
                     var index = TranslateOperand(inst.Operands[1]);
                     var value = TranslateOperand(inst.Operands[2]);
-                    _output.AppendLine($"    ' Stack store: {device}[{index}] = {value}");
+                    _output.AppendLine($"    # Stack store: {device}[{index}] = {value}");
                 }
                 break;
             case "get":
@@ -521,7 +614,7 @@ public class IC10Decompiler
                     var getDest = GetVarName(inst.Operands[0]);
                     var getDevice = TranslateDevice(inst.Operands[1]);
                     var getIndex = TranslateOperand(inst.Operands[2]);
-                    _output.AppendLine($"    ' Stack load: {getDest} = {getDevice}[{getIndex}]");
+                    _output.AppendLine($"    # Stack load: {getDest} = {getDevice}[{getIndex}]");
                 }
                 break;
             case "poke":
@@ -530,7 +623,7 @@ public class IC10Decompiler
                 {
                     var addr = TranslateOperand(inst.Operands[0]);
                     var pokeValue = TranslateOperand(inst.Operands[1]);
-                    _output.AppendLine($"    ' Memory store: [{addr}] = {pokeValue}");
+                    _output.AppendLine($"    # Memory store: [{addr}] = {pokeValue}");
                 }
                 break;
         }
@@ -618,7 +711,7 @@ public class IC10Decompiler
                 break;
 
             default:
-                _output.AppendLine($"    ' IC10: {inst}");
+                _output.AppendLine($"    # IC10: {inst}");
                 break;
         }
     }
@@ -682,7 +775,7 @@ public class IC10Decompiler
                 break;
 
             default:
-                _output.AppendLine($"    ' IC10: {inst}");
+                _output.AppendLine($"    # IC10: {inst}");
                 break;
         }
     }
@@ -710,10 +803,25 @@ public class IC10Decompiler
     {
         if (!_registerVars.TryGetValue(register, out var varName))
         {
-            // Generate a meaningful variable name based on the register
-            if (register.StartsWith("r", StringComparison.OrdinalIgnoreCase))
+            // First check if this is an alias name directly (e.g., "RoomSensor" used as destination)
+            if (_program.Aliases.ContainsKey(register))
             {
-                varName = $"v{register.Substring(1)}";
+                varName = register;
+            }
+            // Check if this is a register that has an alias pointing to it
+            else if (IsActualRegister(register))
+            {
+                // Look for an alias that maps to this register
+                var alias = _program.Aliases.FirstOrDefault(a =>
+                    a.Value.Equals(register, StringComparison.OrdinalIgnoreCase));
+                if (alias.Key != null)
+                {
+                    varName = alias.Key;
+                }
+                else
+                {
+                    varName = $"v{register.Substring(1)}";
+                }
             }
             else
             {
@@ -722,6 +830,34 @@ public class IC10Decompiler
             _registerVars[register] = varName;
         }
         return varName;
+    }
+
+    /// <summary>
+    /// Checks if the operand is an actual IC10 register (r0-r17, ra, sp)
+    /// rather than an alias name that happens to start with 'r'.
+    /// </summary>
+    private static bool IsActualRegister(string operand)
+    {
+        if (string.IsNullOrEmpty(operand)) return false;
+
+        // Check for ra (return address) and sp (stack pointer)
+        if (operand.Equals("ra", StringComparison.OrdinalIgnoreCase) ||
+            operand.Equals("sp", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Check for r0-r17 pattern
+        if (operand.StartsWith("r", StringComparison.OrdinalIgnoreCase) && operand.Length >= 2)
+        {
+            var numPart = operand.Substring(1);
+            if (int.TryParse(numPart, out int regNum))
+            {
+                return regNum >= 0 && regNum <= 17;
+            }
+        }
+
+        return false;
     }
 
     private string TranslateOperand(string operand)
