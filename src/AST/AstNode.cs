@@ -150,6 +150,12 @@ public class PeekStatement : StatementNode
     public string VariableName { get; set; } = "";
 }
 
+public class PokeStatement : StatementNode
+{
+    public ExpressionNode Address { get; set; } = null!;
+    public ExpressionNode Value { get; set; } = null!;
+}
+
 public class SelectStatement : StatementNode
 {
     public ExpressionNode TestExpression { get; set; } = null!;

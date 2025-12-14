@@ -1376,9 +1376,42 @@ END
         }
     }
 
+    private bool IsOnlyDefaultContent()
+    {
+        var welcomeCode = GetWelcomeCode();
+        var currentContent = BasicEditor.Text;
+
+        // Check if current content matches welcome code (normalize line endings)
+        var normalizedWelcome = welcomeCode.Replace("\r\n", "\n").Trim();
+        var normalizedCurrent = currentContent.Replace("\r\n", "\n").Trim();
+
+        if (normalizedCurrent != normalizedWelcome)
+            return false;
+
+        // Check if there are other tabs with content
+        if (_tabs != null && _tabs.Count > 1)
+        {
+            foreach (var tab in _tabs)
+            {
+                if (tab == _currentTab) continue;
+                if (!string.IsNullOrWhiteSpace(tab.Content))
+                {
+                    var normalizedTab = tab.Content.Replace("\r\n", "\n").Trim();
+                    if (normalizedTab != normalizedWelcome && !string.IsNullOrEmpty(normalizedTab))
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private void AutoSaveToTemp()
     {
         if (string.IsNullOrWhiteSpace(BasicEditor.Text)) return;
+
+        // Don't autosave if content is just the default welcome script
+        if (IsOnlyDefaultContent()) return;
 
         try
         {
@@ -1450,6 +1483,18 @@ END
             var backupContent = File.ReadAllText(backupPath);
             if (string.IsNullOrWhiteSpace(backupContent)) return;
 
+            // Don't offer recovery if it's just the default welcome script
+            var welcomeCode = GetWelcomeCode();
+            var normalizedBackup = backupContent.Replace("\r\n", "\n").Trim();
+            var normalizedWelcome = welcomeCode.Replace("\r\n", "\n").Trim();
+            if (normalizedBackup == normalizedWelcome)
+            {
+                // Just the default script, clean up and don't prompt
+                File.Delete(backupPath);
+                if (File.Exists(metaPath)) File.Delete(metaPath);
+                return;
+            }
+
             var originalPath = File.Exists(metaPath) ? File.ReadAllText(metaPath).Trim() : "UNSAVED";
             var timeAgo = DateTime.Now - backupInfo.LastWriteTime;
             var timeStr = timeAgo.TotalMinutes < 60
@@ -1473,6 +1518,14 @@ END
                 ModifiedIndicator.Visibility = Visibility.Visible;
                 UpdateTitle();
                 StatusText.Text = "Recovered from autosave backup";
+
+                // Also update the current tab's content so it doesn't get overwritten
+                // by subsequent sync operations (e.g., auto-compile, tab switch)
+                if (_currentTab != null)
+                {
+                    _currentTab.Content = backupContent;
+                    _currentTab.IsModified = true;
+                }
             }
 
             // Delete recovery files after offering
@@ -1760,6 +1813,25 @@ END
 
             if (result.Success)
             {
+                // Check line limit based on Extended Mode setting
+                var lineLimit = _extendedModeEnabled ? EXTENDED_LINE_LIMIT : VANILLA_LINE_LIMIT;
+                if (result.LineCount > lineLimit)
+                {
+                    var modeMsg = _extendedModeEnabled
+                        ? $"Extended mode limit is {EXTENDED_LINE_LIMIT} lines."
+                        : $"Enable 'Extended Script Mode' for up to {EXTENDED_LINE_LIMIT} lines (requires mod).";
+                    ShowError($"Script exceeds {lineLimit} line limit ({result.LineCount} lines). {modeMsg}", null);
+                    SetStatus($"Compilation failed: exceeds {lineLimit} line limit", false);
+
+                    // Still show the output so user can see what was generated
+                    _suppressMipsUpdate = true;
+                    MipsOutput.Text = result.Output;
+                    _suppressMipsUpdate = false;
+                    UpdateLineCount();
+                    UpdateProblemsList();
+                    return false;
+                }
+
                 _suppressMipsUpdate = true;
                 MipsOutput.Text = result.Output;
                 _suppressMipsUpdate = false;
@@ -2571,6 +2643,10 @@ END
         }
         else
         {
+            // Clean up autosave files since we're closing cleanly
+            // (user either saved or chose to discard changes)
+            CleanupTempAutoSave();
+
             // Stop HTTP API server
             StopHttpApiServer();
             _settings.Save();

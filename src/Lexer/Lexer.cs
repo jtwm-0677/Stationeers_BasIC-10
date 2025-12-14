@@ -72,6 +72,7 @@ public class Lexer
         ["PUSH"] = TokenType.Push,
         ["POP"] = TokenType.Pop,
         ["PEEK"] = TokenType.Peek,
+        ["POKE"] = TokenType.Poke,
         ["INCLUDE"] = TokenType.Include,
         ["ON"] = TokenType.On,
         ["DATA"] = TokenType.Data,

@@ -345,6 +345,9 @@ public class MipsGenerator
             case PeekStatement peek:
                 GeneratePeek(peek);
                 break;
+            case PokeStatement poke:
+                GeneratePoke(poke);
+                break;
             case SelectStatement select:
                 GenerateSelect(select);
                 break;
@@ -1113,6 +1116,16 @@ public class MipsGenerator
         var varReg = GetOrCreateVariable(peek.VariableName);
         EmitComment($"PEEK into {peek.VariableName}");
         Emit($"peek {varReg}");
+    }
+
+    private void GeneratePoke(PokeStatement poke)
+    {
+        var addressReg = GenerateExpression(poke.Address);
+        var valueReg = GenerateExpression(poke.Value);
+        EmitComment("POKE to stack memory");
+        Emit($"poke {addressReg} {valueReg}");
+        FreeRegister(addressReg);
+        FreeRegister(valueReg);
     }
 
     private void GenerateSelect(SelectStatement select)

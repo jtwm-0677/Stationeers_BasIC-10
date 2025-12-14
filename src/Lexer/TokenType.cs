@@ -61,6 +61,7 @@ public enum TokenType
     Push,
     Pop,
     Peek,
+    Poke,
     Include,
     On,
     Data,

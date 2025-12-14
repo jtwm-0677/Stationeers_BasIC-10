@@ -267,6 +267,11 @@ public class StaticAnalyzer
                 CollectUsagesInExpression(push.Value);
                 break;
 
+            case PokeStatement poke:
+                CollectUsagesInExpression(poke.Address);
+                CollectUsagesInExpression(poke.Value);
+                break;
+
             case SleepStatement sleep:
                 CollectUsagesInExpression(sleep.Duration);
                 break;

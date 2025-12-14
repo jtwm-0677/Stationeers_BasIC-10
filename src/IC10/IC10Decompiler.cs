@@ -618,12 +618,11 @@ public class IC10Decompiler
                 }
                 break;
             case "poke":
-                // poke address value - store value at memory address
                 if (inst.Operands.Length >= 2)
                 {
                     var addr = TranslateOperand(inst.Operands[0]);
                     var pokeValue = TranslateOperand(inst.Operands[1]);
-                    _output.AppendLine($"    # Memory store: [{addr}] = {pokeValue}");
+                    _output.AppendLine($"    POKE {addr}, {pokeValue}");
                 }
                 break;
         }
