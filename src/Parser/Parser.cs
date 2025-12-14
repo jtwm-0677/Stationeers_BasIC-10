@@ -305,6 +305,12 @@ public class Parser
             return ParseRegSetStatement(token);
         }
 
+        // Check for DEVICE statement: DEVICE(index).Property = value
+        if (name.Equals("DEVICE", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftParen))
+        {
+            return ParseDeviceWriteStatement(token);
+        }
+
         // Check for array assignment with parentheses
         if (Check(TokenType.LeftParen))
         {
@@ -1595,6 +1601,46 @@ public class Parser
         };
     }
 
+    /// <summary>
+    /// Parses DEVICE(index).Property = value or DEVICE(index).Slot[n].Property = value.
+    /// Compiles to: s dr{index} Property value or ss dr{index} n Property value
+    /// </summary>
+    private IndirectDeviceWriteStatement ParseDeviceWriteStatement(Token token)
+    {
+        Advance(); // Consume '('
+
+        var indexExpr = ParseExpression();
+
+        Expect(TokenType.RightParen, "Expected ')'");
+        Expect(TokenType.Dot, "Expected '.' after DEVICE()");
+
+        ExpressionNode? slotIndex = null;
+
+        // Check for Slot access: DEVICE(n).Slot[m].Property = value
+        if (Check(TokenType.Identifier) && Current().Value.Equals("Slot", StringComparison.OrdinalIgnoreCase))
+        {
+            Advance(); // Consume 'Slot'
+            Expect(TokenType.LeftBracket, "Expected '[' after Slot");
+            slotIndex = ParseExpression();
+            Expect(TokenType.RightBracket, "Expected ']'");
+            Expect(TokenType.Dot, "Expected '.' after slot index");
+        }
+
+        var propToken = Expect(TokenType.Identifier, "Expected property name");
+        Expect(TokenType.Equal, "Expected '=' after property name");
+        var valueExpr = ParseExpression();
+
+        return new IndirectDeviceWriteStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            IndexExpression = indexExpr,
+            PropertyName = propToken.Value,
+            SlotIndex = slotIndex,
+            Value = valueExpr
+        };
+    }
+
     private DataStatement ParseDataStatement()
     {
         var token = Advance(); // Consume DATA
@@ -2127,6 +2173,28 @@ public class Parser
     {
         var expr = ParsePrimary();
 
+        // Handle DEVICE().Property access
+        if (expr is IndirectDeviceReadExpression indirectDev && indirectDev.PropertyName == "")
+        {
+            if (!Check(TokenType.Dot))
+                throw new ParserException("DEVICE() must be followed by .Property", indirectDev.Line, indirectDev.Column);
+
+            Advance(); // Consume '.'
+
+            // Check for Slot access: DEVICE(n).Slot[m].Property
+            if (Check(TokenType.Identifier) && Current().Value.Equals("Slot", StringComparison.OrdinalIgnoreCase))
+            {
+                Advance(); // Consume 'Slot'
+                Expect(TokenType.LeftBracket, "Expected '[' after Slot");
+                indirectDev.SlotIndex = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+                Expect(TokenType.Dot, "Expected '.' after slot index");
+            }
+
+            var propToken = Expect(TokenType.Identifier, "Expected property name");
+            indirectDev.PropertyName = propToken.Value;
+        }
+
         // Postfix increment (x++)
         if (Check(TokenType.Increment))
         {
@@ -2326,6 +2394,21 @@ public class Parser
                         };
                     }
 
+                    // DEVICE: DEVICE(index) - indirect device for property access
+                    if (upperName == "DEVICE")
+                    {
+                        if (args.Count != 1)
+                            throw new ParserException("DEVICE requires exactly 1 argument", token.Line, token.Column);
+
+                        return new IndirectDeviceReadExpression
+                        {
+                            Line = token.Line,
+                            Column = token.Column,
+                            IndexExpression = args[0],
+                            PropertyName = ""  // Will be filled when .Property is parsed
+                        };
+                    }
+
                     return new FunctionCallExpression
                     {
                         Line = token.Line,
@@ -2484,7 +2567,9 @@ public class Parser
             // Batch slot operations
             or "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS"
             // Indirect register access
-            or "REG" or "REGSET";
+            or "REG" or "REGSET"
+            // Indirect device access
+            or "DEVICE";
     }
 
     private static BatchMode ParseBatchMode(ExpressionNode modeExpr)

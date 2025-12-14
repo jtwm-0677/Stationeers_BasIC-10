@@ -372,6 +372,9 @@ public class MipsGenerator
             case IndirectRegisterWriteStatement indirectRegWrite:
                 GenerateIndirectRegisterWrite(indirectRegWrite);
                 break;
+            case IndirectDeviceWriteStatement indirectDevWrite:
+                GenerateIndirectDeviceWrite(indirectDevWrite);
+                break;
             case ExternalMemoryWriteStatement memWrite:
                 GenerateExternalMemoryWrite(memWrite);
                 break;
@@ -1854,6 +1857,9 @@ public class MipsGenerator
             case IndirectRegisterExpression indirectReg:
                 return GenerateIndirectRegisterRead(indirectReg);
 
+            case IndirectDeviceReadExpression indirectDev:
+                return GenerateIndirectDeviceRead(indirectDev);
+
             default:
                 EmitComment("Unknown expression type");
                 return "0";
@@ -2452,6 +2458,94 @@ public class MipsGenerator
         }
 
         FreeRegister(valueOp);
+    }
+
+    private string GenerateIndirectDeviceRead(IndirectDeviceReadExpression read)
+    {
+        var resultReg = AllocateRegister();
+
+        EmitComment("Indirect device read");
+
+        // Check if index is a compile-time literal number
+        if (read.IndexExpression is NumberLiteral lit)
+        {
+            // Literal index - use direct device access: l r0 d{literal} Property
+            var deviceIndex = Convert.ToInt32(lit.Value);
+            if (read.SlotIndex != null)
+            {
+                var slotOp = GenerateExpression(read.SlotIndex);
+                Emit($"ls {resultReg} d{deviceIndex} {slotOp} {read.PropertyName}");
+                FreeRegister(slotOp);
+            }
+            else
+            {
+                Emit($"l {resultReg} d{deviceIndex} {read.PropertyName}");
+            }
+        }
+        else
+        {
+            // Variable index - evaluate and use indirect device: dr{regNum}
+            var indexOp = GenerateExpression(read.IndexExpression);
+            if (read.SlotIndex != null)
+            {
+                var slotOp = GenerateExpression(read.SlotIndex);
+                Emit($"ls {resultReg} dr{indexOp.TrimStart('r')} {slotOp} {read.PropertyName}");
+                FreeRegister(slotOp);
+            }
+            else
+            {
+                Emit($"l {resultReg} dr{indexOp.TrimStart('r')} {read.PropertyName}");
+            }
+            FreeRegister(indexOp);
+        }
+
+        return resultReg;
+    }
+
+    private void GenerateIndirectDeviceWrite(IndirectDeviceWriteStatement write)
+    {
+        EmitComment("Indirect device write");
+
+        // Check if index is a compile-time literal number
+        if (write.IndexExpression is NumberLiteral lit)
+        {
+            // Literal index - use direct device access: s d{literal} Property value
+            var deviceIndex = Convert.ToInt32(lit.Value);
+            var valueOp = GenerateExpression(write.Value);
+
+            if (write.SlotIndex != null)
+            {
+                var slotOp = GenerateExpression(write.SlotIndex);
+                Emit($"ss d{deviceIndex} {slotOp} {write.PropertyName} {valueOp}");
+                FreeRegister(slotOp);
+            }
+            else
+            {
+                Emit($"s d{deviceIndex} {write.PropertyName} {valueOp}");
+            }
+
+            FreeRegister(valueOp);
+        }
+        else
+        {
+            // Variable index - evaluate and use indirect device: dr{regNum}
+            var indexOp = GenerateExpression(write.IndexExpression);
+            var valueOp = GenerateExpression(write.Value);
+
+            if (write.SlotIndex != null)
+            {
+                var slotOp = GenerateExpression(write.SlotIndex);
+                Emit($"ss dr{indexOp.TrimStart('r')} {slotOp} {write.PropertyName} {valueOp}");
+                FreeRegister(slotOp);
+            }
+            else
+            {
+                Emit($"s dr{indexOp.TrimStart('r')} {write.PropertyName} {valueOp}");
+            }
+
+            FreeRegister(indexOp);
+            FreeRegister(valueOp);
+        }
     }
 
     private string GenerateFunctionCall(FunctionCallExpression func)

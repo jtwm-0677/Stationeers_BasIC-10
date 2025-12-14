@@ -205,6 +205,13 @@ public class StaticAnalyzer
                 CollectUsagesInExpression(indirectRegWrite.Value);
                 break;
 
+            case IndirectDeviceWriteStatement indirectDevWrite:
+                CollectUsagesInExpression(indirectDevWrite.IndexExpression);
+                if (indirectDevWrite.SlotIndex != null)
+                    CollectUsagesInExpression(indirectDevWrite.SlotIndex);
+                CollectUsagesInExpression(indirectDevWrite.Value);
+                break;
+
             case ExternalMemoryWriteStatement memWrite:
                 CollectUsagesInExpression(memWrite.Address);
                 CollectUsagesInExpression(memWrite.Value);
@@ -370,6 +377,12 @@ public class StaticAnalyzer
 
             case IndirectRegisterExpression indirectReg:
                 CollectUsagesInExpression(indirectReg.IndexExpression);
+                break;
+
+            case IndirectDeviceReadExpression indirectDev:
+                CollectUsagesInExpression(indirectDev.IndexExpression);
+                if (indirectDev.SlotIndex != null)
+                    CollectUsagesInExpression(indirectDev.SlotIndex);
                 break;
         }
     }

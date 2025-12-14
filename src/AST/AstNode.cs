@@ -434,6 +434,28 @@ public class IndirectRegisterWriteStatement : StatementNode
     public ExpressionNode Value { get; set; } = null!;
 }
 
+/// <summary>
+/// Represents indirect device read: DEVICE(n).Property compiles to l r0 dr{n} Property
+/// The value in register n is used as the device index (0-5).
+/// </summary>
+public class IndirectDeviceReadExpression : ExpressionNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode? SlotIndex { get; set; }  // For slot access
+}
+
+/// <summary>
+/// Represents indirect device write: DEVICE(n).Property = value
+/// </summary>
+public class IndirectDeviceWriteStatement : StatementNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode? SlotIndex { get; set; }  // For slot access
+    public ExpressionNode Value { get; set; } = null!;
+}
+
 public enum BinaryOperator
 {
     // Arithmetic
