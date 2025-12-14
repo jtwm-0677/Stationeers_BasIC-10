@@ -387,6 +387,15 @@ public class BatchReadExpression : ExpressionNode
     public string? NameHash { get; set; }
 }
 
+public class BatchSlotReadExpression : ExpressionNode
+{
+    public ExpressionNode DeviceHash { get; set; } = null!;
+    public ExpressionNode SlotIndex { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public BatchMode Mode { get; set; } = BatchMode.Average;
+    public ExpressionNode? NameHash { get; set; }  // For lbns (named batch slot)
+}
+
 public class ReagentReadExpression : ExpressionNode
 {
     public string DeviceName { get; set; } = "";

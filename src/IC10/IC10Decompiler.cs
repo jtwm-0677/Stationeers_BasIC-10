@@ -701,11 +701,32 @@ public class IC10Decompiler
                     {
                         "0" => "Average",
                         "1" => "Sum",
-                        "2" => "Min",
-                        "3" => "Max",
+                        "2" => "Minimum",
+                        "3" => "Maximum",
                         _ => lbsMode
                     };
-                    _output.AppendLine($"    {dest} = BATCHREAD_SLOT({lbsHash}, {lbsSlot}, \"{lbsProp}\", {lbsModeStr})");
+                    _output.AppendLine($"    {dest} = BATCHSLOT({lbsHash}, {lbsSlot}, \"{lbsProp}\", {lbsModeStr})");
+                }
+                break;
+
+            case "lbns":
+                // lbns dest deviceHash nameHash slotIndex property mode
+                if (inst.Operands.Length >= 6)
+                {
+                    var lbnsDevHash = LookupDeviceHash(inst.Operands[1]);
+                    var lbnsNameHash = LookupUserNameHash(inst.Operands[2]);
+                    var lbnsSlot = TranslateOperand(inst.Operands[3]);
+                    var lbnsProp = inst.Operands[4];
+                    var lbnsMode = inst.Operands[5];
+                    var lbnsModeStr = lbnsMode switch
+                    {
+                        "0" => "Average",
+                        "1" => "Sum",
+                        "2" => "Minimum",
+                        "3" => "Maximum",
+                        _ => lbnsMode
+                    };
+                    _output.AppendLine($"    {dest} = BATCHSLOT({lbnsDevHash}, {lbnsNameHash}, {lbnsSlot}, \"{lbnsProp}\", {lbnsModeStr})");
                 }
                 break;
 

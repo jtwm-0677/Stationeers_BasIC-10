@@ -347,6 +347,13 @@ public class StaticAnalyzer
             case BatchReadExpression batch:
                 CollectUsagesInExpression(batch.DeviceHash);
                 break;
+
+            case BatchSlotReadExpression batchSlot:
+                CollectUsagesInExpression(batchSlot.DeviceHash);
+                CollectUsagesInExpression(batchSlot.SlotIndex);
+                if (batchSlot.NameHash != null)
+                    CollectUsagesInExpression(batchSlot.NameHash);
+                break;
         }
     }
 

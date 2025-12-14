@@ -2192,6 +2192,42 @@ public class Parser
                 // Check if it's a known function
                 if (IsBuiltInFunction(name))
                 {
+                    // Handle special functions that need custom AST nodes
+                    var upperName = name.ToUpperInvariant();
+
+                    // BATCHSLOT: BATCHSLOT(deviceHash, slotIndex, "Property", mode)
+                    //        or: BATCHSLOT(deviceHash, nameHash, slotIndex, "Property", mode)
+                    if (upperName is "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS")
+                    {
+                        if (args.Count < 4)
+                            throw new ParserException($"BATCHSLOT requires at least 4 arguments", token.Line, token.Column);
+
+                        var expr = new BatchSlotReadExpression
+                        {
+                            Line = token.Line,
+                            Column = token.Column,
+                            DeviceHash = args[0]
+                        };
+
+                        if (args.Count == 5)
+                        {
+                            // Named variant: lbns
+                            expr.NameHash = args[1];
+                            expr.SlotIndex = args[2];
+                            expr.PropertyName = args[3] is StringLiteral propLit ? propLit.Value : "";
+                            expr.Mode = ParseBatchMode(args[4]);
+                        }
+                        else
+                        {
+                            // Standard variant: lbs
+                            expr.SlotIndex = args[1];
+                            expr.PropertyName = args[2] is StringLiteral propLit ? propLit.Value : "";
+                            expr.Mode = ParseBatchMode(args[3]);
+                        }
+
+                        return expr;
+                    }
+
                     return new FunctionCallExpression
                     {
                         Line = token.Line,
@@ -2346,7 +2382,43 @@ public class Parser
             // Shift functions
             or "SHL" or "SHR" or "SHRA" or "SHIFTL" or "SHIFTR" or "SHIFTRA" or "LSHIFT" or "RSHIFT" or "RSHIFTA"
             // Utility functions
-            or "INRANGE" or "LERP" or "CLAMP" or "HASH";
+            or "INRANGE" or "LERP" or "CLAMP" or "HASH"
+            // Batch slot operations
+            or "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS";
+    }
+
+    private static BatchMode ParseBatchMode(ExpressionNode modeExpr)
+    {
+        // If it's a number literal
+        if (modeExpr is NumberLiteral numLit)
+        {
+            var modeNum = (int)numLit.Value;
+            return modeNum switch
+            {
+                0 => BatchMode.Average,
+                1 => BatchMode.Sum,
+                2 => BatchMode.Minimum,
+                3 => BatchMode.Maximum,
+                _ => BatchMode.Average
+            };
+        }
+
+        // If it's a variable expression with a known name
+        if (modeExpr is VariableExpression varExpr)
+        {
+            var modeName = varExpr.Name.ToUpperInvariant();
+            return modeName switch
+            {
+                "AVERAGE" or "AVG" => BatchMode.Average,
+                "SUM" or "TOTAL" => BatchMode.Sum,
+                "MINIMUM" or "MIN" => BatchMode.Minimum,
+                "MAXIMUM" or "MAX" => BatchMode.Maximum,
+                _ => BatchMode.Average
+            };
+        }
+
+        // Default to Average
+        return BatchMode.Average;
     }
 
     // Helper methods

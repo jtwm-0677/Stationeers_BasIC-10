@@ -1817,6 +1817,9 @@ public class MipsGenerator
             case BatchReadExpression batchRead:
                 return GenerateBatchRead(batchRead);
 
+            case BatchSlotReadExpression batchSlotRead:
+                return GenerateBatchSlotRead(batchSlotRead);
+
             case ReagentReadExpression reagentRead:
                 return GenerateReagentRead(reagentRead);
 
@@ -2326,6 +2329,37 @@ public class MipsGenerator
         }
 
         FreeRegister(hashReg);
+        return resultReg;
+    }
+
+    private string GenerateBatchSlotRead(BatchSlotReadExpression read)
+    {
+        var resultReg = AllocateRegister();
+        var hashReg = GenerateExpression(read.DeviceHash);
+        var slotReg = GenerateExpression(read.SlotIndex);
+
+        var modeNum = read.Mode switch
+        {
+            BatchMode.Average => 0,
+            BatchMode.Sum => 1,
+            BatchMode.Minimum => 2,
+            BatchMode.Maximum => 3,
+            _ => 0
+        };
+
+        if (read.NameHash != null)
+        {
+            var nameHashReg = GenerateExpression(read.NameHash);
+            Emit($"lbns {resultReg} {hashReg} {nameHashReg} {slotReg} {read.PropertyName} {modeNum}");
+            FreeRegister(nameHashReg);
+        }
+        else
+        {
+            Emit($"lbs {resultReg} {hashReg} {slotReg} {read.PropertyName} {modeNum}");
+        }
+
+        FreeRegister(hashReg);
+        FreeRegister(slotReg);
         return resultReg;
     }
 
