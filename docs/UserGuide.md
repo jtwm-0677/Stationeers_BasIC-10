@@ -2,7 +2,7 @@
 
 **Stationeers BASIC to IC10 Compiler**
 *By Dog Tired Studios*
-**Version 1.6.3**
+**Version 3.0**
 
 ---
 
@@ -63,7 +63,7 @@ Basic-10 is a comprehensive development environment for writing Stationeers IC10
 
 ### Installation Steps
 
-1. **Download** the latest release (`BasicToMips_v1.6.3.zip`)
+1. **Download** the latest release from GitHub
 2. **Extract** the zip file to your desired location
 3. **Run** `Basic_10.exe` to launch the application
 4. **Optional**: Set your Stationeers installation directory via **Tools > Set Stationeers Directory**
@@ -86,7 +86,7 @@ On first launch, Basic-10 will:
 3. Type the following simple program:
 
 ```basic
-' My first Basic-10 program
+# My first Basic-10 program
 ALIAS sensor d0
 ALIAS light d1
 
@@ -340,7 +340,7 @@ Basic-10 provides comprehensive syntax highlighting for:
 | Labels | `main:`, `loop:` | Purple |
 | Strings | `"Hello World"` | Orange |
 | Numbers | `123`, `3.14159` | Light Green |
-| Comments | `' comment`, `# comment` | Green |
+| Comments | `# comment` (recommended), `' comment` | Green |
 | Booleans | `TRUE`, `FALSE` | Blue |
 | Operators | `+`, `-`, `*`, `/`, `=` | Gray |
 | Brackets | `[`, `]` | Gold |
@@ -399,13 +399,13 @@ The status bar shows:
 ### Comments
 
 ```basic
-' Single line comment (BASIC style)
-REM This is also a comment
-# IC10-style comment (also valid)
-x = 5  ' Inline comment
+# Comment (recommended - works in BASIC and IC10)
+' Single line comment (traditional BASIC style)
+REM This is also a comment (traditional BASIC style)
+x = 5  # Inline comment
 ```
 
-**Note**: Comments are stripped during compilation and don't count toward the IC10 128-line limit.
+**Note**: All comment styles are stripped during compilation and don't count toward the IC10 128-line limit. Using `#` comments is recommended because they work in both BASIC source and IC10 output.
 
 ### Variables and Constants
 
@@ -1151,6 +1151,8 @@ END
 
 ## Version History
 
+- **v3.0.x** - Extended Script Mode (512 lines), living hash dictionary, decompiler improvements
+- **v2.2.x** - HTTP API server, MCP integration, visual programming (experimental)
 - **v1.6.3** - Custom fonts (Apple ][, TRS-80), bracket highlighting, syntax colors fix
 - **v1.6.0** - Retro effects, colorblind presets
 - **v1.5.0** - Named device references, extensible device database
@@ -1172,4 +1174,4 @@ END
 
 *Basic-10 - Stationeers BASIC to IC10 Compiler*
 *By Dog Tired Studios*
-*Version 1.6.3*
+*Version 3.0*

@@ -9,6 +9,7 @@ public class IC10Parser
     {
         var program = new IC10Program();
         var lines = source.Split('\n');
+        int instructionAddress = 0; // MIPS address counter (0-based, executable instructions only)
 
         for (int i = 0; i < lines.Length; i++)
         {
@@ -19,6 +20,19 @@ public class IC10Parser
             var instruction = ParseLine(line, i + 1);
             if (instruction != null)
             {
+                // Assign instruction address for executable instructions
+                // Comments, labels, alias, and define don't consume instruction addresses
+                bool isExecutable = instruction.Type != IC10InstructionType.Comment &&
+                                    instruction.Type != IC10InstructionType.Label &&
+                                    instruction.Type != IC10InstructionType.Alias &&
+                                    instruction.Type != IC10InstructionType.Define;
+
+                if (isExecutable)
+                {
+                    instruction.InstructionAddress = instructionAddress;
+                    instructionAddress++;
+                }
+
                 program.Instructions.Add(instruction);
             }
         }
@@ -60,9 +74,9 @@ public class IC10Parser
             };
         }
 
-        // Parse instruction
-        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) return null;
+        // Parse instruction - use smart splitting that respects quoted strings and parentheses
+        var parts = SmartSplit(line);
+        if (parts.Count == 0) return null;
 
         var opcode = parts[0].ToLowerInvariant();
         var operands = parts.Skip(1).ToArray();
@@ -110,6 +124,61 @@ public class IC10Parser
             _ => IC10InstructionType.Unknown
         };
     }
+
+    /// <summary>
+    /// Splits a line into parts while respecting quoted strings and parentheses.
+    /// For example: lbn r0 HASH("LED Pressure") Property Mode
+    /// Will correctly keep HASH("LED Pressure") as a single token.
+    /// </summary>
+    private List<string> SmartSplit(string line)
+    {
+        var parts = new List<string>();
+        var current = new System.Text.StringBuilder();
+        int parenDepth = 0;
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (c == '"' && (i == 0 || line[i - 1] != '\\'))
+            {
+                inQuotes = !inQuotes;
+                current.Append(c);
+            }
+            else if (c == '(' && !inQuotes)
+            {
+                parenDepth++;
+                current.Append(c);
+            }
+            else if (c == ')' && !inQuotes)
+            {
+                parenDepth--;
+                current.Append(c);
+            }
+            else if (c == ' ' && !inQuotes && parenDepth == 0)
+            {
+                // Space outside quotes and parentheses - end of token
+                if (current.Length > 0)
+                {
+                    parts.Add(current.ToString());
+                    current.Clear();
+                }
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        // Add the last token
+        if (current.Length > 0)
+        {
+            parts.Add(current.ToString());
+        }
+
+        return parts;
+    }
 }
 
 public class IC10Program
@@ -147,7 +216,18 @@ public class IC10Program
 
 public class IC10Instruction
 {
+    /// <summary>
+    /// The line number in the source file (1-based, all lines including blanks).
+    /// </summary>
     public int LineNumber { get; set; }
+
+    /// <summary>
+    /// The MIPS instruction address (0-based, only executable instructions count).
+    /// Comments, blank lines, and labels don't increment this counter.
+    /// This is what MIPS jump targets refer to.
+    /// </summary>
+    public int InstructionAddress { get; set; } = -1;
+
     public IC10InstructionType Type { get; set; }
     public string? Opcode { get; set; }
     public string[] Operands { get; set; } = Array.Empty<string>();

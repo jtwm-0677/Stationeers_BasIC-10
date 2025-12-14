@@ -12,8 +12,15 @@ This document describes the IC10 assembly instructions that the BASIC compiler g
 7. [Stack Instructions](#stack-instructions)
 8. [Device I/O Instructions](#device-io-instructions)
 9. [Batch Instructions](#batch-instructions)
-10. [Miscellaneous Instructions](#miscellaneous-instructions)
-11. [Device Properties](#device-properties)
+10. [Execution and Timing](#execution-and-timing)
+11. [Memory Chip Operations](#memory-chip-operations)
+12. [Miscellaneous Instructions](#miscellaneous-instructions)
+13. [Device Properties](#device-properties)
+14. [Common Hash Values](#common-hash-values)
+15. [Example IC10 Programs](#example-ic10-programs)
+16. [Units Reference](#units-reference)
+17. [Common Pitfalls and Debugging](#common-pitfalls-and-debugging)
+18. [Programming Patterns](#programming-patterns)
 
 ---
 
@@ -25,6 +32,7 @@ IC10 has 16 general-purpose registers for storing values:
 - `r0` through `r15` (only these exist - r16, r17, etc. are **invalid**)
 - All hold 64-bit floating-point values
 - The compiler uses r0-r13 for variables and r14-r15 as temporary registers
+- Registers persist between ticks (values are NOT reset on yield)
 
 ### Special Registers
 
@@ -38,7 +46,29 @@ IC10 has 16 general-purpose registers for storing values:
 | Register | Description |
 |----------|-------------|
 | `d0` - `d5` | Device ports (connected devices) |
-| `db` | Database device (special operations) |
+| `db` | Self-reference to the IC housing device |
+
+**Important:** `db` refers to the IC housing itself (IC10 Housing, Computer, etc.), NOT the circuit board. Use `db.Setting` to display debug values on the housing's display.
+
+### Indirect Register Addressing
+
+IC10 supports indirect register access using double-r notation (`rr0`):
+
+```mips
+# rr0 means "use the value in r0 as the register index"
+move r0 5           # r0 = 5
+move r5 42          # r5 = 42
+move r1 rr0         # r1 = value of r[r0] = r5 = 42
+
+# Can also use with device registers
+move r0 2           # r0 = 2
+l r1 dr0 On         # r1 = d2.On (device index from r0)
+```
+
+This is useful for:
+- Looping through registers dynamically
+- Accessing devices by computed index
+- Building lookup tables in registers
 
 ---
 
@@ -423,6 +453,104 @@ sb -539224550 On 1              # Turn on all solar panels
 
 ---
 
+## Execution and Timing
+
+### Execution Limits
+
+Each IC10 chip has strict execution limits per game tick:
+
+| Mode | Line Limit | Description |
+|------|------------|-------------|
+| Standard | 128 | Default IC10 behavior |
+| Extended | 512 | With Extended Scripting mod |
+
+**What happens when limit is reached:**
+- Execution pauses at the current line
+- Resumes from that exact line next tick
+- Registers and stack are preserved
+- Device values may have changed
+
+### Timing Instructions
+
+| Instruction | Description |
+|-------------|-------------|
+| `yield` | Pause execution until next tick |
+| `sleep n` | Pause for n seconds (n can be register or value) |
+| `hcf` | Halt execution permanently |
+
+**Critical:** Always include `yield` in infinite loops:
+
+```mips
+main:
+    # do work...
+    yield           # REQUIRED - allows devices to update
+    j main
+```
+
+Without `yield`, the IC will execute 128 lines then pause mid-loop, but device values won't update properly between reads.
+
+### Tick Rate
+
+- Game runs at variable tick rate (tied to simulation speed)
+- Normal speed: approximately 2 ticks per second
+- `yield` ensures clean tick boundaries
+- `sleep 1` pauses for 1 real second (2 ticks at normal speed)
+
+---
+
+## Memory Chip Operations
+
+IC10 can read/write to external memory devices (Logic Memory, Stack Chips, Queue Chips).
+
+### Direct Memory Access (Pin Aliases)
+
+For devices connected via pins (d0-d5):
+
+| Instruction | Syntax | Description |
+|-------------|--------|-------------|
+| `get` | `get r0 d0 address` | Read memory at address |
+| `put` | `put d0 address r0` | Write r0 to memory at address |
+
+```mips
+alias mem d0
+
+# Read address 5 into r0
+get r0 mem 5
+
+# Write r1 to address 10
+put mem 10 r1
+```
+
+### Named Memory Access
+
+For named devices on the network:
+
+| Instruction | Syntax | Description |
+|-------------|--------|-------------|
+| `getd` | `getd r0 deviceHash nameHash address` | Read from named device |
+| `putd` | `putd deviceHash nameHash address r0` | Write to named device |
+
+```mips
+define MEM_HASH 1076425094          # StructureLogicMemory
+define NAME_HASH 12345678           # "My Memory" (computed)
+
+getd r0 MEM_HASH NAME_HASH 0        # Read address 0
+putd MEM_HASH NAME_HASH 0 r1        # Write to address 0
+```
+
+### Memory Device Limits
+
+| Device Type | Address Range | Notes |
+|-------------|---------------|-------|
+| Logic Memory | 0-31 | 32 addresses |
+| Stack Utility Chip | 0-511 | 512 stack slots |
+| Queue Utility Chip | 0-511 | 512 queue slots |
+| Memory Utility Chip | 0-8191 | 8192 addresses |
+
+**Note:** `.Setting` property on Logic Memory is separate from the memory array. Use `.Setting` for single values, `get`/`put` for array access.
+
+---
+
 ## Miscellaneous Instructions
 
 ### Move
@@ -689,4 +817,253 @@ lb r1 BATTERY Charge 2
 # r1 = minimum battery charge
 yield
 j main
+```
+
+---
+
+## Units Reference
+
+**Critical:** Stationeers uses specific units. Using wrong units is a common source of bugs.
+
+### Temperature
+
+| Unit | Description | Conversion |
+|------|-------------|------------|
+| Kelvin (K) | All temperature properties | Native unit |
+| Celsius (°C) | Human-readable | K = °C + 273.15 |
+
+```mips
+# 20°C in Kelvin
+define ROOM_TEMP 293.15
+# Freezing point (0°C)
+define FREEZING 273.15
+# Boiling point (100°C)
+define BOILING 373.15
+```
+
+### Pressure
+
+| Unit | Description | Notes |
+|------|-------------|-------|
+| kPa | Kilopascals | **All pressure properties use kPa** |
+
+**Common values:**
+- Sea level atmosphere: ~101 kPa
+- Vacuum: 0 kPa
+- Safe suit pressure: ~20-101 kPa
+
+```mips
+# CORRECT - kPa values
+define ATMOSPHERIC 101
+define VACUUM_THRESHOLD 1
+
+# WRONG - Pa values (1000x too large!)
+# define ATMOSPHERIC 101000    # This is WRONG
+```
+
+### Ratios and Percentages
+
+| Property | Range | Description |
+|----------|-------|-------------|
+| RatioOxygen | 0.0 - 1.0 | Oxygen ratio (not percentage) |
+| Charge | 0.0 - 1.0 | Battery charge ratio |
+| Efficiency | 0.0 - 1.0 | Device efficiency ratio |
+
+```mips
+# Check if oxygen is above 18%
+define MIN_O2 0.18
+
+l r0 d0 RatioOxygen
+blt r0 MIN_O2 lowOxygen
+```
+
+### Power
+
+| Unit | Description |
+|------|-------------|
+| Watts (W) | Power generation/consumption |
+
+---
+
+## Common Pitfalls and Debugging
+
+### 1. Pressure Unit Confusion
+
+```mips
+# WRONG - comparing kPa to Pa
+l r0 d0 Pressure
+blt r0 101000 pressurize    # Sensor reads ~101, this checks 101000!
+
+# CORRECT
+l r0 d0 Pressure
+blt r0 101 pressurize       # Both in kPa
+```
+
+### 2. First-Tick Device Reads
+
+Devices may return 0 or NaN on the first tick after script load:
+
+```mips
+# Defensive coding
+l r0 d0 Pressure
+snan r1 r0                  # Check if NaN
+bnez r1 skipAction          # Skip if NaN
+beqz r0 skipAction          # Skip if zero (might be uninitialized)
+# Safe to use r0 now
+```
+
+### 3. Missing Yield in Loops
+
+```mips
+# WRONG - infinite loop without yield
+main:
+    l r0 d0 Temperature
+    j main
+
+# CORRECT - yield allows device updates
+main:
+    l r0 d0 Temperature
+    yield
+    j main
+```
+
+### 4. Named Device Not Found (lbn/sbn)
+
+If a named device doesn't exist on the network, `lbn` returns 0 or NaN. Always handle this:
+
+```mips
+lbn r0 DEVICE_HASH NAME_HASH Property 0
+snan r1 r0
+bnez r1 deviceMissing       # Handle missing device
+```
+
+### 5. Edge Detection for Buttons
+
+Button `.Activate` is 1 for only ONE tick when pressed:
+
+```mips
+# Store last state to detect edges
+l r0 d0 Activate
+beqz r0 notPressed
+# Button was just pressed this tick
+# ... handle press ...
+notPressed:
+```
+
+### 6. State Machine Initialization
+
+Always initialize state on script load:
+
+```mips
+# Initialize at start of program
+move r10 0                  # state = IDLE
+s d0 Setting 0             # Clear any stored values
+
+main:
+    # ... state machine logic ...
+    yield
+    j main
+```
+
+### 7. Debugging with db.Setting
+
+Use the IC housing display for debugging:
+
+```mips
+# Show current state
+s db Setting r10
+
+# Show pressure reading
+l r0 d0 Pressure
+s db Setting r0
+
+# Show tick counter (proves script is running)
+add r15 r15 1
+s db Setting r15
+```
+
+---
+
+## Programming Patterns
+
+### State Machine Pattern
+
+```mips
+define STATE_IDLE 0
+define STATE_WORKING 1
+define STATE_DONE 2
+
+move r10 STATE_IDLE         # Current state
+
+main:
+    beq r10 STATE_IDLE stateIdle
+    beq r10 STATE_WORKING stateWorking
+    beq r10 STATE_DONE stateDone
+    j main
+
+stateIdle:
+    # Check for trigger condition
+    l r0 d0 Activate
+    beqz r0 endIdle
+    move r10 STATE_WORKING
+    endIdle:
+    j endMain
+
+stateWorking:
+    # Do work, check completion
+    l r0 d0 Progress
+    blt r0 100 endWorking
+    move r10 STATE_DONE
+    endWorking:
+    j endMain
+
+stateDone:
+    # Reset or handle completion
+    move r10 STATE_IDLE
+    j endMain
+
+endMain:
+    yield
+    j main
+```
+
+### Hysteresis Pattern (Prevent Oscillation)
+
+```mips
+define TARGET 293.15
+define TOLERANCE 2
+
+move r11 0                  # heaterOn state
+
+main:
+    l r0 d0 Temperature
+
+    # Only turn on if BELOW target - tolerance
+    sub r1 TARGET TOLERANCE
+    bgt r0 r1 checkOff
+    move r11 1
+    j applyState
+
+    checkOff:
+    # Only turn off if ABOVE target + tolerance
+    add r1 TARGET TOLERANCE
+    blt r0 r1 applyState
+    move r11 0
+
+    applyState:
+    s d1 On r11
+    yield
+    j main
+```
+
+### Multi-IC Communication via Memory
+
+```mips
+# IC1 - Writer
+alias sharedMem d0
+s sharedMem Setting r0      # Write value to .Setting
+
+# IC2 - Reader
+alias sharedMem d0
+l r0 sharedMem Setting      # Read value from .Setting
 ```

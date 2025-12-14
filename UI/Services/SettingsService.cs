@@ -41,6 +41,9 @@ public class SettingsService
     public string ScriptAuthor { get; set; } = "";
     public string ScriptDescription { get; set; } = "";
 
+    // Version tracking for new feature notifications
+    public string LastSeenVersion { get; set; } = "";
+
     public SettingsService()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -87,6 +90,8 @@ public class SettingsService
                     // Script metadata
                     ScriptAuthor = settings.ScriptAuthor ?? "";
                     ScriptDescription = settings.ScriptDescription ?? "";
+                    // Version tracking
+                    LastSeenVersion = settings.LastSeenVersion ?? "";
                 }
             }
         }
@@ -129,7 +134,9 @@ public class SettingsService
                 ApiServerPort = ApiServerPort,
                 // Script metadata
                 ScriptAuthor = ScriptAuthor,
-                ScriptDescription = ScriptDescription
+                ScriptDescription = ScriptDescription,
+                // Version tracking
+                LastSeenVersion = LastSeenVersion
             };
 
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -150,6 +157,45 @@ public class SettingsService
             RecentFiles = RecentFiles.Take(10).ToList();
         }
         Save();
+    }
+
+    /// <summary>
+    /// Checks if this is the first run after updating to a version with the hash dictionary feature.
+    /// Returns true if the user should see the notification, and marks it as seen.
+    /// </summary>
+    public bool ShouldShowHashDictionaryNotification(string currentVersion)
+    {
+        // The hash dictionary was introduced in v3.0.28
+        const string hashDictionaryVersion = "3.0.28";
+
+        // If user has seen this version or later, don't show
+        if (!string.IsNullOrEmpty(LastSeenVersion))
+        {
+            if (CompareVersions(LastSeenVersion, hashDictionaryVersion) >= 0)
+            {
+                return false;
+            }
+        }
+
+        // Update the last seen version
+        LastSeenVersion = currentVersion;
+        Save();
+
+        return true;
+    }
+
+    private static int CompareVersions(string v1, string v2)
+    {
+        var parts1 = v1.Split('.').Select(p => int.TryParse(p, out var n) ? n : 0).ToArray();
+        var parts2 = v2.Split('.').Select(p => int.TryParse(p, out var n) ? n : 0).ToArray();
+
+        for (int i = 0; i < Math.Max(parts1.Length, parts2.Length); i++)
+        {
+            var p1 = i < parts1.Length ? parts1[i] : 0;
+            var p2 = i < parts2.Length ? parts2[i] : 0;
+            if (p1 != p2) return p1.CompareTo(p2);
+        }
+        return 0;
     }
 
     private class SettingsData
@@ -182,5 +228,7 @@ public class SettingsService
         // Script metadata
         public string? ScriptAuthor { get; set; }
         public string? ScriptDescription { get; set; }
+        // Version tracking
+        public string? LastSeenVersion { get; set; }
     }
 }

@@ -22,27 +22,27 @@
 ### Basic Program Layout
 
 ```basic
-' Comments and documentation
-' Describe what your program does
+# Comments and documentation
+# Describe what your program does
 
-' Aliases (device assignments)
+# Aliases (device assignments)
 ALIAS deviceName d0
 
-' Constants
+# Constants
 DEFINE CONSTANT_NAME value
 
-' Variables
+# Variables
 VAR variableName = initialValue
 
-' Main program
+# Main program
 main:
-    ' Your code here
+    # Your code here
     YIELD
     GOTO main
 
-' Subroutines
+# Subroutines
 MySub:
-    ' Subroutine code
+    # Subroutine code
     RETURN
 
 END
@@ -62,49 +62,51 @@ END
 ### Single Line Comments
 
 ```basic
-' This is a comment
-REM This is also a comment
-x = 5  ' Inline comment
+# This is a comment (recommended - works in BASIC and IC10)
+' This is also a comment (traditional BASIC style)
+REM This is also a comment (traditional BASIC style)
+x = 5  # Inline comment
 ```
 
 ### Best Practices
 
 ```basic
-' ============================================
-' Program: Solar Tracker
-' Author: Your Name
-' Description: Tracks sun position for panels
-' ============================================
+# ============================================
+# Program: Solar Tracker
+# Author: Your Name
+# Description: Tracks sun position for panels
+# ============================================
 
-' --- Initialization ---
+# --- Initialization ---
 ALIAS panel d0
 
-' Calculate optimal angle
-angle = SolarAngle  ' Get current sun position
+# Calculate optimal angle
+angle = SolarAngle  # Get current sun position
 ```
 
 **Important Notes:**
-- BASIC comments (`'` and `REM`) are stripped during compilation and don't count toward the IC10 128-line limit
+- All comment styles (`#`, `'`, and `REM`) are stripped during compilation and don't count toward the IC10 128-line limit
+- **Recommended**: Use `#` comments - they work in both BASIC source and IC10 output
 - The compiled IC10 assembly uses `#` for comments (added by the compiler for debug info)
 - IC10 MIPS only recognizes `#` as the comment character - never use `'` or `REM` in raw IC10 code
 
-### Hybrid Mode Comments
+### All Valid Comment Styles
 
-The BASIC editor also accepts IC10-style `#` comments for hybrid mode:
+The BASIC editor accepts multiple comment styles for flexibility:
 
 ```basic
-' BASIC comment
-REM Also a BASIC comment
-# IC10-style comment (also valid in BASIC editor)
+# IC10-style comment (RECOMMENDED - works everywhere)
+' BASIC comment (traditional style)
+REM Also a BASIC comment (traditional style)
 
-VAR x = 10  ' inline BASIC comment
-VAR y = 20  # inline IC10-style comment (works too)
+VAR x = 10  # inline comment (recommended)
+VAR y = 20  ' inline BASIC style (also works)
 ```
 
-This allows you to:
-- Paste IC10 code with `#` comments into the BASIC editor
-- Mix both comment styles in hybrid code
-- Maintain IC10 comments when editing decompiled code
+Using `#` comments is recommended because:
+- They work in both BASIC source and compiled IC10 output
+- They're compatible with IC10 editing and decompilation
+- Paste IC10 code with `#` comments directly into the BASIC editor
 
 ---
 
