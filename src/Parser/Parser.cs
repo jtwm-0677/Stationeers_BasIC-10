@@ -299,6 +299,12 @@ public class Parser
             return ParseBatchSlotWriteStatement(token);
         }
 
+        // Check for REGSET statement: REGSET(index, value)
+        if (name.Equals("REGSET", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftParen))
+        {
+            return ParseRegSetStatement(token);
+        }
+
         // Check for array assignment with parentheses
         if (Check(TokenType.LeftParen))
         {
@@ -1566,6 +1572,29 @@ public class Parser
         return stmt;
     }
 
+    /// <summary>
+    /// Parses REGSET(index, value).
+    /// Compiles to: move rr{index} value
+    /// </summary>
+    private IndirectRegisterWriteStatement ParseRegSetStatement(Token token)
+    {
+        Advance(); // Consume '('
+
+        var indexExpr = ParseExpression();
+        Expect(TokenType.Comma, "Expected ',' between REGSET arguments");
+        var valueExpr = ParseExpression();
+
+        Expect(TokenType.RightParen, "Expected ')'");
+
+        return new IndirectRegisterWriteStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            IndexExpression = indexExpr,
+            Value = valueExpr
+        };
+    }
+
     private DataStatement ParseDataStatement()
     {
         var token = Advance(); // Consume DATA
@@ -2283,6 +2312,20 @@ public class Parser
                         return expr;
                     }
 
+                    // REG: REG(index) - indirect register read
+                    if (upperName == "REG")
+                    {
+                        if (args.Count != 1)
+                            throw new ParserException("REG requires exactly 1 argument", token.Line, token.Column);
+
+                        return new IndirectRegisterExpression
+                        {
+                            Line = token.Line,
+                            Column = token.Column,
+                            IndexExpression = args[0]
+                        };
+                    }
+
                     return new FunctionCallExpression
                     {
                         Line = token.Line,
@@ -2439,7 +2482,9 @@ public class Parser
             // Utility functions
             or "INRANGE" or "LERP" or "CLAMP" or "HASH"
             // Batch slot operations
-            or "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS";
+            or "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS"
+            // Indirect register access
+            or "REG" or "REGSET";
     }
 
     private static BatchMode ParseBatchMode(ExpressionNode modeExpr)

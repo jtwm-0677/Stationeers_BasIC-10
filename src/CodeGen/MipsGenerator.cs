@@ -369,6 +369,9 @@ public class MipsGenerator
             case BatchSlotWriteStatement batchSlotWrite:
                 GenerateBatchSlotWrite(batchSlotWrite);
                 break;
+            case IndirectRegisterWriteStatement indirectRegWrite:
+                GenerateIndirectRegisterWrite(indirectRegWrite);
+                break;
             case ExternalMemoryWriteStatement memWrite:
                 GenerateExternalMemoryWrite(memWrite);
                 break;
@@ -1848,6 +1851,9 @@ public class MipsGenerator
             case ReagentReadExpression reagentRead:
                 return GenerateReagentRead(reagentRead);
 
+            case IndirectRegisterExpression indirectReg:
+                return GenerateIndirectRegisterRead(indirectReg);
+
             default:
                 EmitComment("Unknown expression type");
                 return "0";
@@ -2400,6 +2406,52 @@ public class MipsGenerator
         FreeRegister(modeReg);
         FreeRegister(hashReg);
         return resultReg;
+    }
+
+    private string GenerateIndirectRegisterRead(IndirectRegisterExpression read)
+    {
+        var resultReg = AllocateRegister();
+        var indexOp = GenerateExpression(read.IndexExpression);
+
+        EmitComment("Indirect register read");
+
+        // Check if index is a literal (doesn't start with 'r') vs a register
+        if (!indexOp.StartsWith("r"))
+        {
+            // Literal index - use direct register access: move r0 r{literal}
+            Emit($"move {resultReg} r{indexOp}");
+        }
+        else
+        {
+            // Variable index - use indirect: move r0 rr{regNum}
+            Emit($"move {resultReg} rr{indexOp.TrimStart('r')}");
+            FreeRegister(indexOp);
+        }
+
+        return resultReg;
+    }
+
+    private void GenerateIndirectRegisterWrite(IndirectRegisterWriteStatement write)
+    {
+        var indexOp = GenerateExpression(write.IndexExpression);
+        var valueOp = GenerateExpression(write.Value);
+
+        EmitComment("Indirect register write");
+
+        // Check if index is a literal vs a register
+        if (!indexOp.StartsWith("r"))
+        {
+            // Literal index - use direct register access: move r{literal} value
+            Emit($"move r{indexOp} {valueOp}");
+        }
+        else
+        {
+            // Variable index - use indirect: move rr{regNum} value
+            Emit($"move rr{indexOp.TrimStart('r')} {valueOp}");
+            FreeRegister(indexOp);
+        }
+
+        FreeRegister(valueOp);
     }
 
     private string GenerateFunctionCall(FunctionCallExpression func)

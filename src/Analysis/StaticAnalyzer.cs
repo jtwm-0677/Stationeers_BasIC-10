@@ -200,6 +200,11 @@ public class StaticAnalyzer
                     CollectUsagesInExpression(batchSlotWrite.NameHash);
                 break;
 
+            case IndirectRegisterWriteStatement indirectRegWrite:
+                CollectUsagesInExpression(indirectRegWrite.IndexExpression);
+                CollectUsagesInExpression(indirectRegWrite.Value);
+                break;
+
             case ExternalMemoryWriteStatement memWrite:
                 CollectUsagesInExpression(memWrite.Address);
                 CollectUsagesInExpression(memWrite.Value);
@@ -361,6 +366,10 @@ public class StaticAnalyzer
                 CollectUsagesInExpression(batchSlot.SlotIndex);
                 if (batchSlot.NameHash != null)
                     CollectUsagesInExpression(batchSlot.NameHash);
+                break;
+
+            case IndirectRegisterExpression indirectReg:
+                CollectUsagesInExpression(indirectReg.IndexExpression);
                 break;
         }
     }

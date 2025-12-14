@@ -417,6 +417,23 @@ public class HashExpression : ExpressionNode
     public string StringValue { get; set; } = "";
 }
 
+/// <summary>
+/// Indirect register read: REG(n) compiles to move r0 rr{n}
+/// </summary>
+public class IndirectRegisterExpression : ExpressionNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+}
+
+/// <summary>
+/// Indirect register write: REGSET(n, value) compiles to move rr{n} value
+/// </summary>
+public class IndirectRegisterWriteStatement : StatementNode
+{
+    public ExpressionNode IndexExpression { get; set; } = null!;
+    public ExpressionNode Value { get; set; } = null!;
+}
+
 public enum BinaryOperator
 {
     // Arithmetic
