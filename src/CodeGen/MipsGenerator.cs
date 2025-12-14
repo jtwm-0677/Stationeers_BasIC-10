@@ -366,6 +366,9 @@ public class MipsGenerator
             case BatchWriteStatement batchWrite:
                 GenerateBatchWrite(batchWrite);
                 break;
+            case BatchSlotWriteStatement batchSlotWrite:
+                GenerateBatchSlotWrite(batchSlotWrite);
+                break;
             case ExternalMemoryWriteStatement memWrite:
                 GenerateExternalMemoryWrite(memWrite);
                 break;
@@ -1665,6 +1668,28 @@ public class MipsGenerator
         }
 
         FreeRegister(hashReg);
+        FreeRegister(valueReg);
+    }
+
+    private void GenerateBatchSlotWrite(BatchSlotWriteStatement write)
+    {
+        var hashReg = GenerateExpression(write.DeviceHash);
+        var slotReg = GenerateExpression(write.SlotIndex);
+        var valueReg = GenerateExpression(write.Value);
+
+        if (write.NameHash != null)
+        {
+            var nameHashReg = GenerateExpression(write.NameHash);
+            Emit($"sbns {hashReg} {nameHashReg} {slotReg} {write.PropertyName} {valueReg}");
+            FreeRegister(nameHashReg);
+        }
+        else
+        {
+            Emit($"sbs {hashReg} {slotReg} {write.PropertyName} {valueReg}");
+        }
+
+        FreeRegister(hashReg);
+        FreeRegister(slotReg);
         FreeRegister(valueReg);
     }
 

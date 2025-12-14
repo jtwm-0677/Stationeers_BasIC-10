@@ -790,7 +790,20 @@ public class IC10Decompiler
                     var sbsSlot = TranslateOperand(inst.Operands[1]);
                     var sbsProp = inst.Operands[2];
                     var sbsValue = TranslateOperand(inst.Operands[3]);
-                    _output.AppendLine($"    BATCHWRITE_SLOT({sbsHash}, {sbsSlot}, \"{sbsProp}\", {sbsValue})");
+                    _output.AppendLine($"    BATCHSLOT_WRITE({sbsHash}, {sbsSlot}, \"{sbsProp}\", {sbsValue})");
+                }
+                break;
+
+            case "sbns":
+                // sbns deviceHash nameHash slotIndex property value
+                if (inst.Operands.Length >= 5)
+                {
+                    var sbnsDevHash = LookupDeviceHash(inst.Operands[0]);
+                    var sbnsNameHash = LookupUserNameHash(inst.Operands[1]);
+                    var sbnsSlot = TranslateOperand(inst.Operands[2]);
+                    var sbnsProp = inst.Operands[3];
+                    var sbnsValue = TranslateOperand(inst.Operands[4]);
+                    _output.AppendLine($"    BATCHSLOT_WRITE({sbnsDevHash}, {sbnsNameHash}, {sbnsSlot}, \"{sbnsProp}\", {sbnsValue})");
                 }
                 break;
 

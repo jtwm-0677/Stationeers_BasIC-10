@@ -192,6 +192,14 @@ public class StaticAnalyzer
                 CollectUsagesInExpression(batchWrite.Value);
                 break;
 
+            case BatchSlotWriteStatement batchSlotWrite:
+                CollectUsagesInExpression(batchSlotWrite.DeviceHash);
+                CollectUsagesInExpression(batchSlotWrite.SlotIndex);
+                CollectUsagesInExpression(batchSlotWrite.Value);
+                if (batchSlotWrite.NameHash != null)
+                    CollectUsagesInExpression(batchSlotWrite.NameHash);
+                break;
+
             case ExternalMemoryWriteStatement memWrite:
                 CollectUsagesInExpression(memWrite.Address);
                 CollectUsagesInExpression(memWrite.Value);

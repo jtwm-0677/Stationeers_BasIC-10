@@ -293,6 +293,12 @@ public class Parser
             return ParseBatchWriteNamedStatement(token);
         }
 
+        // Check for BATCHSLOT_WRITE statement: BATCHSLOT_WRITE(hash, slot, Property, value) or (hash, nameHash, slot, Property, value)
+        if (name.Equals("BATCHSLOT_WRITE", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftParen))
+        {
+            return ParseBatchSlotWriteStatement(token);
+        }
+
         // Check for array assignment with parentheses
         if (Check(TokenType.LeftParen))
         {
@@ -1509,6 +1515,55 @@ public class Parser
             Value = valueExpr,
             NameHash = nameHashStr
         };
+    }
+
+    /// <summary>
+    /// Parses BATCHSLOT_WRITE(hash, slot, Property, value) or BATCHSLOT_WRITE(hash, nameHash, slot, Property, value).
+    /// Compiles to: sbs hash slot Property value or sbns hash nameHash slot Property value
+    /// </summary>
+    private BatchSlotWriteStatement ParseBatchSlotWriteStatement(Token token)
+    {
+        Advance(); // Consume '('
+
+        var args = new List<ExpressionNode>();
+        if (!Check(TokenType.RightParen))
+        {
+            args.Add(ParseExpression());
+            while (Check(TokenType.Comma))
+            {
+                Advance();
+                args.Add(ParseExpression());
+            }
+        }
+        Expect(TokenType.RightParen, "Expected ')'");
+
+        if (args.Count < 4)
+            throw new ParserException("BATCHSLOT_WRITE requires at least 4 arguments", token.Line, token.Column);
+
+        var stmt = new BatchSlotWriteStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            DeviceHash = args[0]
+        };
+
+        if (args.Count == 5)
+        {
+            // Named variant: sbns
+            stmt.NameHash = args[1];
+            stmt.SlotIndex = args[2];
+            stmt.PropertyName = args[3] is StringLiteral propLit ? propLit.Value : "";
+            stmt.Value = args[4];
+        }
+        else
+        {
+            // Standard variant: sbs
+            stmt.SlotIndex = args[1];
+            stmt.PropertyName = args[2] is StringLiteral propLit ? propLit.Value : "";
+            stmt.Value = args[3];
+        }
+
+        return stmt;
     }
 
     private DataStatement ParseDataStatement()

@@ -309,6 +309,15 @@ public class BatchWriteStatement : StatementNode
     public string? NameHash { get; set; }
 }
 
+public class BatchSlotWriteStatement : StatementNode
+{
+    public ExpressionNode DeviceHash { get; set; } = null!;
+    public ExpressionNode SlotIndex { get; set; } = null!;
+    public string PropertyName { get; set; } = "";
+    public ExpressionNode Value { get; set; } = null!;
+    public ExpressionNode? NameHash { get; set; }  // For sbns (named batch slot)
+}
+
 // Expressions
 public abstract class ExpressionNode : AstNode { }
 
