@@ -150,6 +150,21 @@ x = BATCHREAD(hash, prop, mode)
 
 ' Write to all devices of type
 BATCHWRITE(hash, prop, value)
+
+' Batch slot read/write
+x = BATCHSLOT(hash, slot, "Prop", mode)
+BATCHSLOT_WRITE(hash, slot, "Prop", val)
+```
+
+## Indirect Access
+```basic
+' Indirect register (rr0-rr15)
+value = REG(index)      ' Read r{index}
+REGSET(index, value)    ' Write to r{index}
+
+' Indirect device (dr0-dr5)
+x = DEVICE(i).Property  ' Read from d{i}
+DEVICE(i).Property = x  ' Write to d{i}
 ```
 
 ## Stack Operations
@@ -157,6 +172,7 @@ BATCHWRITE(hash, prop, value)
 PUSH value      ' Push onto stack
 POP variable    ' Pop from stack
 PEEK variable   ' Read top without pop
+POKE addr, val  ' Write directly to stack address
 ```
 
 ## Flow Control
@@ -279,4 +295,4 @@ kelvin = celsius + 273.15
 - Test in simulator first
 
 ---
-*Stationeers Basic-10 v1.1.0*
+*Stationeers Basic-10 v2.4.0*

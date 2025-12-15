@@ -966,13 +966,44 @@ temp = BATCHNAMEREAD(MY_SENSORS_NAME, Temperature, 0)
 
 ### Batch Slot Operations
 
+Read or write slot properties across all devices of a specific type.
+
+#### BATCHSLOT (Read)
+
 ```basic
 ' Read slot property from all devices of type
-value = BATCHSLOTREAD(prefabHash, slotIndex, property, mode)
+value = BATCHSLOT(deviceHash, slotIndex, "Property", mode)
 
-' Example: Count total items in slot 0 of all storage
-totalItems = BATCHSLOTREAD(STORAGE_HASH, 0, Quantity, 1)  ' Sum
+' With name hash filter (specific named devices only)
+value = BATCHSLOT(deviceHash, nameHash, slotIndex, "Property", mode)
+
+' Modes: 0=Average, 1=Sum, 2=Minimum, 3=Maximum
+
+' Examples
+' Count total items in slot 0 of all storage containers
+totalItems = BATCHSLOT(HASH("StructureStorage"), 0, "Quantity", 1)
+
+' Get average damage of tools in slot 0 across all tool racks
+avgDamage = BATCHSLOT(HASH("StructureToolRack"), 0, "Damage", 0)
 ```
+
+**IC10 Output:** `lbs` (batch slot read) or `lbns` (batch slot read with name)
+
+#### BATCHSLOT_WRITE
+
+```basic
+' Write to slot property on all devices of type
+BATCHSLOT_WRITE(deviceHash, slotIndex, "Property", value)
+
+' With name hash filter
+BATCHSLOT_WRITE(deviceHash, nameHash, slotIndex, "Property", value)
+
+' Examples
+' Set sorting class for slot 0 on all sorters
+BATCHSLOT_WRITE(HASH("StructureSorter"), 0, "SortingClass", 9)
+```
+
+**IC10 Output:** `sbs` (batch slot write) or `sbns` (batch slot write with name)
 
 ---
 
@@ -1000,6 +1031,21 @@ POP result
 PEEK variable
 PEEK topValue
 ```
+
+### POKE
+
+```basic
+' Write value directly to stack memory address
+POKE address, value
+
+' Examples
+POKE 0, 42          ' Write 42 to stack address 0
+POKE index, temp    ' Write temp to address stored in index
+```
+
+**IC10 Output:** `poke address value`
+
+**Note:** POKE allows direct memory manipulation of the 512-value stack. Use with caution as you can overwrite data stored by PUSH operations.
 
 ### Stack Usage Example
 
@@ -1147,6 +1193,84 @@ counter = 0
 temp = sensor.Temperature
 result = counter + temp
 ```
+
+### Indirect Register Access (REG/REGSET)
+
+Access registers dynamically using a computed index. Useful for creating lookup tables or iterating over register values.
+
+```basic
+' Read from register at computed index
+value = REG(index)
+
+' Write to register at computed index
+REGSET(index, value)
+
+' Examples
+' Store values in registers r0-r5
+FOR i = 0 TO 5
+    REGSET(i, i * 10)    ' r0=0, r1=10, r2=20, ...
+NEXT i
+
+' Read back from register 3
+x = REG(3)               ' x = 30
+
+' Create a lookup table
+REGSET(0, 100)           ' State 0 = 100
+REGSET(1, 250)           ' State 1 = 250
+REGSET(2, 500)           ' State 2 = 500
+setting = REG(currentState)
+```
+
+**IC10 Output:**
+- `REG(n)` with literal: `move r0 r{n}` (direct register access)
+- `REG(n)` with variable: `move r0 rr{n}` (indirect register access)
+- `REGSET(n, val)` with literal: `move r{n} val`
+- `REGSET(n, val)` with variable: `move rr{n} val`
+
+**Note:** IC10 supports `rr0`-`rr15` for indirect register addressing, where the value in the register is used as the index.
+
+### Indirect Device Access (DEVICE(n))
+
+Access devices dynamically using a computed index (0-5). Essential for iterating over all device pins or selecting devices based on runtime conditions.
+
+```basic
+' Read from device at computed index
+value = DEVICE(index).Property
+
+' Write to device at computed index
+DEVICE(index).Property = value
+
+' Slot access with computed device index
+value = DEVICE(index).Slot[slotNum].Property
+
+' Examples
+' Read temperature from all 6 device pins
+FOR i = 0 TO 5
+    temp = DEVICE(i).Temperature
+    IF temp > 300 THEN
+        DEVICE(i).On = 0    ' Turn off hot devices
+    ENDIF
+NEXT i
+
+' Select device based on mode variable
+DEVICE(selectedDevice).Setting = targetValue
+
+' Check slot occupancy across devices
+FOR dev = 0 TO 2
+    occupied = DEVICE(dev).Slot[0].Occupied
+    IF occupied THEN
+        itemHash = DEVICE(dev).Slot[0].OccupantHash
+    ENDIF
+NEXT dev
+```
+
+**IC10 Output:**
+- `DEVICE(n).Prop` with literal: `l r0 d{n} Prop` (direct device)
+- `DEVICE(n).Prop` with variable: `l r0 dr{n} Prop` (indirect device)
+- `DEVICE(n).Prop = val` with literal: `s d{n} Prop val`
+- `DEVICE(n).Prop = val` with variable: `s dr{n} Prop val`
+
+**Note:** IC10 supports `dr0`-`dr5` for indirect device addressing, where the register value (0-5) selects which device pin to access.
 
 ---
 
