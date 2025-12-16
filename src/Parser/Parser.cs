@@ -1212,16 +1212,8 @@ public class Parser
         Advance(); // Consume 'IC'
         Expect(TokenType.Dot, "Expected '.' after IC");
 
-        // Accept either Identifier or Device keyword (since DEVICE is a reserved keyword)
-        Token typeToken;
-        if (Check(TokenType.Device))
-        {
-            typeToken = Advance();
-        }
-        else
-        {
-            typeToken = Expect(TokenType.Identifier, "Expected Pin, Device, ID, or Port");
-        }
+        // DEVICE is now a built-in function, not a keyword, so all IC. references use Identifier
+        var typeToken = Expect(TokenType.Identifier, "Expected Pin, Device, ID, or Port");
         var refType = typeToken.Value.ToUpperInvariant();
 
         switch (refType)
@@ -2347,6 +2339,40 @@ public class Parser
                     // Handle special functions that need custom AST nodes
                     var upperName = name.ToUpperInvariant();
 
+                    // BATCHREAD: BATCHREAD(deviceHash, "Property", mode)
+                    //        or: BATCHNAMEREAD(deviceHash, nameHash, "Property", mode)
+                    if (upperName is "BATCHREAD" or "LB")
+                    {
+                        if (args.Count != 3)
+                            throw new ParserException("BATCHREAD requires 3 arguments: (deviceHash, \"Property\", mode)", token.Line, token.Column);
+
+                        return new BatchReadExpression
+                        {
+                            Line = token.Line,
+                            Column = token.Column,
+                            DeviceHash = args[0],
+                            PropertyName = args[1] is StringLiteral propLit ? propLit.Value : "",
+                            Mode = ParseBatchMode(args[2])
+                        };
+                    }
+
+                    // BATCHNAMEREAD: BATCHNAMEREAD(deviceHash, nameHash, "Property", mode)
+                    if (upperName is "BATCHNAMEREAD" or "BATCHREAD_NAMED" or "LBN")
+                    {
+                        if (args.Count != 4)
+                            throw new ParserException("BATCHNAMEREAD requires 4 arguments: (deviceHash, nameHash, \"Property\", mode)", token.Line, token.Column);
+
+                        return new BatchReadExpression
+                        {
+                            Line = token.Line,
+                            Column = token.Column,
+                            DeviceHash = args[0],
+                            NameHash = args[1] is StringLiteral nameLit ? nameLit.Value : args[1].ToString(),
+                            PropertyName = args[2] is StringLiteral propLit ? propLit.Value : "",
+                            Mode = ParseBatchMode(args[3])
+                        };
+                    }
+
                     // BATCHSLOT: BATCHSLOT(deviceHash, slotIndex, "Property", mode)
                     //        or: BATCHSLOT(deviceHash, nameHash, slotIndex, "Property", mode)
                     if (upperName is "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS")
@@ -2564,6 +2590,8 @@ public class Parser
             or "SHL" or "SHR" or "SHRA" or "SHIFTL" or "SHIFTR" or "SHIFTRA" or "LSHIFT" or "RSHIFT" or "RSHIFTA"
             // Utility functions
             or "INRANGE" or "LERP" or "CLAMP" or "HASH"
+            // Batch operations
+            or "BATCHREAD" or "BATCHNAMEREAD" or "BATCHREAD_NAMED" or "LB" or "LBN"
             // Batch slot operations
             or "BATCHSLOT" or "BATCHREAD_SLOT" or "LBS"
             // Indirect register access

@@ -56,7 +56,8 @@ public class Lexer
         ["SLEEP"] = TokenType.Sleep,
         ["WAIT"] = TokenType.Sleep,  // WAIT is a synonym for SLEEP
         ["YIELD"] = TokenType.Yield,
-        ["DEVICE"] = TokenType.Device,
+        // NOTE: DEVICE is NOT a keyword - it's a built-in function handled in the parser
+        // This allows "ALIAS device d1" to work (device as identifier)
         ["ALIAS"] = TokenType.Alias,
         ["DEFINE"] = TokenType.Define,
         // Additional keywords
