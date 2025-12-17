@@ -69,6 +69,9 @@ public partial class MainWindow : Window
     // Watch variables management
     private readonly BasicToMips.Editor.Debugging.WatchManager _watchManager = new();
 
+    // MIPS line highlighter (shows which IC10 lines correspond to current BASIC line)
+    private MipsLineHighlighter? _mipsLineHighlighter;
+
     // HTTP API Server for MCP integration
     private HttpApiServer? _httpApiServer;
 
@@ -125,7 +128,11 @@ public partial class MainWindow : Window
         MipsOutput.SyntaxHighlighting = MipsHighlighting.Create();
 
         // Editor events
-        BasicEditor.TextArea.Caret.PositionChanged += (s, e) => UpdateCursorPosition();
+        BasicEditor.TextArea.Caret.PositionChanged += (s, e) =>
+        {
+            UpdateCursorPosition();
+            UpdateMipsLineHighlight();
+        };
         BasicEditor.TextArea.TextEntering += TextArea_TextEntering;
         BasicEditor.TextArea.TextEntered += TextArea_TextEntered;
 
@@ -253,6 +260,10 @@ public partial class MainWindow : Window
         {
             CurrentLineHighlighterManager.EnableHighlighter(BasicEditor.TextArea, Color.FromArgb(25, 100, 180, 255));
         }
+
+        // MIPS output line highlight (shows corresponding IC10 lines for current BASIC line)
+        _mipsLineHighlighter = new MipsLineHighlighter(MipsOutput.TextArea, Color.FromArgb(40, 100, 200, 100));
+        MipsOutput.TextArea.TextView.BackgroundRenderers.Insert(0, _mipsLineHighlighter);
 
         // Scanline overlay
         if (_settings.ScanlineOverlayEnabled)
@@ -2583,6 +2594,31 @@ END
         var line = BasicEditor.TextArea.Caret.Line;
         var col = BasicEditor.TextArea.Caret.Column;
         CursorPositionText.Text = $"Ln {line}, Col {col}";
+    }
+
+    /// <summary>
+    /// Update the MIPS output highlighting to show which IC10 lines correspond
+    /// to the current BASIC line. This helps users understand compilation.
+    /// </summary>
+    private void UpdateMipsLineHighlight()
+    {
+        if (_mipsLineHighlighter == null || _sourceMap == null)
+        {
+            _mipsLineHighlighter?.ClearHighlights();
+            return;
+        }
+
+        var basicLine = BasicEditor.TextArea.Caret.Line;
+        var ic10Lines = _sourceMap.GetIC10Lines(basicLine);
+
+        if (ic10Lines.Count > 0)
+        {
+            _mipsLineHighlighter.SetHighlightedLines(ic10Lines);
+        }
+        else
+        {
+            _mipsLineHighlighter.ClearHighlights();
+        }
     }
 
     private void SetStatus(string message, bool success)
