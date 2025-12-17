@@ -54,3 +54,6 @@ docs/plans/
 # Temp/notes
 nul
 CONTINUATION_NOTES.md
+
+# Git worktrees
+.worktrees/
