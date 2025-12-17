@@ -15,7 +15,8 @@ public partial class MainWindow
     // Tab management
     private ObservableCollection<EditorTab> _tabs = new();
     private EditorTab? _currentTab;
-    private const int MAX_TABS = 10;
+    private const int TAB_WARNING_THRESHOLD = 40;
+    private bool _tabWarningDismissed = false;
 
     // Split view mode (Horizontal = top/bottom with horizontal divider, Vertical = side-by-side with vertical divider)
     private enum SplitMode { Horizontal, Vertical, EditorOnly }
@@ -201,14 +202,19 @@ public partial class MainWindow
     /// </summary>
     private void CreateNewTab()
     {
-        if (_tabs.Count >= MAX_TABS)
+        // Show warning at high tab counts (but allow continuing)
+        if (_tabs.Count >= TAB_WARNING_THRESHOLD && !_tabWarningDismissed)
         {
-            MessageBox.Show(
-                $"Maximum of {MAX_TABS} tabs reached. Please close some tabs before opening more.",
-                "Tab Limit Reached",
-                MessageBoxButton.OK,
+            var result = MessageBox.Show(
+                $"You have {_tabs.Count} tabs open. Having many tabs may increase memory usage.\n\nContinue opening new tabs?",
+                "Many Tabs Open",
+                MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
-            return;
+
+            if (result == MessageBoxResult.No)
+                return;
+
+            _tabWarningDismissed = true;
         }
 
         // Save current tab content before switching
@@ -237,14 +243,19 @@ public partial class MainWindow
     /// </summary>
     private void OpenFileInNewTab(string filePath)
     {
-        if (_tabs.Count >= MAX_TABS)
+        // Show warning at high tab counts (but allow continuing)
+        if (_tabs.Count >= TAB_WARNING_THRESHOLD && !_tabWarningDismissed)
         {
-            MessageBox.Show(
-                $"Maximum of {MAX_TABS} tabs reached. Please close some tabs before opening more.",
-                "Tab Limit Reached",
-                MessageBoxButton.OK,
+            var result = MessageBox.Show(
+                $"You have {_tabs.Count} tabs open. Having many tabs may increase memory usage.\n\nContinue opening new tabs?",
+                "Many Tabs Open",
+                MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
-            return;
+
+            if (result == MessageBoxResult.No)
+                return;
+
+            _tabWarningDismissed = true;
         }
 
         try
