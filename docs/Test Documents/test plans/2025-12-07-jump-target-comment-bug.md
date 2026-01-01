@@ -2,8 +2,9 @@
 
 **Date Discovered:** 2025-12-07
 **Severity:** Critical - Causes all GOTO/loop constructs to fail
-**Affected Versions:** All versions (confirmed in both released and unreleased builds)
-**Status:** Open
+**Affected Versions:** All versions prior to fix
+**Status:** FIXED (verified 2026-01-01)
+**Fix Applied:** Comments no longer counted in jump target calculations
 
 ## Summary
 

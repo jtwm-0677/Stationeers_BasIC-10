@@ -2,9 +2,10 @@
 
 **Date Discovered:** 2025-12-07
 **Severity:** Critical - Causes all IF/ELSE/ENDIF conditionals to fail
-**Affected Versions:** All versions (confirmed after GOTO label fix was applied)
-**Status:** Open
-**Related Bug:** 2025-12-07-jump-target-comment-bug.md (partially fixed)
+**Affected Versions:** All versions prior to fix
+**Status:** FIXED (verified 2026-01-01)
+**Related Bug:** 2025-12-07-jump-target-comment-bug.md (also fixed)
+**Fix Applied:** Branch targets now correctly calculated regardless of comments
 
 ## Summary
 
