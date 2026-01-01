@@ -72,6 +72,9 @@ public partial class MainWindow : Window
     // Watch variables management
     private readonly BasicToMips.Editor.Debugging.WatchManager _watchManager = new();
 
+    // MIPS line highlighter (shows which IC10 lines correspond to current BASIC line)
+    private MipsLineHighlighter? _mipsLineHighlighter;
+
     // HTTP API Server for MCP integration
     private HttpApiServer? _httpApiServer;
 
@@ -81,6 +84,15 @@ public partial class MainWindow : Window
     // Autosave timer - saves every 30 seconds
     private DispatcherTimer? _autoSaveTimer;
     private DateTime _lastAutoSave = DateTime.MinValue;
+
+    // Extended script mode (512 lines - requires "More Lines of Code" mod)
+    private const int VANILLA_LINE_LIMIT = 128;
+    private const int EXTENDED_LINE_LIMIT = 512;
+    private const string MOD_WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=3265272725";
+    private const string MOD_NAME = "More Lines of Code";
+    private const string MOD_AUTHOR = "jixxed";
+    private bool _extendedModeEnabled = false;
+    private bool _extendedModeWarningShown = false;
 
     // Last compilation result for Problems Panel
     private CompilationResult? _lastCompilationResult;
@@ -132,7 +144,11 @@ public partial class MainWindow : Window
         MipsOutput.SyntaxHighlighting = MipsHighlighting.Create();
 
         // Editor events
-        BasicEditor.TextArea.Caret.PositionChanged += (s, e) => UpdateCursorPosition();
+        BasicEditor.TextArea.Caret.PositionChanged += (s, e) =>
+        {
+            UpdateCursorPosition();
+            UpdateMipsLineHighlight();
+        };
         BasicEditor.TextArea.TextEntering += TextArea_TextEntering;
         BasicEditor.TextArea.TextEntered += TextArea_TextEntered;
 
@@ -260,6 +276,10 @@ public partial class MainWindow : Window
         {
             CurrentLineHighlighterManager.EnableHighlighter(BasicEditor.TextArea, Color.FromArgb(25, 100, 180, 255));
         }
+
+        // MIPS output line highlight (shows corresponding IC10 lines for current BASIC line)
+        _mipsLineHighlighter = new MipsLineHighlighter(MipsOutput.TextArea, Color.FromArgb(40, 100, 200, 100));
+        MipsOutput.TextArea.TextView.BackgroundRenderers.Insert(0, _mipsLineHighlighter);
 
         // Scanline overlay
         if (_settings.ScanlineOverlayEnabled)
@@ -839,7 +859,9 @@ CheckStatus:
 
     # Check temperature (warning if outside comfort range)
     IF temp < TARGET_TEMP - 10 OR temp > TARGET_TEMP + 10 THEN
-        IF status > 0 THEN status = 1 ENDIF
+        IF status > 0 THEN
+            status = 1
+        ENDIF
     ENDIF
 
     RETURN
@@ -847,16 +869,16 @@ CheckStatus:
 # ── Subroutine: Update display and alarm ───────────────────────
 UpdateDisplay:
     display.Setting = pressure
+    alarm.On = 1
 
     IF status = 0 THEN
-        alarm.On = 1
-        alarm.Color = Red
-    ELSEIF status = 1 THEN
-        alarm.On = 1
-        alarm.Color = Yellow
+        alarm.Color = 4     # Red
     ELSE
-        alarm.On = 1
-        alarm.Color = Green
+        IF status = 1 THEN
+            alarm.Color = 3  # Yellow
+        ELSE
+            alarm.Color = 2  # Green
+        ENDIF
     ENDIF
 
     RETURN
@@ -1255,13 +1277,30 @@ END
         return "";
     }
 
+    private string GetExtendedScriptHeader()
+    {
+        return $"# EXTENDED SCRIPT - Requires \"{MOD_NAME}\" mod by {MOD_AUTHOR}\n# {MOD_WORKSHOP_URL}\n";
+    }
+
+    private bool IsExtendedScript(int lineCount)
+    {
+        return _extendedModeEnabled && lineCount > VANILLA_LINE_LIMIT;
+    }
+
     private void GenerateInstructionXml(string path, string scriptName, string ic10Code, string author)
     {
         // Generate timestamp in game format (ticks)
         var ticks = DateTime.UtcNow.Ticks;
 
+        // Count actual IC10 lines (for extended script detection)
+        var lineCount = ic10Code.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+        var isExtended = IsExtendedScript(lineCount);
+
+        // Prepend extended script header if needed
+        var finalCode = isExtended ? GetExtendedScriptHeader() + ic10Code : ic10Code;
+
         // Escape the IC10 code for XML
-        var escapedCode = System.Security.SecurityElement.Escape(ic10Code);
+        var escapedCode = System.Security.SecurityElement.Escape(finalCode);
 
         // Use settings author first, then meta comment author, then default
         var displayAuthor = !string.IsNullOrWhiteSpace(_settings.ScriptAuthor)
@@ -1274,6 +1313,11 @@ END
             ? "Built in Basic-10"
             : $"{userDesc}\n\nBuilt in Basic-10";
 
+        // Build RequiresMod element if extended
+        var requireModElement = isExtended
+            ? $"\n  <RequiresMod>{MOD_WORKSHOP_URL}</RequiresMod>"
+            : "";
+
         var xml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <InstructionData xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
   <DateTime>{ticks}</DateTime>
@@ -1282,7 +1326,7 @@ END
   <Description>{System.Security.SecurityElement.Escape(description)}</Description>
   <Author>{System.Security.SecurityElement.Escape(displayAuthor)}</Author>
   <WorkshopFileHandle>0</WorkshopFileHandle>
-  <Instructions>{escapedCode}</Instructions>
+  <Instructions>{escapedCode}</Instructions>{requireModElement}
 </InstructionData>";
         File.WriteAllText(path, xml);
     }
@@ -1361,9 +1405,47 @@ END
         }
     }
 
+    /// <summary>
+    /// Checks if the only content is the unmodified default welcome script.
+    /// Used to skip autosave/recovery for fresh instances.
+    /// </summary>
+    private bool IsOnlyDefaultContent()
+    {
+        var welcomeCode = GetWelcomeCode();
+        var currentContent = BasicEditor.Text;
+
+        // Check if current content matches welcome code (normalize line endings)
+        var normalizedWelcome = welcomeCode.Replace("\r\n", "\n").Trim();
+        var normalizedCurrent = currentContent.Replace("\r\n", "\n").Trim();
+
+        if (normalizedCurrent != normalizedWelcome)
+            return false;
+
+        // Check if there are other tabs with content
+        if (_tabs != null && _tabs.Count > 1)
+        {
+            foreach (var tab in _tabs)
+            {
+                if (tab == _currentTab) continue;
+                if (!string.IsNullOrWhiteSpace(tab.Content))
+                {
+                    var normalizedTab = tab.Content.Replace("\r\n", "\n").Trim();
+                    if (normalizedTab != normalizedWelcome && !string.IsNullOrEmpty(normalizedTab))
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private void AutoSaveToTemp()
     {
         if (string.IsNullOrWhiteSpace(BasicEditor.Text)) return;
+
+        // Don't autosave if it's just the unmodified default welcome script
+        // and there are no other tabs with content
+        if (IsOnlyDefaultContent()) return;
 
         try
         {
@@ -1435,6 +1517,18 @@ END
             var backupContent = File.ReadAllText(backupPath);
             if (string.IsNullOrWhiteSpace(backupContent)) return;
 
+            // Don't offer recovery if it's just the default welcome script
+            var welcomeCode = GetWelcomeCode();
+            var normalizedBackup = backupContent.Replace("\r\n", "\n").Trim();
+            var normalizedWelcome = welcomeCode.Replace("\r\n", "\n").Trim();
+            if (normalizedBackup == normalizedWelcome)
+            {
+                // Just the default script, clean up and don't prompt
+                File.Delete(backupPath);
+                if (File.Exists(metaPath)) File.Delete(metaPath);
+                return;
+            }
+
             var originalPath = File.Exists(metaPath) ? File.ReadAllText(metaPath).Trim() : "UNSAVED";
             var timeAgo = DateTime.Now - backupInfo.LastWriteTime;
             var timeStr = timeAgo.TotalMinutes < 60
@@ -1458,6 +1552,14 @@ END
                 ModifiedIndicator.Visibility = Visibility.Visible;
                 UpdateTitle();
                 StatusText.Text = "Recovered from autosave backup";
+
+                // Also update the current tab's content so it doesn't get overwritten
+                // by subsequent sync operations (e.g., auto-compile, tab switch)
+                if (_currentTab != null)
+                {
+                    _currentTab.Content = backupContent;
+                    _currentTab.IsModified = true;
+                }
             }
 
             // Delete recovery files after offering
@@ -1719,7 +1821,16 @@ END
     {
         if (!string.IsNullOrEmpty(MipsOutput.Text))
         {
-            Clipboard.SetText(MipsOutput.Text);
+            var code = MipsOutput.Text;
+            var lineCount = code.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+
+            // Prepend extended script header if needed
+            if (IsExtendedScript(lineCount))
+            {
+                code = GetExtendedScriptHeader() + code;
+            }
+
+            Clipboard.SetText(code);
             SetStatus("IC10 code copied to clipboard", true);
         }
     }
@@ -1736,6 +1847,25 @@ END
 
             if (result.Success)
             {
+                // Enforce line limit based on extended mode
+                var lineLimit = _extendedModeEnabled ? EXTENDED_LINE_LIMIT : VANILLA_LINE_LIMIT;
+                if (result.LineCount > lineLimit)
+                {
+                    var modeMsg = _extendedModeEnabled
+                        ? $"Extended mode limit is {EXTENDED_LINE_LIMIT} lines."
+                        : $"Enable 'Extended Script Mode' for up to {EXTENDED_LINE_LIMIT} lines (requires mod).";
+                    ShowError($"Script exceeds {lineLimit} line limit ({result.LineCount} lines). {modeMsg}", null);
+                    SetStatus($"Compilation failed: exceeds {lineLimit} line limit", false);
+
+                    // Still show the output so user can see what was generated
+                    _suppressMipsUpdate = true;
+                    MipsOutput.Text = result.Output;
+                    _suppressMipsUpdate = false;
+                    UpdateLineCount();
+                    UpdateProblemsList();
+                    return false;
+                }
+
                 _suppressMipsUpdate = true;
                 MipsOutput.Text = result.Output;
                 _suppressMipsUpdate = false;
@@ -2006,6 +2136,53 @@ END
         _settings.Save();
         // Keep menu in sync
         AutoCompleteMenu.IsChecked = AutoCompleteCheckBox.IsChecked == true;
+    }
+
+    private void ExtendedModeCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        var isChecked = ExtendedModeCheckBox.IsChecked == true;
+
+        if (isChecked && !_extendedModeWarningShown)
+        {
+            // Show first-time warning dialog
+            var result = MessageBox.Show(
+                $"This mode allows scripts up to 512 lines, but requires the \"{MOD_NAME}\" mod by {MOD_AUTHOR} to be installed in Stationeers.\n\n" +
+                "Scripts saved in this mode will not work without the mod.\n\n" +
+                "Click 'Yes' to enable extended mode, 'No' to cancel, or 'Cancel' to open the mod's Steam Workshop page.",
+                "Extended Script Mode",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _extendedModeEnabled = true;
+                _extendedModeWarningShown = true;
+            }
+            else if (result == MessageBoxResult.Cancel)
+            {
+                // "Cancel" acts as "Learn More" - open workshop page
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = MOD_WORKSHOP_URL,
+                    UseShellExecute = true
+                });
+                ExtendedModeCheckBox.IsChecked = false;
+                return;
+            }
+            else
+            {
+                // No - cancel
+                ExtendedModeCheckBox.IsChecked = false;
+                return;
+            }
+        }
+        else
+        {
+            _extendedModeEnabled = isChecked;
+        }
+
+        // Update line count display with new limits
+        UpdateLineCount();
     }
 
     private void AutoCompileMenu_Click(object sender, RoutedEventArgs e)
@@ -2351,30 +2528,80 @@ END
     {
         var basicLines = BasicEditor.LineCount;
         var mipsLines = string.IsNullOrEmpty(MipsOutput.Text) ? 0 : MipsOutput.LineCount;
+        var lineLimit = _extendedModeEnabled ? EXTENDED_LINE_LIMIT : VANILLA_LINE_LIMIT;
 
         BasicLineCountText.Text = $"Lines: {basicLines}";
-        MipsLineCountText.Text = $"Lines: {mipsLines} / 128";
+        MipsLineCountText.Text = $"Lines: {mipsLines} / {lineLimit}";
 
-        // Update warning badges
-        LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= 128 ? Visibility.Visible : Visibility.Collapsed;
-        LineErrorBadge.Visibility = mipsLines > 128 ? Visibility.Visible : Visibility.Collapsed;
-
-        // Update line budget indicator in status bar with color coding
-        LineBudgetText.Text = $"{mipsLines}/128";
-        if (mipsLines > 128)
+        // Update warning badges based on current mode
+        if (_extendedModeEnabled)
         {
-            MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
-        }
-        else if (mipsLines >= 100)
-        {
-            MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            // Extended mode: warn at vanilla limit, error at extended limit
+            LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+            LineErrorBadge.Visibility = mipsLines > EXTENDED_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
-            MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
-            LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            // Vanilla mode: warn near 128, error over 128
+            LineWarningBadge.Visibility = mipsLines >= 100 && mipsLines <= VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+            LineErrorBadge.Visibility = mipsLines > VANILLA_LINE_LIMIT ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // Update line budget indicator in status bar with color coding
+        LineBudgetText.Text = $"{mipsLines}/{lineLimit}";
+
+        if (_extendedModeEnabled)
+        {
+            // Extended mode color thresholds
+            if (mipsLines > EXTENDED_LINE_LIMIT)
+            {
+                // Over extended limit - red error
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines > 450)
+            {
+                // Near extended limit (451-512) - red warning
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines > VANILLA_LINE_LIMIT)
+            {
+                // Exceeds vanilla but valid for mod (129-450) - purple
+                MipsLineCountText.Foreground = (Brush)FindResource("ExtendedModeBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(156, 39, 176)); // Purple
+            }
+            else if (mipsLines >= 100)
+            {
+                // Near vanilla limit (100-128) - orange warning
+                MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            }
+            else
+            {
+                // Safe (0-99) - green
+                MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            }
+        }
+        else
+        {
+            // Vanilla mode - original behavior
+            if (mipsLines > VANILLA_LINE_LIMIT)
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("ErrorBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Red
+            }
+            else if (mipsLines >= 100)
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("WarningBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Orange
+            }
+            else
+            {
+                MipsLineCountText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+                LineBudgetIndicator.Background = new SolidColorBrush(Color.FromRgb(0, 200, 83)); // Green
+            }
         }
     }
 
@@ -2383,6 +2610,31 @@ END
         var line = BasicEditor.TextArea.Caret.Line;
         var col = BasicEditor.TextArea.Caret.Column;
         CursorPositionText.Text = $"Ln {line}, Col {col}";
+    }
+
+    /// <summary>
+    /// Update the MIPS output highlighting to show which IC10 lines correspond
+    /// to the current BASIC line. This helps users understand compilation.
+    /// </summary>
+    private void UpdateMipsLineHighlight()
+    {
+        if (_mipsLineHighlighter == null || _sourceMap == null)
+        {
+            _mipsLineHighlighter?.ClearHighlights();
+            return;
+        }
+
+        var basicLine = BasicEditor.TextArea.Caret.Line;
+        var ic10Lines = _sourceMap.GetIC10Lines(basicLine);
+
+        if (ic10Lines.Count > 0)
+        {
+            _mipsLineHighlighter.SetHighlightedLines(ic10Lines);
+        }
+        else
+        {
+            _mipsLineHighlighter.ClearHighlights();
+        }
     }
 
     private void SetStatus(string message, bool success)
@@ -2440,6 +2692,28 @@ END
                 StationeersPathText.Text = $"Scripts: {defaultPath}";
             }
         }
+
+        // Show new feature notification if applicable
+        ShowNewFeatureNotifications(versionStr);
+    }
+
+    private void ShowNewFeatureNotifications(string currentVersion)
+    {
+        if (_settings.ShouldShowHashDictionaryNotification(currentVersion))
+        {
+            MessageBox.Show(
+                "New in this version: Living Hash Dictionary\n\n" +
+                "Basic-10 now remembers the string-to-hash mappings from your compilations. " +
+                "This means when you import or decompile MIPS code, device names and custom strings " +
+                "you've used before will be automatically restored.\n\n" +
+                "The dictionary is stored locally and grows as you use the compiler. " +
+                "Note that MIPS code compiled on a different machine may not decompile with " +
+                "all names restored unless those same strings exist in your local dictionary.\n\n" +
+                "The dictionary file is saved in your AppData folder.",
+                "New Feature: Hash Dictionary",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
     }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -2450,6 +2724,10 @@ END
         }
         else
         {
+            // Clean up autosave files since we're closing cleanly
+            // (user either saved or chose to discard changes)
+            CleanupTempAutoSave();
+
             // Stop HTTP API server
             StopHttpApiServer();
             _settings.Save();

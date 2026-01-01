@@ -274,7 +274,7 @@ public class HttpBridge
     }
 
     /// <summary>
-    /// Get pending messages from the user (via Claude Assistant window).
+    /// Get pending messages from the user (via AI Assistant window).
     /// </summary>
     public async Task<string> GetMessages()
     {
@@ -307,7 +307,7 @@ public class HttpBridge
     }
 
     /// <summary>
-    /// Send a response back to the Claude Assistant window.
+    /// Send a response back to the AI Assistant window.
     /// </summary>
     public async Task<string> SendResponse(string content, string? messageId = null)
     {
@@ -317,7 +317,7 @@ public class HttpBridge
                 new { content, messageId }, _jsonOptions);
             response.EnsureSuccessStatusCode();
 
-            return "Response sent to Claude Assistant window.";
+            return "Response sent to AI Assistant window.";
         }
         catch (HttpRequestException ex)
         {

@@ -368,7 +368,7 @@ public class HttpApiServer
             }
         });
 
-        // === Message Queue ===
+        // === Message Queue (AI Assistant) ===
 
         // POST /api/messages - User sends a message
         app.MapPost("/api/messages", async (HttpContext ctx) =>
@@ -388,7 +388,7 @@ public class HttpApiServer
             }
         });
 
-        // GET /api/messages - Claude polls for pending messages
+        // GET /api/messages - AI polls for pending messages
         app.MapGet("/api/messages", () =>
         {
             try
@@ -411,7 +411,7 @@ public class HttpApiServer
             }
         });
 
-        // POST /api/messages/response - Claude sends a response
+        // POST /api/messages/response - AI sends a response
         app.MapPost("/api/messages/response", async (HttpContext ctx) =>
         {
             try
@@ -420,7 +420,7 @@ public class HttpApiServer
                 if (string.IsNullOrWhiteSpace(body?.Content))
                     return Results.BadRequest(new { error = "Missing 'content' field" });
 
-                MessageQueue.EnqueueClaudeResponse(body.Content, body.MessageId);
+                MessageQueue.EnqueueAIResponse(body.Content, body.MessageId);
                 return Results.Ok(new { success = true });
             }
             catch (Exception ex)
@@ -429,12 +429,12 @@ public class HttpApiServer
             }
         });
 
-        // GET /api/messages/responses - UI polls for Claude responses
+        // GET /api/messages/responses - UI polls for AI responses
         app.MapGet("/api/messages/responses", () =>
         {
             try
             {
-                var messages = MessageQueue.GetPendingClaudeResponses();
+                var messages = MessageQueue.GetPendingAIResponses();
                 return Results.Ok(new
                 {
                     messages = messages.Select(m => new
@@ -1494,7 +1494,7 @@ internal class ConnectNodesRequest
 #region Message Queue
 
 /// <summary>
-/// Thread-safe message queue for inter-process chat communication.
+/// Thread-safe message queue for AI Assistant chat.
 /// </summary>
 public static class MessageQueue
 {
@@ -1503,7 +1503,7 @@ public static class MessageQueue
     private static readonly List<QueuedMessage> _incoming = new();
 
     /// <summary>
-    /// Add a message from the user to be picked up by Claude.
+    /// Add a message from the user to be picked up by the AI.
     /// </summary>
     public static string EnqueueUserMessage(string content)
     {
@@ -1522,9 +1522,9 @@ public static class MessageQueue
     }
 
     /// <summary>
-    /// Add a response from Claude to be displayed in the UI.
+    /// Add a response from the AI to be displayed in the UI.
     /// </summary>
-    public static void EnqueueClaudeResponse(string content, string? replyToId = null)
+    public static void EnqueueAIResponse(string content, string? replyToId = null)
     {
         lock (_lock)
         {
@@ -1541,7 +1541,7 @@ public static class MessageQueue
     }
 
     /// <summary>
-    /// Get all pending user messages (for Claude to pick up).
+    /// Get all pending user messages (for AI to pick up).
     /// </summary>
     public static List<QueuedMessage> GetPendingUserMessages()
     {
@@ -1554,9 +1554,9 @@ public static class MessageQueue
     }
 
     /// <summary>
-    /// Get all pending Claude responses (for UI to display).
+    /// Get all pending AI responses (for UI to display).
     /// </summary>
-    public static List<QueuedMessage> GetPendingClaudeResponses()
+    public static List<QueuedMessage> GetPendingAIResponses()
     {
         lock (_lock)
         {

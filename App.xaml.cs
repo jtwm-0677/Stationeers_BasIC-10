@@ -1,4 +1,5 @@
 using System.Windows;
+using BasicToMips.Data;
 using BasicToMips.UI;
 
 namespace BasicToMips;
@@ -20,6 +21,9 @@ public partial class App : Application
             args.Handled = true;
         };
 
+        // Initialize the living hash dictionary for decompilation support
+        HashDictionary.Initialize();
+
         // Show splash screen
         var splash = new SplashWindow();
         splash.Show();
@@ -34,5 +38,12 @@ public partial class App : Application
 
         // Close splash
         splash.Close();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        // Save the living hash dictionary
+        HashDictionary.Save();
+        base.OnExit(e);
     }
 }

@@ -5,7 +5,7 @@ namespace Basic10.Mcp;
 
 /// <summary>
 /// MCP Server that handles JSON-RPC 2.0 communication over stdio.
-/// Implements the Model Context Protocol for Claude Code integration.
+/// Implements the Model Context Protocol for AI assistant integration.
 /// </summary>
 public class McpServer
 {
@@ -205,7 +205,7 @@ public class McpServer
                 new
                 {
                     name = "basic10_get_messages",
-                    description = "Get pending messages from the user via the Claude Assistant window in Basic-10. Call this to check for user requests.",
+                    description = "Get pending messages from the user via the AI Assistant window in Basic-10. Call this to check for user requests.",
                     inputSchema = new
                     {
                         type = "object",
@@ -216,7 +216,7 @@ public class McpServer
                 new
                 {
                     name = "basic10_send_response",
-                    description = "Send a response back to the user via the Claude Assistant window in Basic-10",
+                    description = "Send a response back to the user via the AI Assistant window in Basic-10",
                     inputSchema = new
                     {
                         type = "object",

@@ -1,4 +1,4 @@
-# BASIC-10 Feature Roadmap v1.3.0+
+# BASIC-10 Feature Roadmap v3.0+
 
 ## Overview
 This document outlines all planned features organized by phase and priority.
@@ -340,14 +340,14 @@ myproject.basproj
 
 ## Version Targets
 
-- **v1.3.0**: Sprint 1 (Navigation & Debugging)
-- **v1.4.0**: Sprint 2 (Code Quality)
-- **v1.5.0**: Sprint 3 (Language Power)
-- **v1.6.0**: Sprint 4 (Optimization)
-- **v1.7.0**: Sprint 5 (Project Management)
-- **v1.8.0**: Sprint 6 (Advanced Language)
-- **v2.0.0**: Sprint 7 (Polish) + stability
+- **v3.1.0**: Sprint 1 (Navigation & Debugging)
+- **v3.2.0**: Sprint 2 (Code Quality)
+- **v3.3.0**: Sprint 3 (Language Power)
+- **v3.4.0**: Sprint 4 (Optimization)
+- **v3.5.0**: Sprint 5 (Project Management)
+- **v3.6.0**: Sprint 6 (Advanced Language)
+- **v4.0.0**: Sprint 7 (Polish) + stability
 
 ---
 
-*Last updated: 2025-11-28*
+*Last updated: 2025-12-11*

@@ -51,6 +51,10 @@
     <SolidColorBrush x:Key="SelectionBrush" Color="{DynamicResource SelectionColor}"/>
     <SolidColorBrush x:Key="HighlightBrush" Color="{DynamicResource HighlightColor}"/>
 
+    <!-- Extended Script Mode (exceeds vanilla 128, valid for mod) -->
+    <Color x:Key="ExtendedModeColor">#9C27B0</Color>
+    <SolidColorBrush x:Key="ExtendedModeBrush" Color="{DynamicResource ExtendedModeColor}"/>
+
     <!-- Fonts -->
     <FontFamily x:Key="UIFont">Segoe UI</FontFamily>
     <FontFamily x:Key="CodeFont">Cascadia Code, Consolas, Courier New</FontFamily>

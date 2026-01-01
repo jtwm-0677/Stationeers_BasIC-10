@@ -2,7 +2,7 @@ namespace Basic10.Mcp;
 
 /// <summary>
 /// MCP Server entry point.
-/// This console app is spawned by Claude Code and communicates via stdio.
+/// This console app is spawned by an AI assistant and communicates via stdio.
 /// </summary>
 class Program
 {

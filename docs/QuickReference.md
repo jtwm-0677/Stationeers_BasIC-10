@@ -2,14 +2,14 @@
 
 ## Program Structure
 ```basic
-' BASIC comment
-# IC10 comment (also valid)
+# Comment (recommended - works in BASIC and IC10)
+' BASIC comment (traditional style)
 ALIAS device d0
 DEFINE CONST 123
 VAR variable = 0
 
 main:
-    ' Code here
+    # Code here
     YIELD
     GOTO main
 END
@@ -34,34 +34,34 @@ END
 ## Control Flow
 ```basic
 IF cond THEN
-    ' code
+    # code
 ELSEIF cond2 THEN
-    ' code
+    # code
 ELSE
-    ' code
+    # code
 ENDIF
 
 FOR i = 1 TO 10 STEP 1
-    ' code
-    BREAK       ' Exit loop early
-    CONTINUE    ' Skip to next iteration
+    # code
+    BREAK       # Exit loop early
+    CONTINUE    # Skip to next iteration
 NEXT i
 
 WHILE condition
-    ' code
+    # code
 WEND
 
 DO
-    ' code
+    # code
 LOOP UNTIL condition
 
 SELECT CASE x
 CASE 1:
-    ' code for x = 1
+    # code for x = 1
 CASE 2, 3:
-    ' code for x = 2 or 3
+    # code for x = 2 or 3
 DEFAULT:
-    ' code for other values
+    # code for other values
 END SELECT
 
 GOTO label
@@ -71,13 +71,13 @@ RETURN
 
 ## Device Access
 ```basic
-' Read property
+# Read property
 x = device.Property
 
-' Write property
+# Write property
 device.Property = value
 
-' Slot access
+# Slot access
 x = device[slot].Property
 ```
 
@@ -144,19 +144,19 @@ x = device[slot].Property
 
 ## Batch Operations
 ```basic
-' Read from all devices of type
+# Read from all devices of type
 x = BATCHREAD(hash, prop, mode)
-' Modes: 0=Avg, 1=Sum, 2=Min, 3=Max
+# Modes: 0=Avg, 1=Sum, 2=Min, 3=Max
 
-' Write to all devices of type
+# Write to all devices of type
 BATCHWRITE(hash, prop, value)
 ```
 
 ## Stack Operations
 ```basic
-PUSH value      ' Push onto stack
-POP variable    ' Pop from stack
-PEEK variable   ' Read top without pop
+PUSH value      # Push onto stack
+POP variable    # Pop from stack
+PEEK variable   # Read top without pop
 ```
 
 ## Flow Control
@@ -178,15 +178,16 @@ PEEK variable   ' Read top without pop
 ## Bidirectional Editing
 - IC10 panel is now **editable**
 - **"To BASIC"** button decompiles IC10
-- Both `'` and `#` comments work in BASIC editor
+- `#` comments recommended (works in BASIC and IC10)
+- `'` and `REM` comments also supported (traditional BASIC)
 - Auto-detects BASIC vs IC10 code
 
 ## Temperature Conversions
 ```basic
-' Kelvin to Celsius
+# Kelvin to Celsius
 celsius = kelvin - 273.15
 
-' Celsius to Kelvin
+# Celsius to Kelvin
 kelvin = celsius + 273.15
 ```
 
@@ -279,4 +280,4 @@ kelvin = celsius + 273.15
 - Test in simulator first
 
 ---
-*Stationeers Basic-10 v1.1.0*
+*Stationeers Basic-10 v3.0*

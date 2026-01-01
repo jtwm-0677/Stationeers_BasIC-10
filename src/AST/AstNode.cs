@@ -167,6 +167,7 @@ public class DimStatement : StatementNode
 {
     public string VariableName { get; set; } = "";
     public List<ExpressionNode> Dimensions { get; } = new();
+    public ExpressionNode? InitialValue { get; set; }
 }
 
 public class SubDefinition : StatementNode
@@ -306,6 +307,13 @@ public class DeviceSlotWriteStatement : StatementNode
     public ExpressionNode Value { get; set; } = null!;
 }
 
+public class ExternalMemoryWriteStatement : StatementNode
+{
+    public string DeviceName { get; set; } = "";
+    public ExpressionNode Address { get; set; } = null!;
+    public ExpressionNode Value { get; set; } = null!;
+}
+
 public class BatchWriteStatement : StatementNode
 {
     public ExpressionNode DeviceHash { get; set; } = null!;
@@ -376,6 +384,12 @@ public class DeviceSlotReadExpression : ExpressionNode
     public string DeviceName { get; set; } = "";
     public ExpressionNode SlotIndex { get; set; } = null!;
     public string PropertyName { get; set; } = "";
+}
+
+public class ExternalMemoryReadExpression : ExpressionNode
+{
+    public string DeviceName { get; set; } = "";
+    public ExpressionNode Address { get; set; } = null!;
 }
 
 public class BatchReadExpression : ExpressionNode

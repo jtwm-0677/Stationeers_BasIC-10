@@ -9,7 +9,7 @@
     <RootNamespace>Basic10.Mcp</RootNamespace>
     <Version>1.0.0</Version>
     <Authors>Dog Tired Studios</Authors>
-    <Description>MCP Server bridge for Basic-10 IDE integration with Claude Code</Description>
+    <Description>MCP Server bridge for Basic-10 IDE integration</Description>
   </PropertyGroup>
 
 </Project>

@@ -201,13 +201,13 @@ main:
 
     IF oxygenRatio < MIN_OXYGEN THEN
         alarm.On = 1
-        alarm.Color = 16711680   ' Red
+        alarm.Color = 16711680   # Red
     ELSEIF oxygenRatio > MAX_OXYGEN THEN
         alarm.On = 1
-        alarm.Color = 16776960   ' Yellow
+        alarm.Color = 16776960   # Yellow
     ELSE
         alarm.On = 1
-        alarm.Color = 65280      ' Green
+        alarm.Color = 65280      # Green
     ENDIF
 
     YIELD

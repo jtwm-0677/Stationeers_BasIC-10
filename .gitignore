@@ -44,6 +44,16 @@ publish/
 # MCP config (local)
 .mcp.json
 
+# Claude Code config (local)
+.claude/
+CLAUDE.md
+
+# Development plans (internal)
+docs/plans/
+
 # Temp/notes
 nul
 CONTINUATION_NOTES.md
+
+# Git worktrees
+.worktrees/

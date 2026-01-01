@@ -45,7 +45,8 @@ public static class LanguageDetector
         "FOR", "TO", "STEP", "NEXT", "WHILE", "WEND", "DO", "LOOP", "UNTIL",
         "GOTO", "GOSUB", "RETURN", "END", "REM", "DIM", "AS", "INTEGER", "SINGLE",
         "AND", "OR", "NOT", "MOD", "DEF", "FN", "SUB", "ENDSUB", "FUNCTION",
-        "ENDFUNCTION", "CALL", "EXIT", "SLEEP", "YIELD", "DEVICE", "VAR", "CONST"
+        "ENDFUNCTION", "CALL", "EXIT", "SLEEP", "YIELD", "DEVICE", "VAR", "CONST",
+        "ALIAS"  // BASIC10 ALIAS syntax differs from IC10's alias instruction
     };
 
     /// <summary>
@@ -66,14 +67,14 @@ public static class LanguageDetector
             var line = rawLine.Trim();
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            // IC10 comment style (# at start)
+            // # comments are used by BOTH IC10 and BASIC10 - neutral
             if (line.StartsWith("#"))
             {
-                ic10Score += 3;
+                // Don't score either way - both languages use # for comments
                 continue;
             }
 
-            // BASIC comment style (' at start or REM)
+            // BASIC comment style (REM)
             if (line.StartsWith("'") || line.StartsWith("REM", StringComparison.OrdinalIgnoreCase))
             {
                 basicScore += 3;
@@ -113,6 +114,12 @@ public static class LanguageDetector
             if (line.Contains("THEN") || line.Contains("ENDIF") || line.Contains("WEND"))
             {
                 basicScore += 3;
+            }
+
+            // IC.Device/IC.Self pattern is definitive BASIC10 (device lookup syntax)
+            if (line.Contains("IC.Device") || line.Contains("IC.Self"))
+            {
+                basicScore += 10;
             }
 
             // BASIC assignment with LET or without

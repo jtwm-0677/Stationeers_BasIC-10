@@ -210,6 +210,25 @@ public class Parser
                 };
             }
 
+            // Check for .Memory[n] = value syntax (external memory write)
+            if (propertyName.Equals("Memory", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+            {
+                Advance(); // Consume '['
+                var address = ParseExpression();
+                Expect(TokenType.RightBracket, "Expected ']'");
+                Expect(TokenType.Equal, "Expected '='");
+                var memValue = ParseExpression();
+
+                return new ExternalMemoryWriteStatement
+                {
+                    Line = token.Line,
+                    Column = token.Column,
+                    DeviceName = name,
+                    Address = address,
+                    Value = memValue
+                };
+            }
+
             Expect(TokenType.Equal, "Expected '=' after property name");
             var value = ParseExpression();
 
@@ -260,6 +279,18 @@ public class Parser
                 ArrayIndices = new List<ExpressionNode> { slotIndex },
                 Value = ParseExpression()
             };
+        }
+
+        // Check for BATCHWRITE statement: BATCHWRITE(hash, Property, value)
+        if (name.Equals("BATCHWRITE", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftParen))
+        {
+            return ParseBatchWriteStatement(token);
+        }
+
+        // Check for BATCHWRITE_NAMED statement: BATCHWRITE_NAMED(hash, nameHash, Property, value)
+        if (name.Equals("BATCHWRITE_NAMED", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftParen))
+        {
+            return ParseBatchWriteNamedStatement(token);
         }
 
         // Check for array assignment with parentheses
@@ -992,6 +1023,13 @@ public class Parser
             Expect(closeType, "Expected closing bracket");
         }
 
+        // Handle optional initializer: DIM x = expression
+        if (Check(TokenType.Equal))
+        {
+            Advance(); // Consume '='
+            stmt.InitialValue = ParseExpression();
+        }
+
         return stmt;
     }
 
@@ -1385,6 +1423,103 @@ public class Parser
         var nameToken = Expect(TokenType.Identifier, "Expected variable name");
         stmt.VariableName = nameToken.Value;
         return stmt;
+    }
+
+    /// <summary>
+    /// Parses BATCHWRITE(hash, Property, value) statement.
+    /// Compiles to: sb hash Property value
+    /// </summary>
+    private BatchWriteStatement ParseBatchWriteStatement(Token startToken)
+    {
+        Advance(); // Consume '('
+
+        var hashExpr = ParseExpression();
+        Expect(TokenType.Comma, "Expected ',' after device hash");
+
+        // Property can be an identifier or string
+        string propertyName;
+        if (Check(TokenType.String))
+        {
+            propertyName = Advance().Value;
+        }
+        else
+        {
+            var propToken = Expect(TokenType.Identifier, "Expected property name");
+            propertyName = propToken.Value;
+        }
+
+        Expect(TokenType.Comma, "Expected ',' after property name");
+        var valueExpr = ParseExpression();
+
+        Expect(TokenType.RightParen, "Expected ')'");
+
+        return new BatchWriteStatement
+        {
+            Line = startToken.Line,
+            Column = startToken.Column,
+            DeviceHash = hashExpr,
+            PropertyName = propertyName,
+            Value = valueExpr
+        };
+    }
+
+    /// <summary>
+    /// Parses BATCHWRITE_NAMED(hash, nameHash, Property, value) statement.
+    /// Compiles to: sbn hash nameHash Property value
+    /// </summary>
+    private BatchWriteStatement ParseBatchWriteNamedStatement(Token startToken)
+    {
+        Advance(); // Consume '('
+
+        var hashExpr = ParseExpression();
+        Expect(TokenType.Comma, "Expected ',' after device hash");
+
+        // Name hash - can be expression, string, or identifier
+        ExpressionNode nameHashExpr;
+        string? nameHashStr = null;
+        if (Check(TokenType.String))
+        {
+            nameHashStr = Advance().Value;
+            nameHashExpr = new StringLiteral { Value = nameHashStr, Line = startToken.Line, Column = startToken.Column };
+        }
+        else
+        {
+            nameHashExpr = ParseExpression();
+            // If it's a literal, extract the string value
+            if (nameHashExpr is StringLiteral sl)
+                nameHashStr = sl.Value;
+            else if (nameHashExpr is NumberLiteral nl)
+                nameHashStr = nl.Value.ToString();
+        }
+
+        Expect(TokenType.Comma, "Expected ',' after name hash");
+
+        // Property can be an identifier or string
+        string propertyName;
+        if (Check(TokenType.String))
+        {
+            propertyName = Advance().Value;
+        }
+        else
+        {
+            var propToken = Expect(TokenType.Identifier, "Expected property name");
+            propertyName = propToken.Value;
+        }
+
+        Expect(TokenType.Comma, "Expected ',' after property name");
+        var valueExpr = ParseExpression();
+
+        Expect(TokenType.RightParen, "Expected ')'");
+
+        return new BatchWriteStatement
+        {
+            Line = startToken.Line,
+            Column = startToken.Column,
+            DeviceHash = hashExpr,
+            PropertyName = propertyName,
+            Value = valueExpr,
+            NameHash = nameHashStr
+        };
     }
 
     private DataStatement ParseDataStatement()
@@ -2142,6 +2277,21 @@ public class Parser
                         DeviceName = name,
                         SlotIndex = slotIndex,
                         PropertyName = slotPropToken.Value
+                    };
+                }
+
+                // Check for .Memory[n] syntax (external memory read)
+                if (propertyName.Equals("Memory", StringComparison.OrdinalIgnoreCase) && Check(TokenType.LeftBracket))
+                {
+                    Advance(); // Consume '['
+                    var address = ParseExpression();
+                    Expect(TokenType.RightBracket, "Expected ']'");
+                    return new ExternalMemoryReadExpression
+                    {
+                        Line = token.Line,
+                        Column = token.Column,
+                        DeviceName = name,
+                        Address = address
                     };
                 }
 
