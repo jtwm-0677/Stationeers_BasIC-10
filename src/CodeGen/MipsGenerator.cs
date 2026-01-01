@@ -188,6 +188,16 @@ public class MipsGenerator
                         .Where(l => !string.IsNullOrWhiteSpace(l))
                         .ToList();
 
+        // Internal label prefixes that should be converted to numeric offsets
+        var internalPrefixes = new[] { "else_", "endif_", "while_", "wend_", "for_", "next_",
+                                        "do_", "loop_", "case_", "endselect_", "line_", "_end" };
+
+        bool IsInternalLabel(string labelName)
+        {
+            return internalPrefixes.Any(p => labelName.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                   || labelName == "_end";
+        }
+
         // First pass: find all labels and their target instruction numbers
         var labelToLine = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var outputLines = new List<string>();
