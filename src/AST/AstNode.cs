@@ -167,6 +167,7 @@ public class DimStatement : StatementNode
 {
     public string VariableName { get; set; } = "";
     public List<ExpressionNode> Dimensions { get; } = new();
+    public ExpressionNode? InitialValue { get; set; }
 }
 
 public class SubDefinition : StatementNode

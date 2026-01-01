@@ -560,6 +560,20 @@ public class MipsGenerator
     /// </summary>
     private bool TryGenerateOptimizedBranch(ExpressionNode condition, string targetLabel, bool negate)
     {
+        // Check for device.Set property access (e.g., IF device.Set THEN)
+        if (condition is DeviceReadExpression devRead &&
+            devRead.PropertyName.Equals("Set", StringComparison.OrdinalIgnoreCase))
+        {
+            var deviceSpec = _aliases.GetValueOrDefault(devRead.DeviceName, devRead.DeviceName);
+            if (deviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+                deviceSpec = "db";
+
+            // device.Set is true if device is connected
+            // negate=true means branch if condition is false (device NOT set)
+            Emit(negate ? $"bdns {deviceSpec} {targetLabel}" : $"bdse {deviceSpec} {targetLabel}");
+            return true;
+        }
+
         // Check for device existence function calls: SDSE(device) or SDNS(device)
         if (condition is FunctionCallExpression funcCall)
         {
@@ -1548,6 +1562,22 @@ public class MipsGenerator
 
     private void GenerateDim(DimStatement dim)
     {
+        // Check if this is a simple variable with initializer (no dimensions)
+        if (dim.Dimensions.Count == 0 && dim.InitialValue != null)
+        {
+            // Simple initialized variable: DIM x = expression
+            var valueReg = GenerateExpression(dim.InitialValue);
+            var varReg = GetOrCreateVariable(dim.VariableName);
+            Emit($"move {varReg} {valueReg}");
+            if (valueReg != varReg)
+            {
+                FreeRegister(valueReg);
+            }
+            EmitComment($"DIM {dim.VariableName} = initialized");
+            return;
+        }
+
+        // Array allocation
         int size = 1;
         foreach (var d in dim.Dimensions)
         {
@@ -1562,6 +1592,14 @@ public class MipsGenerator
         _stackPointer += size;
 
         EmitComment($"DIM {dim.VariableName} - allocated {size} slots");
+
+        // If array has an initializer, it applies to first element only
+        if (dim.InitialValue != null)
+        {
+            var valueReg = GenerateExpression(dim.InitialValue);
+            Emit($"poke {baseReg} {valueReg}");
+            FreeRegister(valueReg);
+        }
     }
 
     private void GenerateDeviceWrite(DeviceWriteStatement write)
@@ -1666,13 +1704,12 @@ public class MipsGenerator
             switch (devRef.Type)
             {
                 case DeviceReferenceType.DeviceNamed:
-                    // Named device: putd deviceHash nameHash address value
-                    var devHash = _deviceHashes[write.DeviceName];
-                    var nameHash = _deviceNameHashes[write.DeviceName];
-                    Emit($"putd {devHash} {nameHash} {addressReg} {valueReg}");
-                    FreeRegister(addressReg);
-                    FreeRegister(valueReg);
-                    return;
+                    // IC10's putd instruction only accepts device type hash, not name hash.
+                    // Named devices cannot be used for memory access.
+                    throw new InvalidOperationException(
+                        $"Memory access (.Memory[]) requires pin alias (d0-d5) at line {_currentSourceLine}. " +
+                        $"Named device '{write.DeviceName}' cannot be used with .Memory[] due to IC10 limitations. " +
+                        $"Use: ALIAS {write.DeviceName} = d0");
 
                 case DeviceReferenceType.ReferenceId:
                     // Reference ID: putd refId 0 address value
@@ -2020,6 +2057,19 @@ public class MipsGenerator
     {
         var resultReg = AllocateRegister();
 
+        // Handle special "Set" property that checks if device is connected
+        // device.Set compiles to sdse (returns 1 if device is set, 0 if not)
+        if (read.PropertyName.Equals("Set", StringComparison.OrdinalIgnoreCase))
+        {
+            var setDeviceSpec = _aliases.GetValueOrDefault(read.DeviceName, read.DeviceName);
+            if (setDeviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+            {
+                setDeviceSpec = "db";
+            }
+            Emit($"sdse {resultReg} {setDeviceSpec}");
+            return resultReg;
+        }
+
         // Extract batch mode from property name (e.g., "Pressure.Average" -> "Pressure", mode 0)
         var (propertyName, batchMode, isCount) = ExtractBatchMode(read.PropertyName);
 
@@ -2256,12 +2306,12 @@ public class MipsGenerator
             switch (devRef.Type)
             {
                 case DeviceReferenceType.DeviceNamed:
-                    // Named device: getd result deviceHash nameHash address
-                    var devHash = _deviceHashes[read.DeviceName];
-                    var nameHash = _deviceNameHashes[read.DeviceName];
-                    Emit($"getd {resultReg} {devHash} {nameHash} {addressReg}");
-                    FreeRegister(addressReg);
-                    return resultReg;
+                    // IC10's getd instruction only accepts device type hash, not name hash.
+                    // Named devices cannot be used for memory access.
+                    throw new InvalidOperationException(
+                        $"Memory access (.Memory[]) requires pin alias (d0-d5) at line {_currentSourceLine}. " +
+                        $"Named device '{read.DeviceName}' cannot be used with .Memory[] due to IC10 limitations. " +
+                        $"Use: ALIAS {read.DeviceName} = d0");
 
                 case DeviceReferenceType.ReferenceId:
                     // Reference ID: getd result refId 0 address

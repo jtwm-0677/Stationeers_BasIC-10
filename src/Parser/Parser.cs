@@ -1023,6 +1023,13 @@ public class Parser
             Expect(closeType, "Expected closing bracket");
         }
 
+        // Handle optional initializer: DIM x = expression
+        if (Check(TokenType.Equal))
+        {
+            Advance(); // Consume '='
+            stmt.InitialValue = ParseExpression();
+        }
+
         return stmt;
     }
 
