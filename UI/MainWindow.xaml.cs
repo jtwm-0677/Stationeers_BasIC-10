@@ -590,49 +590,57 @@ public partial class MainWindow : Window
     {
         if (_textMarkerService == null) return;
 
-        // Clear existing markers
-        _textMarkerService.Clear();
-        BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
-
-        // Check for errors
-        var errors = _errorChecker.Check(BasicEditor.Text);
-
-        foreach (var error in errors)
+        try
         {
-            try
+            // Clear existing markers
+            _textMarkerService.Clear();
+            BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+
+            // Check for errors
+            var errors = _errorChecker.Check(BasicEditor.Text);
+
+            foreach (var error in errors)
             {
-                var line = BasicEditor.Document.GetLineByNumber(Math.Min(error.Line, BasicEditor.Document.LineCount));
-                int startOffset = line.Offset + Math.Max(0, error.Column - 1);
-                int length = Math.Min(error.Length, line.EndOffset - startOffset);
-
-                if (length <= 0) length = Math.Max(1, line.Length);
-
-                var marker = _textMarkerService.Create(startOffset, length);
-                if (marker != null)
+                try
                 {
-                    marker.MarkerType = TextMarkerType.SquigglyUnderline;
-                    marker.MarkerColor = error.Severity switch
+                    var line = BasicEditor.Document.GetLineByNumber(Math.Min(error.Line, BasicEditor.Document.LineCount));
+                    int startOffset = line.Offset + Math.Max(0, error.Column - 1);
+                    int length = Math.Min(error.Length, line.EndOffset - startOffset);
+
+                    if (length <= 0) length = Math.Max(1, line.Length);
+
+                    var marker = _textMarkerService.Create(startOffset, length);
+                    if (marker != null)
                     {
-                        ErrorChecker.ErrorSeverity.Error => Colors.Red,
-                        ErrorChecker.ErrorSeverity.Warning => Colors.Orange,
-                        ErrorChecker.ErrorSeverity.Info => Colors.LightBlue,
-                        _ => Colors.Red
-                    };
-                    marker.ToolTip = $"{error.Severity}: {error.Message}";
+                        marker.MarkerType = TextMarkerType.SquigglyUnderline;
+                        marker.MarkerColor = error.Severity switch
+                        {
+                            ErrorChecker.ErrorSeverity.Error => Colors.Red,
+                            ErrorChecker.ErrorSeverity.Warning => Colors.Orange,
+                            ErrorChecker.ErrorSeverity.Info => Colors.LightBlue,
+                            _ => Colors.Red
+                        };
+                        marker.ToolTip = $"{error.Severity}: {error.Message}";
+                    }
+                }
+                catch
+                {
+                    // Ignore marker creation errors
                 }
             }
-            catch
+
+            BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
+
+            // Update Problems Panel if visible
+            if (ProblemsPanel.Visibility == Visibility.Visible)
             {
-                // Ignore marker creation errors
+                UpdateProblemsList();
             }
         }
-
-        BasicEditor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Selection);
-
-        // Update Problems Panel if visible
-        if (ProblemsPanel.Visibility == Visibility.Visible)
+        catch (Exception ex)
         {
-            UpdateProblemsList();
+            // Log error but don't crash - error checking is non-critical
+            DebugLogger.Log("CheckForErrors", $"Error during error checking: {ex.Message}");
         }
     }
 

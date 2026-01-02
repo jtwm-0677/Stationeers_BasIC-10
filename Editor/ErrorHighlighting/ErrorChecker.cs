@@ -323,20 +323,25 @@ public class ErrorChecker
                 if (!HasStatementAfterThen(line))
                     ifDepth++;
             }
-            else if (line == "ENDIF" || line == "END IF")
+            // Check for ENDIF anywhere in the line (handles "ELSE x = 0 ENDIF" pattern)
+            else if (ContainsKeyword(line, "ENDIF") || ContainsKeyword(line, "END IF"))
             {
-                ifDepth--;
-                if (ifDepth < 0)
+                // Only count this ENDIF if the line isn't a single-line IF with statement after THEN
+                if (!line.StartsWith("IF ") || !HasStatementAfterThen(line))
                 {
-                    errors.Add(new ErrorInfo
+                    ifDepth--;
+                    if (ifDepth < 0)
                     {
-                        Line = i + 1,
-                        Column = 1,
-                        Length = line.Length,
-                        Message = "ENDIF without matching IF",
-                        Severity = ErrorSeverity.Error
-                    });
-                    ifDepth = 0;
+                        errors.Add(new ErrorInfo
+                        {
+                            Line = i + 1,
+                            Column = 1,
+                            Length = line.Length,
+                            Message = "ENDIF without matching IF",
+                            Severity = ErrorSeverity.Error
+                        });
+                        ifDepth = 0;
+                    }
                 }
             }
 
@@ -505,5 +510,15 @@ public class ErrorChecker
 
         var afterThen = line.Substring(thenIndex + 5).Trim();
         return !string.IsNullOrEmpty(afterThen);
+    }
+
+    /// <summary>
+    /// Check if a line contains a keyword as a whole word (not part of another word)
+    /// </summary>
+    private bool ContainsKeyword(string line, string keyword)
+    {
+        var pattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(keyword)}\b";
+        return System.Text.RegularExpressions.Regex.IsMatch(line, pattern,
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 }

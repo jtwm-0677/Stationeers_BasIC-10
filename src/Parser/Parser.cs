@@ -534,6 +534,18 @@ public class Parser
                 {
                     rootStmt.ElseBranch.Add(elseStmt);
                 }
+                // Check for ENDIF on the same line (e.g., "ELSE x = 0 ENDIF")
+                if (Check(TokenType.EndIf))
+                {
+                    Advance();
+                }
+                return rootStmt;
+            }
+
+            // Check for ENDIF right after THEN statement (e.g., "IF x THEN y = 1 ENDIF")
+            if (Check(TokenType.EndIf))
+            {
+                Advance();
                 return rootStmt;
             }
 
@@ -727,8 +739,19 @@ public class Parser
         SkipNewlines();
 
         // Parse loop body until NEXT
+        int lastPosition = -1;
         while (!Check(TokenType.Next) && !Check(TokenType.Eof))
         {
+            // Safeguard: detect if we're stuck in an infinite loop
+            if (_position == lastPosition)
+            {
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Incomplete FOR statement - expected NEXT but found {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
+            }
+            lastPosition = _position;
+
             if (Check(TokenType.LineNumber)) Advance();
 
             var bodyStmt = ParseStatement();
@@ -769,8 +792,19 @@ public class Parser
         SkipNewlines();
 
         // Parse loop body until WEND
+        int lastPosition = -1;
         while (!Check(TokenType.Wend) && !Check(TokenType.Eof))
         {
+            // Safeguard: detect if we're stuck in an infinite loop
+            if (_position == lastPosition)
+            {
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Incomplete WHILE statement - expected WEND but found {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
+            }
+            lastPosition = _position;
+
             if (Check(TokenType.LineNumber)) Advance();
 
             var bodyStmt = ParseStatement();
@@ -819,8 +853,19 @@ public class Parser
         SkipNewlines();
 
         // Parse loop body until LOOP
+        int lastPosition = -1;
         while (!Check(TokenType.Loop) && !Check(TokenType.Eof))
         {
+            // Safeguard: detect if we're stuck in an infinite loop
+            if (_position == lastPosition)
+            {
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Incomplete DO statement - expected LOOP but found {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
+            }
+            lastPosition = _position;
+
             if (Check(TokenType.LineNumber)) Advance();
 
             var bodyStmt = ParseStatement();
@@ -1057,8 +1102,19 @@ public class Parser
         SkipNewlines();
 
         // Parse body until END SUB
+        int lastPosition = -1;
         while (!Check(TokenType.EndSub) && !Check(TokenType.Eof))
         {
+            // Safeguard: detect if we're stuck in an infinite loop
+            if (_position == lastPosition)
+            {
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Incomplete SUB statement - expected END SUB but found {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
+            }
+            lastPosition = _position;
+
             if (Check(TokenType.LineNumber)) Advance();
 
             var bodyStmt = ParseStatement();
@@ -1672,8 +1728,19 @@ public class Parser
         SkipNewlines();
 
         // Parse body until END FUNCTION
+        int lastPosition = -1;
         while (!Check(TokenType.EndFunction) && !Check(TokenType.Eof))
         {
+            // Safeguard: detect if we're stuck in an infinite loop
+            if (_position == lastPosition)
+            {
+                var currentToken = Current();
+                throw new ParserException(
+                    $"Incomplete FUNCTION statement - expected END FUNCTION but found {currentToken.Type}",
+                    currentToken.Line, currentToken.Column);
+            }
+            lastPosition = _position;
+
             if (Check(TokenType.LineNumber)) Advance();
 
             var bodyStmt = ParseStatement();
