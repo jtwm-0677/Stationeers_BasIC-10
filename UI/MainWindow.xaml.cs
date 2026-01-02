@@ -2287,6 +2287,7 @@ END
         }
     }
 
+
     private void PopulateDocumentation()
     {
         _docs.PopulateStartHere(StartHerePanel);
@@ -2727,6 +2728,13 @@ END
             // Clean up autosave files since we're closing cleanly
             // (user either saved or chose to discard changes)
             CleanupTempAutoSave();
+
+            // Stop all DispatcherTimers to ensure clean shutdown
+            _errorCheckTimer?.Stop();
+            _foldingUpdateTimer?.Stop();
+            _mipsSyncTimer?.Stop();
+            _autoSaveTimer?.Stop();
+            _symbolsUpdateTimer?.Stop();
 
             // Stop HTTP API server
             StopHttpApiServer();
