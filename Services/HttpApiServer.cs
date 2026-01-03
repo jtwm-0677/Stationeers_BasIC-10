@@ -93,8 +93,19 @@ public class HttpApiServer
 
         if (_app != null)
         {
-            _app.StopAsync().Wait(TimeSpan.FromSeconds(5));
-            _app.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+            // Use short timeouts - don't block UI for server shutdown
+            try
+            {
+                _app.StopAsync().Wait(TimeSpan.FromMilliseconds(500));
+            }
+            catch { /* Ignore timeout */ }
+
+            try
+            {
+                _app.DisposeAsync().AsTask().Wait(TimeSpan.FromMilliseconds(200));
+            }
+            catch { /* Ignore timeout */ }
+
             _app = null;
         }
 
