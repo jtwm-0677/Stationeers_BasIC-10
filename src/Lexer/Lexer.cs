@@ -159,6 +159,7 @@ public class Lexer
             '~' => new Token(TokenType.Tilde, "~", startLine, startColumn),
             '!' => ScanExclamation(startLine, startColumn),
             '"' => ScanString(startLine, startColumn),
+            '\'' => ScanComment(startLine, startColumn),
             '#' => ScanIC10Comment(startLine, startColumn),
             _ when char.IsDigit(c) => ScanNumber(c, startLine, startColumn),
             _ when char.IsLetter(c) || c == '_' => ScanIdentifier(c, startLine, startColumn),

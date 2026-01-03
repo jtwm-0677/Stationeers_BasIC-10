@@ -477,10 +477,13 @@ public class Parser
         // Multi-line: THEN followed by newline, body on subsequent lines, ends with ENDIF
         // Single-line: THEN followed by statement on same line, optional ELSE on same line
         // Hybrid: THEN followed by statement on same line, but ELSEIF/ELSE/ENDIF on subsequent lines
-        if (Check(TokenType.Newline) || Check(TokenType.Eof))
+        // Note: Comment after THEN counts as end-of-line (fixes Issue #6)
+        if (Check(TokenType.Newline) || Check(TokenType.Eof) || Check(TokenType.Comment))
         {
-            // Pure multi-line: THEN followed by newline
+            // Pure multi-line: THEN followed by newline (or comment then newline)
             rootStmt.IsMultiLine = true;
+            // Skip any trailing comment on the IF line
+            if (Check(TokenType.Comment)) Advance();
             SkipNewlines();
 
             // Parse THEN block - multiple statements until ELSE/ELSEIF/ENDIF
@@ -538,9 +541,11 @@ public class Parser
                 return rootStmt;
             }
 
-            // Check for newline - could be hybrid format
-            if (Check(TokenType.Newline))
+            // Check for newline or comment - could be hybrid format
+            // Comment after statement counts as end-of-line (fixes Issue #6)
+            if (Check(TokenType.Newline) || Check(TokenType.Comment))
             {
+                if (Check(TokenType.Comment)) Advance();
                 SkipNewlines();
 
                 // If we see ELSEIF, ELSE, or ENDIF, this is a hybrid multi-line format
@@ -584,7 +589,8 @@ public class Parser
                 var elseIfBody = new List<StatementNode>();
 
                 // Check if THEN is followed by statement on same line (hybrid) or newline (pure multi-line)
-                if (!Check(TokenType.Newline) && !Check(TokenType.Eof))
+                // Comment after THEN counts as end-of-line (fixes Issue #6)
+                if (!Check(TokenType.Newline) && !Check(TokenType.Eof) && !Check(TokenType.Comment))
                 {
                     // Hybrid: statement on same line after THEN
                     var bodyStmt = ParseStatement();
@@ -592,11 +598,14 @@ public class Parser
                     {
                         elseIfBody.Add(bodyStmt);
                     }
+                    // Skip trailing comment if present
+                    if (Check(TokenType.Comment)) Advance();
                     SkipNewlines();
                 }
                 else
                 {
                     // Pure multi-line: parse multiple statements
+                    if (Check(TokenType.Comment)) Advance();
                     SkipNewlines();
 
                     int elseIfLastPosition = -1;
