@@ -1063,6 +1063,15 @@ END
             _currentFilePath = path;
             _workingDirectory = Path.GetDirectoryName(path);
             _isModified = false;
+
+            // Sync to current tab (fixes Issue #5)
+            if (_currentTab != null)
+            {
+                _currentTab.FilePath = path;
+                _currentTab.Content = BasicEditor.Text;
+                _currentTab.IsModified = false;
+            }
+
             _settings.AddRecentFile(path);
             UpdateTitle();
             UpdateWorkingDirectoryDisplay();
@@ -1229,6 +1238,14 @@ END
             _currentFilePath = basPath;
             _workingDirectory = scriptFolder;
             _isModified = false;
+
+            // Sync to current tab (fixes Issue #5)
+            if (_currentTab != null)
+            {
+                _currentTab.FilePath = basPath;
+                _currentTab.IsModified = false;
+            }
+
             _settings.AddRecentFile(basPath);
             UpdateTitle();
             UpdateWorkingDirectoryDisplay();
@@ -1338,6 +1355,13 @@ END
 
             // Clear temp auto-save since we now have a real file
             CleanupTempAutoSave();
+
+            // Sync to current tab so DisplayName binding updates (fixes Issue #5)
+            if (_currentTab != null)
+            {
+                _currentTab.FilePath = path;
+                _currentTab.IsModified = false;
+            }
 
             // Compile and update instruction.xml
             var result = _compiler.Compile(BasicEditor.Text, _optimizationLevel);
@@ -2296,6 +2320,15 @@ END
         BasicEditor.Text = code;
         _currentFilePath = null;
         _isModified = false;
+
+        // Sync to current tab (fixes Issue #5)
+        if (_currentTab != null)
+        {
+            _currentTab.FilePath = null;
+            _currentTab.Content = code;
+            _currentTab.IsModified = false;
+        }
+
         UpdateTitle();
         if (AutoCompileMenu.IsChecked) Compile();
     }
