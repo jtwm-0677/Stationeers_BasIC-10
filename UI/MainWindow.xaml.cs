@@ -3392,6 +3392,30 @@ END
                 FormatDocument();
                 e.Handled = true;
             }
+            else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Save file (Ctrl+S) - fixes Issue #7
+                SaveFile_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                // Save As (Ctrl+Shift+S)
+                SaveFileAs_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // New file (Ctrl+N)
+                NewFile_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Open file (Ctrl+O)
+                OpenFile_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
             else if (e.Key == Key.F9)
             {
                 // Toggle Variable Inspector

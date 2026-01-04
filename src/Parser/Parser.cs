@@ -1601,8 +1601,19 @@ public class Parser
                 SkipNewlines();
 
                 // Parse default body until END SELECT
+                int elseLastPosition = -1;
                 while (!Check(TokenType.EndSelect) && !Check(TokenType.Eof))
                 {
+                    // Safeguard: detect if we're stuck in an infinite loop
+                    if (_position == elseLastPosition)
+                    {
+                        var currentToken = Current();
+                        throw new ParserException(
+                            $"Incomplete CASE ELSE - expected END SELECT but found {currentToken.Type}",
+                            currentToken.Line, currentToken.Column);
+                    }
+                    elseLastPosition = _position;
+
                     var bodyStmt = ParseStatement();
                     if (bodyStmt != null)
                     {
@@ -1632,9 +1643,20 @@ public class Parser
             SkipNewlines();
 
             // Parse case body until next CASE, DEFAULT, or END SELECT
+            int caseLastPosition = -1;
             while (!Check(TokenType.Case) && !Check(TokenType.Default) &&
                    !Check(TokenType.EndSelect) && !Check(TokenType.Eof))
             {
+                // Safeguard: detect if we're stuck in an infinite loop
+                if (_position == caseLastPosition)
+                {
+                    var currentToken = Current();
+                    throw new ParserException(
+                        $"Incomplete CASE block - expected CASE, DEFAULT, or END SELECT but found {currentToken.Type}",
+                        currentToken.Line, currentToken.Column);
+                }
+                caseLastPosition = _position;
+
                 var bodyStmt = ParseStatement();
                 if (bodyStmt != null)
                 {
@@ -1656,8 +1678,19 @@ public class Parser
             }
             SkipNewlines();
 
+            int defaultLastPosition = -1;
             while (!Check(TokenType.EndSelect) && !Check(TokenType.Eof))
             {
+                // Safeguard: detect if we're stuck in an infinite loop
+                if (_position == defaultLastPosition)
+                {
+                    var currentToken = Current();
+                    throw new ParserException(
+                        $"Incomplete DEFAULT block - expected END SELECT but found {currentToken.Type}",
+                        currentToken.Line, currentToken.Column);
+                }
+                defaultLastPosition = _position;
+
                 var bodyStmt = ParseStatement();
                 if (bodyStmt != null)
                 {
