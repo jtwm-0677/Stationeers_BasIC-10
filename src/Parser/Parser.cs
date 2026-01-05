@@ -2137,6 +2137,20 @@ public class Parser
             };
         }
 
+        // Bitwise NOT (~x)
+        if (Check(TokenType.Tilde))
+        {
+            var token = Advance();
+            var operand = ParseUnary();
+            return new UnaryExpression
+            {
+                Line = token.Line,
+                Column = token.Column,
+                Operator = UnaryOperator.BitNot,
+                Operand = operand
+            };
+        }
+
         return ParsePostfix();
     }
 

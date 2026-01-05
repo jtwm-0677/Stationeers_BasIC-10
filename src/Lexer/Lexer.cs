@@ -77,14 +77,9 @@ public class Lexer
         ["DATA"] = TokenType.Data,
         ["READ"] = TokenType.Read,
         ["RESTORE"] = TokenType.Restore,
-        // Bitwise keywords
+        // Bitwise keywords (use operators: & | ^ ~ instead of BAND BOR BXOR BNOT)
         ["SHL"] = TokenType.Shl,
         ["SHR"] = TokenType.Shr,
-        ["BAND"] = TokenType.BitAnd,
-        ["BOR"] = TokenType.BitOr,
-        ["BXOR"] = TokenType.BitXor,
-        ["XOR"] = TokenType.BitXor,  // XOR is an alias for BXOR
-        ["BNOT"] = TokenType.BitNot,
         // Boolean literals
         ["TRUE"] = TokenType.True,
         ["FALSE"] = TokenType.False
