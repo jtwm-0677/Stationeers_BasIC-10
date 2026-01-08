@@ -217,18 +217,25 @@ public class CodeFormatter
             {
                 var normalized = text;
 
-                // Add space around assignment =
-                normalized = Regex.Replace(normalized, @"(?<!\s)=(?!=)", " = ");
-                normalized = Regex.Replace(normalized, @"=(?!\s|=)", "= ");
+                // IMPORTANT: Process compound operators FIRST before single-char operators
+                // This prevents <= from becoming < = (fixes Issue #9)
 
-                // Add space around comparison operators
+                // Two-character comparison operators (must come before single-char < > =)
                 normalized = Regex.Replace(normalized, @"(?<!\s)==(?!\s)", " == ");
                 normalized = Regex.Replace(normalized, @"(?<!\s)!=(?!\s)", " != ");
                 normalized = Regex.Replace(normalized, @"(?<!\s)<>(?!\s)", " <> ");
                 normalized = Regex.Replace(normalized, @"(?<!\s)<=(?!\s)", " <= ");
                 normalized = Regex.Replace(normalized, @"(?<!\s)>=(?!\s)", " >= ");
-                normalized = Regex.Replace(normalized, @"(?<![<>=!])>(?![=])(?!\s)", " > ");
-                normalized = Regex.Replace(normalized, @"(?<!\s)(?<![<>=!])<(?![>=])(?!\s)", " < ");
+
+                // Single-character operators - use negative lookahead/lookbehind to avoid
+                // matching when part of compound operators
+                // < but not part of <= or <>
+                normalized = Regex.Replace(normalized, @"(?<!\s)<(?![=>])(?!\s)", " < ");
+                normalized = Regex.Replace(normalized, @"(?<![<])>(?![=])(?!\s)", " > ");
+
+                // Assignment = (not == or != or <= or >=)
+                normalized = Regex.Replace(normalized, @"(?<![=!<>])=(?!=)(?!\s)", " = ");
+                normalized = Regex.Replace(normalized, @"(?<!\s)(?<![=!<>])=(?!=)", "= ");
 
                 // Clean up multiple spaces
                 normalized = Regex.Replace(normalized, @"  +", " ");
