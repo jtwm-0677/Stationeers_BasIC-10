@@ -478,9 +478,9 @@ door.Open = 0           # Close door''')
 
     pdf.section_title('Slot Operations')
     pdf.body_text('Many devices have slots (inventories) you can access:')
-    pdf.code_block('''VAR hash = device.Slot(0).OccupantHash
-VAR qty = device.Slot(0).Quantity
-VAR occupied = device.Slot(0).Occupied''')
+    pdf.code_block('''VAR hash = device.Slot[0].OccupantHash
+VAR qty = device.Slot[0].Quantity
+VAR occupied = device.Slot[0].Occupied''')
 
     pdf.section_title('Named Device References')
     pdf.body_text(
@@ -668,7 +668,7 @@ PEEK variable   # Read top without removing''')
     ops = [
         ('l r0 d0 Prop', 'r0 = d0.Prop', 'Load from device'),
         ('s d0 Prop r0', 'd0.Prop = r0', 'Store to device'),
-        ('ls r0 d0 s Prop', 'r0=d0.Slot(s).P', 'Load slot prop'),
+        ('ls r0 d0 s Prop', 'r0=d0.Slot[s].P', 'Load slot prop'),
         ('lb r0 h Prop m', 'batch read', 'Load batch'),
         ('sb h Prop r0', 'batch write', 'Store batch'),
     ]

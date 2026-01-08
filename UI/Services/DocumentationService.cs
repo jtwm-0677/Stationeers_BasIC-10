@@ -173,7 +173,7 @@ Fuel     # 3");
         AddHeader(panel, "Device Property Access");
         AddSyntaxEntry(panel, "device.Property", "Read a device property", "VAR t = sensor.Temperature\nVAR p = sensor.Pressure");
         AddSyntaxEntry(panel, "device.Property = value", "Write a device property", "pump.On = 1\npump.Setting = 100");
-        AddSyntaxEntry(panel, "device.Slot(n).Property", "Access device slot property", "VAR hash = sorter.Slot(0).OccupantHash");
+        AddSyntaxEntry(panel, "device.Slot[n].Property", "Access device slot property", "VAR hash = sorter.Slot[0].OccupantHash");
 
         // Labels and Jumps
         AddHeader(panel, "Labels & Jumps");
@@ -481,7 +481,7 @@ VAR totalPower = BATCHREAD(BATTERY_HASH, PowerGeneration, 1)");
         // Slot Operations
         AddHeader(panel, "Slot Operations");
         AddParagraph(panel, "Many devices have slots (inventories) you can read:");
-        AddCodeBlock(panel, "#Read item in slot 0 of a device\nVAR hash = device.Slot(0).OccupantHash\nVAR qty = device.Slot(0).Quantity\nVAR maxQty = device.Slot(0).MaxQuantity\n\n#Check if slot is occupied\nVAR hasItem = device.Slot(0).Occupied");
+        AddCodeBlock(panel, "#Read item in slot 0 of a device\nVAR hash = device.Slot[0].OccupantHash\nVAR qty = device.Slot[0].Quantity\nVAR maxQty = device.Slot[0].MaxQuantity\n\n#Check if slot is occupied\nVAR hasItem = device.Slot[0].Occupied");
 
         // Named Device References
         AddHeader(panel, "Named Device References (Advanced)");
