@@ -44,6 +44,39 @@ public class EditorBridgeService
     }
 
     /// <summary>
+    /// Format the current BASIC code and return the formatted result.
+    /// </summary>
+    public FormatResponse FormatCode()
+    {
+        var basicCode = GetCode();
+        var formatter = new BasicToMips.Analysis.CodeFormatter();
+
+        try
+        {
+            var formatted = formatter.Format(basicCode);
+
+            // Update the editor with formatted code
+            _dispatcher.Invoke(() => _mainWindow.SetEditorCode(formatted));
+
+            return new FormatResponse
+            {
+                Success = true,
+                FormattedCode = formatted,
+                OriginalCode = basicCode
+            };
+        }
+        catch (Exception ex)
+        {
+            return new FormatResponse
+            {
+                Success = false,
+                Error = ex.Message,
+                OriginalCode = basicCode
+            };
+        }
+    }
+
+    /// <summary>
     /// Insert code at the current cursor position or at a specific line.
     /// </summary>
     public void InsertCode(string code, int? atLine = null)
@@ -633,6 +666,17 @@ public class CompileError
     public int Line { get; set; }
     public int Column { get; set; }
     public string Severity { get; set; } = "error";
+}
+
+/// <summary>
+/// Response from formatting code.
+/// </summary>
+public class FormatResponse
+{
+    public bool Success { get; set; }
+    public string FormattedCode { get; set; } = "";
+    public string OriginalCode { get; set; } = "";
+    public string? Error { get; set; }
 }
 
 /// <summary>

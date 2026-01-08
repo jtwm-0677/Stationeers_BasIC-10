@@ -152,6 +152,17 @@ public class McpServer
                 },
                 new
                 {
+                    name = "basic10_format",
+                    description = "Format the current BASIC code with proper indentation and spacing. Normalizes operator spacing and keyword casing.",
+                    inputSchema = new
+                    {
+                        type = "object",
+                        properties = new { },
+                        required = Array.Empty<string>()
+                    }
+                },
+                new
+                {
                     name = "basic10_get_symbols",
                     description = "Get all defined symbols from the current code: variables, labels, aliases, constants, and functions",
                     inputSchema = new
@@ -788,6 +799,7 @@ public class McpServer
             "basic10_get_code" => await CallGetCode(),
             "basic10_set_code" => await CallSetCode(arguments),
             "basic10_compile" => await CallCompile(),
+            "basic10_format" => await CallFormat(),
             "basic10_get_symbols" => await CallGetSymbols(),
             "basic10_lookup_device" => await CallLookupDevice(arguments),
             "basic10_get_properties" => await CallGetProperties(arguments),
@@ -875,6 +887,22 @@ public class McpServer
     private async Task<object> CallCompile()
     {
         var result = await _bridge.Compile();
+        return new
+        {
+            content = new object[]
+            {
+                new
+                {
+                    type = "text",
+                    text = result
+                }
+            }
+        };
+    }
+
+    private async Task<object> CallFormat()
+    {
+        var result = await _bridge.Format();
         return new
         {
             content = new object[]

@@ -61,6 +61,46 @@ public class HttpBridge
     }
 
     /// <summary>
+    /// Format the current BASIC code.
+    /// </summary>
+    public async Task<string> Format()
+    {
+        try
+        {
+            var response = await _client.PostAsync($"{_baseUrl}/api/format", null);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<FormatResponseModel>(content, _jsonOptions);
+
+            if (result == null)
+                return "Formatting failed: No response";
+
+            var output = new System.Text.StringBuilder();
+
+            if (result.Success)
+            {
+                output.AppendLine("Code formatted successfully.");
+                output.AppendLine();
+                output.AppendLine("Formatted code:");
+                output.AppendLine("```basic");
+                output.AppendLine(result.FormattedCode);
+                output.AppendLine("```");
+            }
+            else
+            {
+                output.AppendLine($"Formatting failed: {result.Error ?? "Unknown error"}");
+            }
+
+            return output.ToString();
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new Exception($"Failed to connect to Basic-10: {ex.Message}. Make sure Basic-10 is running.");
+        }
+    }
+
+    /// <summary>
     /// Compile the current code and return formatted results.
     /// </summary>
     public async Task<string> Compile()
@@ -1288,6 +1328,14 @@ internal class CompileError
     public int Line { get; set; }
     public int Column { get; set; }
     public string? Severity { get; set; }
+}
+
+internal class FormatResponseModel
+{
+    public bool Success { get; set; }
+    public string? FormattedCode { get; set; }
+    public string? OriginalCode { get; set; }
+    public string? Error { get; set; }
 }
 
 internal class SymbolTableResponse

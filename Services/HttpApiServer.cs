@@ -180,6 +180,20 @@ public class HttpApiServer
             }
         });
 
+        // POST /api/format - Format current BASIC code
+        app.MapPost("/api/format", () =>
+        {
+            try
+            {
+                var result = _bridge.FormatCode();
+                return Results.Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
+
         // === Compilation ===
 
         // POST /api/compile - Compile current code
