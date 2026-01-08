@@ -648,7 +648,7 @@ public class IC10Decompiler
                 {
                     var slot = TranslateOperand(inst.Operands[2]);
                     var slotProp = inst.Operands[3];
-                    _output.AppendLine($"    {dest} = {device}.Slot({slot}).{slotProp}");
+                    _output.AppendLine($"    {dest} = {device}.Slot[{slot}].{slotProp}");
                 }
                 break;
 
@@ -736,7 +736,7 @@ public class IC10Decompiler
                     var slot = TranslateOperand(inst.Operands[1]);
                     var slotProp = inst.Operands[2];
                     var slotValue = TranslateOperand(inst.Operands[3]);
-                    _output.AppendLine($"    {device}.Slot({slot}).{slotProp} = {slotValue}");
+                    _output.AppendLine($"    {device}.Slot[{slot}].{slotProp} = {slotValue}");
                 }
                 break;
 
