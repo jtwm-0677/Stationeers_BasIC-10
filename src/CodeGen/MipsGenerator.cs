@@ -625,9 +625,9 @@ public class MipsGenerator
                 var thenLabel = NewLabel("or_then");
 
                 // If left condition is true, jump to then-branch
-                TryGenerateOptimizedBranch(bin.Left, thenLabel, negate: false);
+                GenerateConditionBranch(bin.Left, thenLabel, negate: false);
                 // If right condition is true, jump to then-branch
-                TryGenerateOptimizedBranch(bin.Right, thenLabel, negate: false);
+                GenerateConditionBranch(bin.Right, thenLabel, negate: false);
                 // Both conditions are false - skip to target
                 Emit($"j {targetLabel}");
                 // Label for when either condition was true
@@ -639,8 +639,8 @@ public class MipsGenerator
             if (bin.Operator == BinaryOperator.Or && !negate)
             {
                 // For "a || b" with negate=false: branch if a OR b is true
-                TryGenerateOptimizedBranch(bin.Left, targetLabel, negate: false);
-                TryGenerateOptimizedBranch(bin.Right, targetLabel, negate: false);
+                GenerateConditionBranch(bin.Left, targetLabel, negate: false);
+                GenerateConditionBranch(bin.Right, targetLabel, negate: false);
                 return true;
             }
 
@@ -650,9 +650,9 @@ public class MipsGenerator
             if (bin.Operator == BinaryOperator.And && negate)
             {
                 // If left is false, skip (branch to target)
-                TryGenerateOptimizedBranch(bin.Left, targetLabel, negate: true);
+                GenerateConditionBranch(bin.Left, targetLabel, negate: true);
                 // If right is false, skip (branch to target)
-                TryGenerateOptimizedBranch(bin.Right, targetLabel, negate: true);
+                GenerateConditionBranch(bin.Right, targetLabel, negate: true);
                 return true;
             }
 
@@ -660,13 +660,12 @@ public class MipsGenerator
             if (bin.Operator == BinaryOperator.And && !negate)
             {
                 // Both must be true to branch
-                var bothTrueLabel = NewLabel("and_check");
                 var endCheckLabel = NewLabel("and_end");
 
                 // If left is false, skip to end (don't branch to target)
-                TryGenerateOptimizedBranch(bin.Left, endCheckLabel, negate: true);
+                GenerateConditionBranch(bin.Left, endCheckLabel, negate: true);
                 // If right is true (left was true), branch to target
-                TryGenerateOptimizedBranch(bin.Right, targetLabel, negate: false);
+                GenerateConditionBranch(bin.Right, targetLabel, negate: false);
                 EmitLabel(endCheckLabel);
                 return true;
             }
@@ -714,6 +713,22 @@ public class MipsGenerator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Generate a conditional branch for an expression. Uses optimized branch if possible,
+    /// otherwise falls back to evaluating the expression and branching on zero/non-zero.
+    /// </summary>
+    private void GenerateConditionBranch(ExpressionNode condition, string targetLabel, bool negate)
+    {
+        if (!TryGenerateOptimizedBranch(condition, targetLabel, negate))
+        {
+            // Fallback: evaluate condition to register and branch
+            var condOp = GenerateExpression(condition);
+            // negate=true means branch if false (zero), negate=false means branch if true (non-zero)
+            Emit(negate ? $"beqz {condOp} {targetLabel}" : $"bnez {condOp} {targetLabel}");
+            FreeIfTemp(condOp);
+        }
     }
 
     private void GenerateFor(ForStatement forStmt)

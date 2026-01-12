@@ -1861,6 +1861,9 @@ END
             var result = _compiler.Compile(BasicEditor.Text, _optimizationLevel);
             _lastCompilationResult = result;
 
+            // Update autocomplete with user-defined symbols from this compilation
+            BasicCompletionData.UpdateFromMetadata(result.Metadata);
+
             if (result.Success)
             {
                 // Enforce line limit based on extended mode
@@ -2265,6 +2268,8 @@ END
             "MIPS assembly code for Stationeers.\n\n" +
             "Developed by Dog Tired Studios\n" +
             "Authors: ThunderDuck & DrGoNzO1489\n\n" +
+            "Special thanks to QuantumPickleJar for diligent\n" +
+            "bug reports and supporting the project!\n\n" +
             "Features:\n" +
             "- Syntax highlighting and auto-complete\n" +
             "- Real-time error checking\n" +

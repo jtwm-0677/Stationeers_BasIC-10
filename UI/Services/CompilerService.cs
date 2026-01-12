@@ -171,6 +171,16 @@ public class CompilerService
                         {
                             metadata.DeviceTypes[alias.AliasName] = strHash.Value;
                         }
+                        else
+                        {
+                            // Advanced reference without specific type (e.g., IC.Pin[0])
+                            metadata.DeviceTypes[alias.AliasName] = "Device";
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(alias.DeviceSpec))
+                    {
+                        // Simple alias like "ALIAS sensor = d0"
+                        metadata.DeviceTypes[alias.AliasName] = alias.DeviceSpec;
                     }
                     break;
 

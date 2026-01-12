@@ -1042,7 +1042,15 @@ public class Parser
     private ReturnStatement ParseReturnStatement()
     {
         var token = Advance(); // Consume RETURN
-        return new ReturnStatement { Line = token.Line, Column = token.Column };
+        var stmt = new ReturnStatement { Line = token.Line, Column = token.Column };
+
+        // Check if there's an expression on the same line (optional return value)
+        if (!IsAtEnd() && !Check(TokenType.Newline) && !Check(TokenType.Colon) && !Check(TokenType.Eof))
+        {
+            stmt.ReturnValue = ParseExpression();
+        }
+
+        return stmt;
     }
 
     private EndStatement ParseEndStatement()
