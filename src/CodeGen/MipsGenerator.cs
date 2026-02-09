@@ -1103,7 +1103,8 @@ public class MipsGenerator
     private void GenerateEnd()
     {
         EmitLabel("_end");
-        Emit("hcf");
+        Emit("yield");
+        Emit("j _end");
     }
 
     private void GenerateBreak()
