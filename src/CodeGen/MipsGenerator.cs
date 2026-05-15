@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using BasicToMips.AST;
 using BasicToMips.Shared;
@@ -1685,7 +1686,45 @@ public class MipsGenerator
     {
         var valueReg = GenerateExpression(write.Value);
         var slotReg = GenerateExpression(write.SlotIndex);
+
+        // Named/typed device aliases need batch-slot instructions (sbs/sbns), not ss.
+        if (_deviceReferences.TryGetValue(write.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.DeviceNamed:
+                {
+                    var devHash = _deviceHashes[write.DeviceName];
+                    var nameHash = _deviceNameHashes[write.DeviceName];
+                    Emit($"sbns {devHash} {nameHash} {slotReg} {write.PropertyName} {valueReg}");
+                    FreeRegister(slotReg);
+                    FreeRegister(valueReg);
+                    return;
+                }
+                case DeviceReferenceType.ReferenceId:
+                {
+                    var refId = _deviceHashes[write.DeviceName];
+                    Emit($"sbns {refId} 0 {slotReg} {write.PropertyName} {valueReg}");
+                    FreeRegister(slotReg);
+                    FreeRegister(valueReg);
+                    return;
+                }
+                case DeviceReferenceType.Device:
+                {
+                    var deviceHash = _deviceHashes[write.DeviceName];
+                    Emit($"sbs {deviceHash} {slotReg} {write.PropertyName} {valueReg}");
+                    FreeRegister(slotReg);
+                    FreeRegister(valueReg);
+                    return;
+                }
+            }
+        }
+
         var deviceSpec = _aliases.GetValueOrDefault(write.DeviceName, write.DeviceName);
+        if (deviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+        {
+            deviceSpec = "db";
+        }
         Emit($"ss {deviceSpec} {slotReg} {write.PropertyName} {valueReg}");
         FreeRegister(slotReg);
         FreeRegister(valueReg);
@@ -2305,7 +2344,42 @@ public class MipsGenerator
     {
         var resultReg = AllocateRegister();
         var slotReg = GenerateExpression(read.SlotIndex);
+
+        // Named/typed device aliases need batch-slot instructions (lbs/lbns), not ls.
+        if (_deviceReferences.TryGetValue(read.DeviceName, out var devRef))
+        {
+            switch (devRef.Type)
+            {
+                case DeviceReferenceType.DeviceNamed:
+                {
+                    var devHash = _deviceHashes[read.DeviceName];
+                    var nameHash = _deviceNameHashes[read.DeviceName];
+                    Emit($"lbns {resultReg} {devHash} {nameHash} {slotReg} {read.PropertyName} 0");
+                    FreeRegister(slotReg);
+                    return resultReg;
+                }
+                case DeviceReferenceType.ReferenceId:
+                {
+                    var refId = _deviceHashes[read.DeviceName];
+                    Emit($"lbns {resultReg} {refId} 0 {slotReg} {read.PropertyName} 0");
+                    FreeRegister(slotReg);
+                    return resultReg;
+                }
+                case DeviceReferenceType.Device:
+                {
+                    var deviceHash = _deviceHashes[read.DeviceName];
+                    Emit($"lbs {resultReg} {deviceHash} {slotReg} {read.PropertyName} 0");
+                    FreeRegister(slotReg);
+                    return resultReg;
+                }
+            }
+        }
+
         var deviceSpec = _aliases.GetValueOrDefault(read.DeviceName, read.DeviceName);
+        if (deviceSpec.Equals("IC", StringComparison.OrdinalIgnoreCase))
+        {
+            deviceSpec = "db";
+        }
         Emit($"ls {resultReg} {deviceSpec} {slotReg} {read.PropertyName}");
         FreeRegister(slotReg);
         return resultReg;
@@ -2845,7 +2919,7 @@ public class MipsGenerator
         {
             return ((long)value).ToString();
         }
-        return value.ToString("G");
+        return value.ToString("G", CultureInfo.InvariantCulture);
     }
 
     private void Emit(string line)

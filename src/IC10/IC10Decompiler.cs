@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using BasicToMips.Data;
 
@@ -898,6 +899,6 @@ public class IC10Decompiler
         {
             return ((long)value).ToString();
         }
-        return value.ToString("G");
+        return value.ToString("G", CultureInfo.InvariantCulture);
     }
 }

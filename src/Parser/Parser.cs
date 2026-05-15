@@ -1,3 +1,4 @@
+using System.Globalization;
 using BasicToMips.AST;
 using BasicToMips.Lexer;
 
@@ -922,7 +923,7 @@ public class Parser
         if (Check(TokenType.Number))
         {
             var lineToken = Advance();
-            stmt.TargetLine = (int)double.Parse(lineToken.Value);
+            stmt.TargetLine = (int)double.Parse(lineToken.Value, CultureInfo.InvariantCulture);
         }
         else if (Check(TokenType.Identifier))
         {
@@ -946,7 +947,7 @@ public class Parser
         if (Check(TokenType.Number))
         {
             var lineToken = Advance();
-            stmt.TargetLine = (int)double.Parse(lineToken.Value);
+            stmt.TargetLine = (int)double.Parse(lineToken.Value, CultureInfo.InvariantCulture);
         }
         else if (Check(TokenType.Identifier))
         {
@@ -1079,7 +1080,7 @@ public class Parser
                 if (Check(TokenType.Comma)) Advance();
                 if (Check(TokenType.Eof)) break; // Safeguard against incomplete code
                 var dimToken = Expect(TokenType.Number, "Expected dimension size");
-                stmt.Dimensions.Add(new NumberLiteral { Value = double.Parse(dimToken.Value), Line = dimToken.Line, Column = dimToken.Column });
+                stmt.Dimensions.Add(new NumberLiteral { Value = double.Parse(dimToken.Value, CultureInfo.InvariantCulture), Line = dimToken.Line, Column = dimToken.Column });
             } while (Check(TokenType.Comma));
 
             Expect(closeType, "Expected closing bracket");
@@ -1291,7 +1292,7 @@ public class Parser
                 reference.Type = DeviceReferenceType.Pin;
                 Expect(TokenType.LeftBracket, "Expected '[' after Pin");
                 var pinIndexToken = Expect(TokenType.Number, "Expected pin number");
-                reference.PinIndex = (int)double.Parse(pinIndexToken.Value);
+                reference.PinIndex = (int)double.Parse(pinIndexToken.Value, CultureInfo.InvariantCulture);
                 Expect(TokenType.RightBracket, "Expected ']'");
 
                 // Check for .Port[n].Channel[m] suffix
@@ -1304,7 +1305,7 @@ public class Parser
                         reference.HasPort = true;
                         Expect(TokenType.LeftBracket, "Expected '[' after Port");
                         var portToken = Expect(TokenType.Number, "Expected port number");
-                        reference.PortIndex = (int)double.Parse(portToken.Value);
+                        reference.PortIndex = (int)double.Parse(portToken.Value, CultureInfo.InvariantCulture);
                         Expect(TokenType.RightBracket, "Expected ']'");
 
                         Expect(TokenType.Dot, "Expected '.' after Port[n]");
@@ -1313,7 +1314,7 @@ public class Parser
                             throw new ParserException("Expected 'Channel'", channelKw.Line, channelKw.Column);
                         Expect(TokenType.LeftBracket, "Expected '[' after Channel");
                         var channelToken = Expect(TokenType.Number, "Expected channel number");
-                        reference.ChannelIndex = (int)double.Parse(channelToken.Value);
+                        reference.ChannelIndex = (int)double.Parse(channelToken.Value, CultureInfo.InvariantCulture);
                         Expect(TokenType.RightBracket, "Expected ']'");
                         reference.Type = DeviceReferenceType.Channel;
                     }
@@ -1357,7 +1358,7 @@ public class Parser
                 reference.Type = DeviceReferenceType.ReferenceId;
                 Expect(TokenType.LeftBracket, "Expected '[' after ID");
                 var refIdToken = Expect(TokenType.Number, "Expected reference ID");
-                reference.ReferenceId = (long)double.Parse(refIdToken.Value);
+                reference.ReferenceId = (long)double.Parse(refIdToken.Value, CultureInfo.InvariantCulture);
                 Expect(TokenType.RightBracket, "Expected ']'");
                 break;
 
@@ -1365,7 +1366,7 @@ public class Parser
                 reference.Type = DeviceReferenceType.Channel;
                 Expect(TokenType.LeftBracket, "Expected '[' after Port");
                 var portNumToken = Expect(TokenType.Number, "Expected port number");
-                reference.PortIndex = (int)double.Parse(portNumToken.Value);
+                reference.PortIndex = (int)double.Parse(portNumToken.Value, CultureInfo.InvariantCulture);
                 Expect(TokenType.RightBracket, "Expected ']'");
 
                 Expect(TokenType.Dot, "Expected '.' after Port[n]");
@@ -1374,7 +1375,7 @@ public class Parser
                     throw new ParserException("Expected 'Channel'", chanKw.Line, chanKw.Column);
                 Expect(TokenType.LeftBracket, "Expected '[' after Channel");
                 var chanNumToken = Expect(TokenType.Number, "Expected channel number");
-                reference.ChannelIndex = (int)double.Parse(chanNumToken.Value);
+                reference.ChannelIndex = (int)double.Parse(chanNumToken.Value, CultureInfo.InvariantCulture);
                 Expect(TokenType.RightBracket, "Expected ']'");
                 break;
 
@@ -1402,7 +1403,7 @@ public class Parser
         }
 
         var valueToken = Expect(TokenType.Number, "Expected numeric value");
-        var value = double.Parse(valueToken.Value);
+        var value = double.Parse(valueToken.Value, CultureInfo.InvariantCulture);
         if (isNegative) value = -value;
 
         stmt.Value = new NumberLiteral { Value = value, Line = valueToken.Line, Column = valueToken.Column };
@@ -2206,7 +2207,7 @@ public class Parser
             {
                 Line = token.Line,
                 Column = token.Column,
-                Value = double.Parse(token.Value)
+                Value = double.Parse(token.Value, CultureInfo.InvariantCulture)
             };
         }
 
