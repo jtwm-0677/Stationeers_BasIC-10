@@ -20,6 +20,7 @@ A professional Windows IDE that compiles BASIC programming language code into op
 ### Powerful Compiler
 - **Full BASIC language support** - Variables, expressions, control flow, functions
 - **Hybrid mode** - Mix BASIC and IC10 syntax in the same file
+- **Inline IC10 (`ASM`/`EASM`)** - Drop raw IC10 into a BASIC program; emitted verbatim, with advisory validation
 - **Language auto-detection** - Automatically detects BASIC vs IC10 input
 - **Automatic register allocation** - Uses r0-r13 for variables, r14-r15 as temps
 - **Multiple optimization levels** - From fast compile to aggressive size optimization
@@ -121,7 +122,11 @@ Both editors are fully editable:
 ALIAS sensor d0
 VAR temp = sensor.Temperature   ' High-level BASIC
 
-# You can even include raw IC10 if needed
+' Drop in raw IC10 anywhere with an ASM block - emitted verbatim
+ASM
+    l r15 d1 Setting
+    s d2 Setting r15
+EASM
 ```
 
 ## Keyboard Shortcuts
@@ -133,8 +138,10 @@ VAR temp = sensor.Temperature   ' High-level BASIC
 | Ctrl+S | Save file |
 | Ctrl+Shift+S | Save as |
 | F5 | Compile |
-| F6 | Compile and copy to clipboard |
-| F9 | Run Simulator |
+| F6 | Toggle Code Snippets panel |
+| F8 | Toggle Watch panel |
+| F9 | Toggle Variable Inspector |
+| F10 | Run Simulator |
 | Ctrl+Space | Show auto-complete |
 | F1 | Show documentation |
 | Ctrl+Z/Y | Undo/Redo |

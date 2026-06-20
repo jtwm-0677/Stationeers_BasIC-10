@@ -199,6 +199,15 @@ public class SleepStatement : StatementNode
 public class YieldStatement : StatementNode { }
 
 /// <summary>
+/// A raw IC10 passthrough block (ASM ... EASM). RawCode is the verbatim inner code,
+/// emitted unchanged into the IC10 output. Line is the source line of the ASM keyword.
+/// </summary>
+public class AsmBlockStatement : StatementNode
+{
+    public string RawCode { get; set; } = "";
+}
+
+/// <summary>
 /// Represents a standalone expression used as a statement (e.g., ++i, --i, function calls).
 /// </summary>
 public class ExpressionStatement : StatementNode

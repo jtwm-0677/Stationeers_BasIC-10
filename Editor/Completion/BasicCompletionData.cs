@@ -102,6 +102,8 @@ public static class BasicCompletionData
         // Control keywords
         new("YIELD", "Yield execution for one game tick", CompletionItemType.Keyword),
         new("SLEEP", "Sleep for specified seconds: SLEEP 1", CompletionItemType.Keyword),
+        new("ASM", "Begin a raw IC10 passthrough block (ends with EASM)", CompletionItemType.Keyword),
+        new("EASM", "End a raw IC10 passthrough block (started with ASM)", CompletionItemType.Keyword),
         new("PRINT", "Output value (debug)", CompletionItemType.Keyword),
         new("INPUT", "Read input value", CompletionItemType.Keyword),
 

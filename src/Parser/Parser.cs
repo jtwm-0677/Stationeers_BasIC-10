@@ -100,6 +100,7 @@ public class Parser
         if (Check(TokenType.Data)) return ParseDataStatement();
         if (Check(TokenType.Read)) return ParseReadStatement();
         if (Check(TokenType.Restore)) return ParseRestoreStatement();
+        if (Check(TokenType.AsmBlock)) return ParseAsmBlockStatement();
         if (Check(TokenType.Comment) || Check(TokenType.MetaComment)) return ParseCommentStatement();
         if (Check(TokenType.Identifier)) return ParseAssignmentOrCall();
 
@@ -126,6 +127,17 @@ public class Parser
             Column = token.Column,
             Text = token.Value,
             IsMetaComment = token.Type == TokenType.MetaComment
+        };
+    }
+
+    private AsmBlockStatement ParseAsmBlockStatement()
+    {
+        var token = Advance(); // Consume the AsmBlock token (raw IC10 captured by the lexer)
+        return new AsmBlockStatement
+        {
+            Line = token.Line,
+            Column = token.Column,
+            RawCode = token.Value
         };
     }
 

@@ -2109,15 +2109,18 @@ END
         if (sender is MenuItem menuItem && menuItem.Tag is string fontChoice)
         {
             _settings.RetroFontChoice = fontChoice;
+
+            // Choosing a font style turns the retro font on and applies it immediately.
+            // Previously the choice was ignored unless retro font was already enabled, so
+            // selecting Apple II / TRS-80 appeared to do nothing (editor stayed on the
+            // system font). (#5)
+            _settings.RetroFontEnabled = true;
+            RetroFontMenu.IsChecked = true;
             _settings.Save();
             UpdateFontMenuCheckmarks();
 
-            // Apply font change if retro font is enabled
-            if (_settings.RetroFontEnabled)
-            {
-                RetroFontManager.SetEnabled(BasicEditor, true, _settings.RetroFontChoice);
-                RetroFontManager.SetEnabled(MipsOutput, true, _settings.RetroFontChoice);
-            }
+            RetroFontManager.SetEnabled(BasicEditor, true, _settings.RetroFontChoice);
+            RetroFontManager.SetEnabled(MipsOutput, true, _settings.RetroFontChoice);
         }
     }
 
@@ -2431,12 +2434,32 @@ END
         if (completionData.Count == 0) return;
 
         _completionWindow = new CompletionWindow(BasicEditor.TextArea);
+
+        // Anchor the completion to the start of the word being typed so the selected item
+        // replaces the already-typed prefix instead of being inserted after it (e.g. typing
+        // "PRI" + selecting "PRINT" yields "PRINT", not "PRIPRINT"). (#4)
+        _completionWindow.StartOffset = GetWordStartOffset();
+
         var data = _completionWindow.CompletionList.CompletionData;
 
         foreach (var item in completionData)
         {
             data.Add(item);
         }
+
+        // Insert the highlighted item on a single click (AvalonEdit defaults to double-click). (#4)
+        _completionWindow.CompletionList.ListBox.PreviewMouseLeftButtonUp += (s, e) =>
+        {
+            // Only insert when the click lands on an actual list item (ignore scrollbar/padding).
+            var hit = e.OriginalSource as System.Windows.DependencyObject;
+            while (hit != null && hit is not System.Windows.Controls.ListBoxItem)
+                hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+
+            if (hit is System.Windows.Controls.ListBoxItem && _completionWindow?.CompletionList.SelectedItem != null)
+            {
+                _completionWindow.CompletionList.RequestInsertion(e);
+            }
+        };
 
         _completionWindow.Show();
         _completionWindow.Closed += (s, e) => _completionWindow = null;
@@ -2457,6 +2480,35 @@ END
         }
 
         return document.GetText(start, offset - start);
+    }
+
+    /// <summary>
+    /// Returns the document offset where the identifier currently being typed begins,
+    /// used as the completion window's replacement anchor. For dotted member access
+    /// (e.g. "sensor.Temp") it anchors after the last dot so that selecting a property
+    /// replaces only "Temp", keeping "sensor." intact. (#4)
+    /// </summary>
+    private int GetWordStartOffset()
+    {
+        var offset = BasicEditor.CaretOffset;
+        var document = BasicEditor.Document;
+
+        int start = offset;
+        while (start > 0)
+        {
+            var c = document.GetCharAt(start - 1);
+            if (!char.IsLetterOrDigit(c) && c != '_' && c != '.')
+                break;
+            start--;
+        }
+
+        // Anchor to the final identifier segment (after the last dot).
+        var word = document.GetText(start, offset - start);
+        int lastDot = word.LastIndexOf('.');
+        if (lastDot >= 0)
+            start += lastDot + 1;
+
+        return start;
     }
 
     #endregion
@@ -2758,6 +2810,9 @@ END
             // (user either saved or chose to discard changes)
             CleanupTempAutoSave();
 
+            // Force-close owned tool windows that otherwise cancel close to hide. (#6)
+            _snippetsWindow?.ForceClose();
+
             // Stop HTTP API server
             StopHttpApiServer();
             _settings.Save();
@@ -2816,45 +2871,27 @@ END
     {
         if (ShowSnippetsMenu.IsChecked)
         {
-            PopulateSnippetsPanel();
-            SnippetsPopup.Visibility = Visibility.Visible;
+            ShowSnippetsWindow();
         }
         else
         {
-            SnippetsPopup.Visibility = Visibility.Collapsed;
+            _snippetsWindow?.Hide();
         }
     }
 
-    private void CloseSnippetsPanel_Click(object sender, RoutedEventArgs e)
+    private void ShowSnippetsWindow()
     {
-        ShowSnippetsMenu.IsChecked = false;
-        SnippetsPopup.Visibility = Visibility.Collapsed;
-    }
-
-    private void PopulateSnippetsPanel()
-    {
-        SnippetsPanelList.Children.Clear();
-        var snippets = _docs.GetSnippets();
-
-        foreach (var snippet in snippets)
+        // Floating tool window (draggable, resizable, not always-on-top) rather than a
+        // fixed overlay pinned over the editor. (#6)
+        if (_snippetsWindow == null)
         {
-            var btn = new Button
-            {
-                Style = (Style)FindResource("ModernButtonStyle"),
-                Content = snippet.Name,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, 0, 0, 4),
-                Padding = new Thickness(8, 6, 8, 6),
-                Tag = snippet.Code
-            };
-            btn.Click += (s, ev) =>
-            {
-                var code = (string)((Button)s).Tag;
-                InsertSnippetAtCursor(code);
-            };
-            SnippetsPanelList.Children.Add(btn);
+            _snippetsWindow = new SnippetsWindow { Owner = this };
+            _snippetsWindow.SnippetSelected += (s, code) => InsertSnippetAtCursor(code);
+            _snippetsWindow.Closing += (s, e) => ShowSnippetsMenu.IsChecked = false;
         }
+
+        _snippetsWindow.Show();
+        _snippetsWindow.Activate();
     }
 
     private void InsertSnippetAtCursor(string code)
@@ -2916,6 +2953,7 @@ END
     private SimulatorWindow? _simulatorWindow;
     private WatchWindow? _watchWindow;
     private VariableInspectorWindow? _variableInspectorWindow;
+    private SnippetsWindow? _snippetsWindow;
 
     private void InitializeSimulator()
     {
@@ -3398,6 +3436,13 @@ END
             {
                 // Open file (Ctrl+O)
                 OpenFile_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F6 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Toggle Code Snippets panel (#6)
+                ShowSnippetsMenu.IsChecked = !ShowSnippetsMenu.IsChecked;
+                ToggleSnippets_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
             else if (e.Key == Key.F9)

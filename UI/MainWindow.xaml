@@ -673,45 +673,7 @@
 
         <!-- Note: Simulator is now a floating window (SimulatorWindow.xaml) -->
 
-        <!-- Snippets Popup Panel (floating over editor) -->
-        <Border x:Name="SnippetsPopup" Grid.Row="2"
-                Background="{DynamicResource SidebarBackgroundBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="4"
-                Width="280" Height="400"
-                HorizontalAlignment="Left" VerticalAlignment="Top"
-                Margin="200,50,0,0"
-                Visibility="Collapsed">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <Border Grid.Row="0" Background="{DynamicResource TertiaryBackgroundBrush}" Padding="8,6" CornerRadius="4,4,0,0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8ED;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text=" Code Snippets" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" Style="{DynamicResource IconButtonStyle}" Padding="2" ToolTip="Close" Click="CloseSnippetsPanel_Click">
-                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="4">
-                    <StackPanel x:Name="SnippetsPanelList"/>
-                </ScrollViewer>
-            </Grid>
-        </Border>
-
-        <!-- Note: Watch panel is now a floating window (WatchWindow.xaml) -->
+        <!-- Note: Snippets and Watch panels are now floating windows (SnippetsWindow.xaml / WatchWindow.xaml) -->
 
         <!-- Problems Panel (Collapsible) -->
         <Border x:Name="ProblemsPanel" Grid.Row="3" Background="{DynamicResource SidebarBackgroundBrush}"
