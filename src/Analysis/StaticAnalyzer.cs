@@ -1,4 +1,5 @@
 using BasicToMips.AST;
+using BasicToMips.IC10;
 
 namespace BasicToMips.Analysis;
 
@@ -270,6 +271,64 @@ public class StaticAnalyzer
             case SleepStatement sleep:
                 CollectUsagesInExpression(sleep.Duration);
                 break;
+
+            case AsmBlockStatement asm:
+                ValidateAsmBlock(asm);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Validate a raw IC10 passthrough block. All findings are advisory warnings so the
+    /// block still compiles (e.g. for instructions newer than the editor's opcode table). (#8)
+    /// </summary>
+    private void ValidateAsmBlock(AsmBlockStatement asm)
+    {
+        if (string.IsNullOrEmpty(asm.RawCode)) return;
+
+        var lines = asm.RawCode.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            // First raw line follows the ASM keyword line.
+            var sourceLine = asm.Line + 1 + i;
+
+            // Strip inline IC10 comment and surrounding whitespace.
+            var code = lines[i];
+            var hash = code.IndexOf('#');
+            if (hash >= 0) code = code.Substring(0, hash);
+            code = code.Trim();
+            if (code.Length == 0) continue;
+
+            var tokens = code.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            var opcode = tokens[0];
+
+            // Label definition (e.g. "loop:") - not an instruction.
+            if (tokens.Length == 1 && opcode.EndsWith(":")) continue;
+
+            if (!IC10InstructionSet.KnownOpcodes.Contains(opcode))
+            {
+                _warnings.Add(new AnalysisWarning(WarningType.PossibleError,
+                    $"Unknown IC10 instruction '{opcode}' in ASM block (typo, or an instruction newer than the editor knows?)",
+                    sourceLine));
+                continue;
+            }
+
+            var operandCount = tokens.Length - 1;
+
+            if (IC10InstructionSet.Arity.TryGetValue(opcode, out var expected) && operandCount != expected)
+            {
+                _warnings.Add(new AnalysisWarning(WarningType.PossibleError,
+                    $"IC10 '{opcode}' expects {expected} operand(s) but got {operandCount}",
+                    sourceLine));
+            }
+
+            if (IC10InstructionSet.WritesFirstOperand.Contains(opcode) &&
+                operandCount >= 1 && IC10InstructionSet.IsVariableRegister(tokens[1]))
+            {
+                _warnings.Add(new AnalysisWarning(WarningType.PossibleError,
+                    $"ASM writes {tokens[1]}, which may hold a BASIC variable - prefer r14/r15 for scratch",
+                    sourceLine));
+            }
         }
     }
 

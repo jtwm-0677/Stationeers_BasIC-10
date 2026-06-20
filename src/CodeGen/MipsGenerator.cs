@@ -355,6 +355,9 @@ public class MipsGenerator
             case YieldStatement:
                 GenerateYield();
                 break;
+            case AsmBlockStatement asmBlock:
+                GenerateAsmBlock(asmBlock);
+                break;
             case DeviceWriteStatement deviceWrite:
                 GenerateDeviceWrite(deviceWrite);
                 break;
@@ -503,7 +506,8 @@ public class MipsGenerator
     {
         foreach (var expr in print.Expressions)
         {
-            var reg = GenerateExpression(expr);
+            // A bare string literal prints as display text (STR), not a CRC hash.
+            var reg = GenerateDeviceValueOperand(expr);
             EmitComment($"PRINT value in {reg}");
             // Write to db Setting for display
             Emit($"s db Setting {reg}");
@@ -1206,6 +1210,25 @@ public class MipsGenerator
     }
 
     /// <summary>
+    /// Emit a raw IC10 passthrough block (ASM ... EASM) verbatim, one line at a time.
+    /// Lines are written unchanged - no register rewriting, no source-line comment suffix -
+    /// so the developer's hand-written IC10 reaches the output exactly as typed. (#8)
+    /// </summary>
+    private void GenerateAsmBlock(AsmBlockStatement asm)
+    {
+        if (string.IsNullOrEmpty(asm.RawCode))
+            return;
+
+        foreach (var rawLine in asm.RawCode.Split('\n'))
+        {
+            if (_currentSourceLine > 0)
+                _sourceMap.AddMapping(_currentIC10Line, _currentSourceLine);
+            _output.AppendLine(rawLine);
+            _currentIC10Line++;
+        }
+    }
+
+    /// <summary>
     /// Process alias in first pass - store values without emitting code.
     /// </summary>
     private void ProcessAlias(AliasStatement alias)
@@ -1224,35 +1247,13 @@ public class MipsGenerator
                     break;
 
                 case DeviceReferenceType.Device:
-                    // Store hash for inline use
-                    if (devRef.DeviceHash is NumberLiteral numHash)
-                    {
-                        _deviceHashes[alias.AliasName] = (int)numHash.Value;
-                    }
-                    else if (devRef.DeviceHash is StringLiteral strHash)
-                    {
-                        _deviceHashes[alias.AliasName] = BasicToMips.Data.DeviceDatabase.GetDeviceHash(strHash.Value);
-                    }
-                    else if (devRef.DeviceHash is VariableExpression varHash)
-                    {
-                        _deviceHashes[alias.AliasName] = BasicToMips.Data.DeviceDatabase.GetDeviceHash(varHash.Name);
-                    }
+                    // Store hash for inline use (handles negative/constant numeric hashes too)
+                    _deviceHashes[alias.AliasName] = ResolveDeviceHashConstant(devRef.DeviceHash);
                     break;
 
                 case DeviceReferenceType.DeviceNamed:
                     // Store both device hash and name hash for inline use
-                    if (devRef.DeviceHash is NumberLiteral numHash2)
-                    {
-                        _deviceHashes[alias.AliasName] = (int)numHash2.Value;
-                    }
-                    else if (devRef.DeviceHash is StringLiteral strHash2)
-                    {
-                        _deviceHashes[alias.AliasName] = BasicToMips.Data.DeviceDatabase.GetDeviceHash(strHash2.Value);
-                    }
-                    else if (devRef.DeviceHash is VariableExpression varHash2)
-                    {
-                        _deviceHashes[alias.AliasName] = BasicToMips.Data.DeviceDatabase.GetDeviceHash(varHash2.Name);
-                    }
+                    _deviceHashes[alias.AliasName] = ResolveDeviceHashConstant(devRef.DeviceHash);
                     _deviceNameHashes[alias.AliasName] = CalculateHash(devRef.DeviceName!);
                     break;
 
@@ -1346,6 +1347,40 @@ public class MipsGenerator
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Resolve a device type hash from an IC.Device[...] reference expression at compile time.
+    /// Handles type-name strings ("StructureSolarPanel"), bare identifiers (treated as type
+    /// names), numeric literals, and constant numeric expressions including negative hashes
+    /// such as IC.Device[-539224550] (which the parser produces as a unary-negate expression).
+    /// </summary>
+    private int ResolveDeviceHashConstant(ExpressionNode? hashExpr)
+    {
+        switch (hashExpr)
+        {
+            case null:
+                return 0;
+            case StringLiteral s:
+                return BasicToMips.Data.DeviceDatabase.GetDeviceHash(s.Value);
+            case VariableExpression v:
+                return BasicToMips.Data.DeviceDatabase.GetDeviceHash(v.Name);
+            default:
+                var constVal = TryEvaluateConstant(hashExpr);
+                return constVal.HasValue ? (int)constVal.Value : 0;
+        }
+    }
+
+    /// <summary>
+    /// Generate the value operand for a device-property write. A bare string literal written
+    /// to a device is display text, so it becomes STR("...") (e.g. s d0 Setting STR("Test"))
+    /// rather than a CRC hash. Use HASH("...") explicitly when a hash value is intended.
+    /// </summary>
+    private string GenerateDeviceValueOperand(ExpressionNode value)
+    {
+        if (value is StringLiteral str)
+            return $"STR(\"{str.Value}\")";
+        return GenerateExpression(value);
     }
 
     /// <summary>
@@ -1483,20 +1518,8 @@ public class MipsGenerator
 
         var devRef = alias.DeviceReference;
 
-        // Get device type hash
-        int deviceHash = 0;
-        if (devRef.DeviceHash is NumberLiteral numHash)
-        {
-            deviceHash = (int)numHash.Value;
-        }
-        else if (devRef.DeviceHash is StringLiteral strHash)
-        {
-            deviceHash = BasicToMips.Data.DeviceDatabase.GetDeviceHash(strHash.Value);
-        }
-        else if (devRef.DeviceHash is VariableExpression varHash)
-        {
-            deviceHash = BasicToMips.Data.DeviceDatabase.GetDeviceHash(varHash.Name);
-        }
+        // Get device type hash (handles negative/constant numeric hashes too)
+        int deviceHash = ResolveDeviceHashConstant(devRef.DeviceHash);
 
         // Calculate name hash - handle string + number concatenation pattern
         if (devRef.DeviceNameExpression != null)
@@ -1621,7 +1644,7 @@ public class MipsGenerator
 
     private void GenerateDeviceWrite(DeviceWriteStatement write)
     {
-        var valueReg = GenerateExpression(write.Value);
+        var valueReg = GenerateDeviceValueOperand(write.Value);
 
         // Check for advanced device reference (batch/named) - use inline hash values
         if (_deviceReferences.TryGetValue(write.DeviceName, out var devRef))
@@ -1684,7 +1707,7 @@ public class MipsGenerator
 
     private void GenerateDeviceSlotWrite(DeviceSlotWriteStatement write)
     {
-        var valueReg = GenerateExpression(write.Value);
+        var valueReg = GenerateDeviceValueOperand(write.Value);
         var slotReg = GenerateExpression(write.SlotIndex);
 
         // Named/typed device aliases need batch-slot instructions (sbs/sbns), not ss.
@@ -1733,7 +1756,7 @@ public class MipsGenerator
     private void GenerateBatchWrite(BatchWriteStatement write)
     {
         var hashReg = GenerateExpression(write.DeviceHash);
-        var valueReg = GenerateExpression(write.Value);
+        var valueReg = GenerateDeviceValueOperand(write.Value);
 
         if (write.NameHash != null)
         {

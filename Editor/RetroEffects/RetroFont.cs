@@ -89,36 +89,18 @@ public static class RetroFontManager
             _originalFonts[editor] = editor.FontFamily;
         }
 
-        FontFamily? selectedFont = null;
-
-        switch (fontChoice)
+        FontFamily? selectedFont = fontChoice switch
         {
-            case FontApple:
-                selectedFont = _appleFontFamily;
-                break;
-            case FontTRS80:
-                selectedFont = _trs80FontFamily;
-                break;
-            case FontDefault:
-            default:
-                // Use system retro fonts
-                foreach (var fontName in DefaultRetroFontNames)
-                {
-                    var fontFamily = new FontFamily(fontName);
-                    var typeface = new Typeface(fontFamily, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-                    if (typeface != null)
-                    {
-                        selectedFont = fontFamily;
-                        break;
-                    }
-                }
-                break;
-        }
+            FontApple => _appleFontFamily,
+            FontTRS80 => _trs80FontFamily,
+            _ => null
+        };
 
-        if (selectedFont != null)
-        {
-            editor.FontFamily = selectedFont;
-        }
+        // Fall back to the system retro chain for the Default choice, or if a bundled font
+        // (Apple/TRS-80) failed to load. Never leave the editor on the system UI font. (#5)
+        selectedFont ??= new FontFamily(string.Join(", ", DefaultRetroFontNames));
+
+        editor.FontFamily = selectedFont;
     }
 
     public static void DisableRetroFont(TextEditor editor)

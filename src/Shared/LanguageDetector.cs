@@ -61,11 +61,28 @@ public static class LanguageDetector
 
         int basicScore = 0;
         int ic10Score = 0;
+        bool inAsmBlock = false;
 
         foreach (var rawLine in lines)
         {
             var line = rawLine.Trim();
             if (string.IsNullOrWhiteSpace(line)) continue;
+
+            // Raw IC10 passthrough block (ASM ... EASM) is a BASIC-only construct. Its
+            // contents are intentionally IC10 and must NOT count toward IC10 detection,
+            // or a BASIC program with an ASM block gets misrouted to IC10 passthrough.
+            if (line.Equals("EASM", StringComparison.OrdinalIgnoreCase))
+            {
+                inAsmBlock = false;
+                continue;
+            }
+            if (line.Equals("ASM", StringComparison.OrdinalIgnoreCase))
+            {
+                inAsmBlock = true;
+                basicScore += 10; // ASM/EASM only exist in BASIC10 - definitive marker
+                continue;
+            }
+            if (inAsmBlock) continue;
 
             // # comments are used by BOTH IC10 and BASIC10 - neutral
             if (line.StartsWith("#"))

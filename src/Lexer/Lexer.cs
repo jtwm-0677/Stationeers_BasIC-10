@@ -378,6 +378,13 @@ public class Lexer
         var text = sb.ToString();
         var upperText = text.ToUpperInvariant();
 
+        // Raw IC10 passthrough block: ASM ... EASM. Capture everything in between
+        // verbatim rather than tokenizing it as BASIC.
+        if (upperText == "ASM")
+        {
+            return ScanAsmBlock(line, column);
+        }
+
         // Handle REM specially - rest of line is comment
         if (upperText == "REM")
         {
@@ -424,6 +431,72 @@ public class Lexer
         }
 
         return new Token(TokenType.Identifier, text, line, column);
+    }
+
+    /// <summary>
+    /// Capture a raw IC10 passthrough block. Assumes the opening "ASM" keyword has just
+    /// been consumed. Reads every subsequent line verbatim until a line that trims to
+    /// "EASM" (case-insensitive), which closes the block and is not included. The returned
+    /// token's value is the inner code joined by '\n'. Throws if EASM is never found.
+    /// </summary>
+    private Token ScanAsmBlock(int line, int column)
+    {
+        // Ignore the remainder of the line containing the ASM keyword.
+        while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
+        {
+            Advance();
+        }
+
+        var rawLines = new List<string>();
+
+        while (true)
+        {
+            // Move past the line terminator preceding the next content line.
+            ConsumeNewline();
+
+            if (IsAtEnd())
+            {
+                throw new LexerException("Unterminated ASM block (missing EASM)", line, column);
+            }
+
+            // Read one full raw line.
+            var lineSb = new System.Text.StringBuilder();
+            while (!IsAtEnd() && Peek() != '\n' && Peek() != '\r')
+            {
+                lineSb.Append(Advance());
+            }
+
+            var rawLine = lineSb.ToString();
+            if (rawLine.Trim().Equals("EASM", StringComparison.OrdinalIgnoreCase))
+            {
+                break; // End of block; EASM line is not part of the output.
+            }
+
+            rawLines.Add(rawLine);
+        }
+
+        return new Token(TokenType.AsmBlock, string.Join("\n", rawLines), line, column);
+    }
+
+    /// <summary>
+    /// Consume a single line terminator (\n, \r, or \r\n) if present, updating line/column.
+    /// Used by raw-capture scanning that bypasses the main token loop.
+    /// </summary>
+    private void ConsumeNewline()
+    {
+        if (Peek() == '\r')
+        {
+            Advance();
+            if (Peek() == '\n') Advance();
+            _line++;
+            _column = 1;
+        }
+        else if (Peek() == '\n')
+        {
+            Advance();
+            _line++;
+            _column = 1;
+        }
     }
 
     private void SkipWhitespace()

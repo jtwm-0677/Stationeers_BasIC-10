@@ -1152,6 +1152,51 @@ result = counter + temp
 
 ---
 
+## Inline IC10 (ASM / EASM)
+
+For edge cases or instructions newer than the compiler supports, you can drop raw IC10
+assembly directly into your program with an `ASM ... EASM` block. Everything between the
+keywords is emitted into the compiled output **verbatim** — the compiler does not rewrite,
+reformat, or optimize it.
+
+```basic
+temp = sensor.Temperature      ' normal BASIC
+ASM
+    l r15 d1 Setting           # raw IC10, emitted exactly as written
+    add r15 r15 r0
+    s d2 Setting r15
+EASM
+heater.On = 1                  ' back to BASIC
+```
+
+- `ASM` and `EASM` each go on their own line. They are case-insensitive.
+- A block is a statement: it can appear at the top level or inside `IF`/loops/`FUNCTION`.
+
+### Register safety
+
+The compiler stores BASIC variables in registers **r0–r13** and uses **r14/r15** as scratch.
+
+- **Safe inside ASM:** `r14`, `r15`, and the device pins `d0`–`d5`, `db`.
+- Writing `r0`–`r13` from ASM may clobber a live BASIC variable. It is allowed, but the
+  editor will warn you. Prefer r14/r15 for scratch values.
+
+### Validation
+
+ASM blocks are checked and any problems appear in the Problems panel, but the checks are
+**advisory warnings only — they never block compilation**. This keeps the block usable for
+genuinely new game instructions the editor's table does not list yet. Warnings include:
+
+- An unrecognized opcode (likely a typo).
+- Writing a variable register (`r0`–`r13`).
+- A common instruction called with the wrong number of operands.
+
+A missing `EASM` (unterminated block) is the one hard error.
+
+> Note: a BASIC variable that is read *only* from inside an ASM block may show a false
+> "unused variable" warning, because the compiler cannot see register use inside raw IC10.
+
+---
+
 ## Code Examples
 
 ### Complete Temperature Controller

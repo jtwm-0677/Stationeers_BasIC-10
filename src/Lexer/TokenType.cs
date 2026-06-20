@@ -125,5 +125,8 @@ public enum TokenType
 
     // Comments (when preserved)
     Comment,
-    MetaComment  // ##Meta: tags for compiler directives
+    MetaComment,  // ##Meta: tags for compiler directives
+
+    // Raw IC10 passthrough block (ASM ... EASM); Value holds the verbatim inner code
+    AsmBlock
 }
