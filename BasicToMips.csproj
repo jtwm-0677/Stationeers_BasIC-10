@@ -37,14 +37,9 @@
     <Resource Include="icon.ico" />
     <Resource Include="logo.png" />
     <Resource Include="Basic-10Banner.png" />
-    <None Include="Apple.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Include="trs80computer.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
+    <!-- Retro fonts are copied next to the exe by explicit targets below (see
+         CopyRetroFonts / CopyRetroFontsPublish). Item-based CopyToPublishDirectory proved
+         unreliable for these in single-file publish, so we copy them deterministically. -->
   </ItemGroup>
 
   <!-- Copy docs folder to output (exclude from compilation) -->
@@ -79,5 +74,18 @@
     <None Remove="Basic10.Mcp\**\*" />
     <Content Remove="Basic10.Mcp\**\*" />
   </ItemGroup>
+
+  <!-- Retro fonts (Apple ][ and TRS-80) must sit as loose files next to the exe so
+       RetroFontManager can load them by family name. Copied explicitly because item-based
+       CopyToPublishDirectory was unreliable for them under single-file publish. -->
+  <ItemGroup>
+    <RetroFont Include="Apple.ttf;trs80computer.ttf" />
+  </ItemGroup>
+  <Target Name="CopyRetroFonts" AfterTargets="Build">
+    <Copy SourceFiles="@(RetroFont)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyRetroFontsPublish" AfterTargets="Publish">
+    <Copy SourceFiles="@(RetroFont)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
